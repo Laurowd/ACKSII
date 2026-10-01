@@ -1,0 +1,29 @@
+name: Production monitor
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: production-monitor
+  cancel-in-progress: false
+jobs:
+  monitor:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Check application availability and recent verified backup
+        env:
+          ACKS_MONITOR_URL: https://acksii.vercel.app
+          ACKS_CHECK_BACKUP: 'true'
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/monitor-production.cjs

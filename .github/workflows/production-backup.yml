@@ -1,0 +1,48 @@
+name: Production backup
+on:
+  schedule:
+    - cron: '41 6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: production-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ACKS_NEON_ENV_FILE: none
+      ACKS_PG_IMAGE: postgres:17-alpine
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Export production Neon using the direct TLS connection
+        env:
+          DIRECT_DATABASE_URL: ${{ secrets.ACKS_NEON_BACKUP_URL }}
+        run: node scripts/backup-neon.cjs create backups/neon.dump
+      - name: Encrypt the export and authenticate a restored copy
+        env:
+          ACKS_BACKUP_KEY: ${{ secrets.ACKS_BACKUP_KEY }}
+        run: |
+          node scripts/backup-cipher.cjs encrypt backups/neon.dump backups/neon.dump.enc
+          node scripts/backup-cipher.cjs decrypt backups/neon.dump.enc backups/restore-check.dump
+      - name: Verify restoration in a disposable local database without network access
+        run: node scripts/backup-neon.cjs verify backups/restore-check.dump
+      - name: Store only the encrypted backup for 30 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: neon-encrypted-${{ github.run_id }}-${{ github.run_attempt }}
+          path: backups/neon.dump.enc
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+      - name: Remove plaintext and encrypted temporary exports from the runner
+        if: always()
+        run: node -e "const fs=require('fs'); for(const file of ['backups/neon.dump','backups/restore-check.dump','backups/neon.dump.enc']) fs.rmSync(file,{force:true})"
