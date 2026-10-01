@@ -1,0 +1,11 @@
+node_modules
+dist
+.env*
+test-results
+playwright-report
+cypress
+e2e
+scripts
+cypress.config.cjs
+playwright.config.ts
+**/*.spec.ts

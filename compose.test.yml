@@ -1,0 +1,10 @@
+# CI-only override; uses a disposable Compose project and localhost HTTP.
+services:
+  api:
+    environment:
+      NODE_ENV: test
+      CORS_ORIGIN: http://localhost
+      PUBLIC_APP_URL: http://localhost
+  web:
+    environment:
+      APP_DOMAIN: ":80"

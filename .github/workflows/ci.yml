@@ -1,0 +1,98 @@
+﻿name: CI
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: acks_test
+          POSTGRES_PASSWORD: local-test-only
+          POSTGRES_DB: acks_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd 'pg_isready -U acks_test -d acks_test'
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://acks_test:local-test-only@127.0.0.1:5432/acks_test
+      DATABASE_URL: postgresql://acks_test:local-test-only@127.0.0.1:5432/acks_test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Validate production preflight rules
+        run: node --test scripts/preflight.test.cjs
+      - name: Install backend dependencies
+        run: npm ci --prefix backend
+      - name: Install frontend dependencies without the Cypress executable
+        env:
+          CYPRESS_INSTALL_BINARY: "0"
+        run: npm ci --prefix frontend
+      - run: npm run prisma:generate --prefix backend
+      - run: npm run build --prefix backend && npm run build --prefix frontend
+      - run: npm test --prefix backend && npm test --prefix frontend
+      - run: npm audit --prefix backend --audit-level=moderate && npm audit --prefix frontend --audit-level=moderate
+      - run: npm run test:integration --prefix backend
+      - name: Install browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Install and verify Cypress executable
+        working-directory: frontend
+        run: |
+          npx cypress install
+          npx cypress verify
+      - run: npm run test:e2e --prefix frontend
+      - name: Cypress with local API, SMTP and PostgreSQL
+        run: npm run test:cypress --prefix frontend
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-results
+          path: |
+            frontend/test-results
+            frontend/cypress/results
+            frontend/cypress/screenshots
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_DOMAIN: localhost
+      ACME_EMAIL: ci@example.com
+      POSTGRES_PASSWORD: disposabletestpassword
+      JWT_SECRET: disposable-ci-secret-at-least-32-characters
+      RELEASE_TAG: ci
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate deployment configuration
+        run: docker compose -p acks-ci -f compose.yml -f compose.test.yml config --quiet
+      - name: Build and start isolated deployment
+        run: docker compose -p acks-ci -f compose.yml -f compose.test.yml up -d --build --wait --wait-timeout 180
+      - name: Verify proxy, SPA fallback, readiness and headers
+        run: |
+          curl --fail http://localhost/api/ready
+          curl --fail http://localhost/character/deep-link | grep '<div id="app">'
+          curl --fail -I http://localhost/login | grep -i 'content-security-policy'
+      - name: Backup and restore into a separate database
+        env:
+          ACKS_COMPOSE_PROJECT: acks-ci
+          ACKS_COMPOSE_ENV_FILE: none
+        run: |
+          node scripts/backup.cjs create backup-ci.dump
+          node scripts/backup.cjs verify backup-ci.dump
+      - name: Logs and cleanup of disposable CI project
+        if: always()
+        run: |
+          docker compose -p acks-ci -f compose.yml -f compose.test.yml logs --tail 100 || true
+          docker compose -p acks-ci -f compose.yml -f compose.test.yml down --volumes --remove-orphans
