@@ -1,0 +1,12 @@
+const { randomBytes } = require('node:crypto');
+const url = new URL(process.env.TEST_DATABASE_URL || 'http://missing');
+if (!['localhost', '127.0.0.1'].includes(url.hostname) || url.pathname !== '/acks_test') throw new Error('E2E requires explicit local TEST_DATABASE_URL ending in /acks_test.');
+process.env.DATABASE_URL = url.toString();
+process.env.JWT_SECRET = randomBytes(32).toString('hex');
+process.env.NODE_ENV = 'test';
+process.env.CORS_ORIGIN = `http://127.0.0.1:${process.env.TEST_WEB_PORT || 4173}`;
+process.env.PUBLIC_APP_URL = process.env.CORS_ORIGIN;
+const app = require('../dist/app').buildApp(undefined, false);
+app.listen({ host: '127.0.0.1', port: Number(process.env.TEST_API_PORT || 3001) }).catch(error => { console.error(error); process.exitCode = 1; });
+process.on('SIGTERM', () => app.close());
+process.on('SIGINT', () => app.close());

@@ -1,0 +1,3863 @@
+{
+  "source": "Revised Rulebook pp. 24–99, 101–104",
+  "generalProficiencies": [
+    "Adventuring",
+    "Alchemy",
+    "Animal Husbandry",
+    "Animal Training",
+    "Art",
+    "Bargaining",
+    "Caving",
+    "Collegiate Wizardry",
+    "Craft",
+    "Diplomacy",
+    "Disguise",
+    "Driving",
+    "Endurance",
+    "Engineering",
+    "Folkways",
+    "Gambling",
+    "Healing",
+    "Intimidation",
+    "Knowledge",
+    "Labor",
+    "Language",
+    "Leadership",
+    "Lip Reading",
+    "Manual of Arms",
+    "Mapping",
+    "Military Strategy",
+    "Mimicry",
+    "Mountaineering",
+    "Naturalism",
+    "Navigation",
+    "Performance",
+    "Profession",
+    "Revelry",
+    "Riding",
+    "Seafaring",
+    "Seduction",
+    "Siege Engineering",
+    "Signaling",
+    "Streetwise",
+    "Survival",
+    "Swimming",
+    "Theology",
+    "Tracking",
+    "Trapping"
+  ],
+  "classes": {
+    "Fighter": {
+      "page": 24,
+      "proficiencies": [
+        "Acrobatics",
+        "Alertness",
+        "Berserkergang",
+        "Blind Fighting",
+        "Combat Ferocity",
+        "Combat Reflexes",
+        "Combat Trickery (disarm, force back, knock down, overrun, sunder, wrestling)",
+        "Command",
+        "Dungeonbashing Expertise",
+        "Fighting Style Specialization",
+        "Leadership",
+        "Manual of Arms",
+        "Military Strategy",
+        "Mounted Combat",
+        "Precise Shooting",
+        "Riding",
+        "Running",
+        "Siege Engineering",
+        "Skirmishing",
+        "Swashbuckling",
+        "Unarmed Fighting",
+        "Weapon Finesse",
+        "Weapon Focus"
+      ],
+      "proficiencyPeriod": 3,
+      "magic": "none",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d8",
+          "casterLevel": 1,
+          "spellSlots": []
+        },
+        {
+          "level": 2,
+          "xp": 2000,
+          "hitDice": "2d8",
+          "casterLevel": 2,
+          "spellSlots": []
+        },
+        {
+          "level": 3,
+          "xp": 4000,
+          "hitDice": "3d8",
+          "casterLevel": 3,
+          "spellSlots": []
+        },
+        {
+          "level": 4,
+          "xp": 8000,
+          "hitDice": "4d8",
+          "casterLevel": 4,
+          "spellSlots": []
+        },
+        {
+          "level": 5,
+          "xp": 16000,
+          "hitDice": "5d8",
+          "casterLevel": 5,
+          "spellSlots": []
+        },
+        {
+          "level": 6,
+          "xp": 32000,
+          "hitDice": "6d8",
+          "casterLevel": 6,
+          "spellSlots": []
+        },
+        {
+          "level": 7,
+          "xp": 65000,
+          "hitDice": "7d8",
+          "casterLevel": 7,
+          "spellSlots": []
+        },
+        {
+          "level": 8,
+          "xp": 130000,
+          "hitDice": "8d8",
+          "casterLevel": 8,
+          "spellSlots": []
+        },
+        {
+          "level": 9,
+          "xp": 250000,
+          "hitDice": "9d8",
+          "casterLevel": 9,
+          "spellSlots": []
+        },
+        {
+          "level": 10,
+          "xp": 370000,
+          "hitDice": "9d8+2",
+          "casterLevel": 10,
+          "spellSlots": []
+        },
+        {
+          "level": 11,
+          "xp": 490000,
+          "hitDice": "9d8+4",
+          "casterLevel": 11,
+          "spellSlots": []
+        },
+        {
+          "level": 12,
+          "xp": 610000,
+          "hitDice": "9d8+6",
+          "casterLevel": 12,
+          "spellSlots": []
+        },
+        {
+          "level": 13,
+          "xp": 730000,
+          "hitDice": "9d8+8",
+          "casterLevel": 13,
+          "spellSlots": []
+        },
+        {
+          "level": 14,
+          "xp": 850000,
+          "hitDice": "9d8+10",
+          "casterLevel": 14,
+          "spellSlots": []
+        }
+      ]
+    },
+    "Explorer": {
+      "page": 26,
+      "proficiencies": [
+        "Beast Friendship",
+        "Climbing",
+        "Combat Reflexes",
+        "Combat Ferocity",
+        "Combat Trickery (disarm, knock down)",
+        "Driving",
+        "Eavesdropping",
+        "Elven Bloodline",
+        "Fighting Style Specialization",
+        "Illusion Resistance",
+        "Land Surveying",
+        "Mapping",
+        "Mountaineering",
+        "Mounted Combat",
+        "Naturalism",
+        "Navigation",
+        "Passing Without Trace",
+        "Precise Shooting",
+        "Prospecting",
+        "Riding",
+        "Running",
+        "Seafaring",
+        "Skirmishing",
+        "Sniping",
+        "Swashbuckling",
+        "Weapon Finesse",
+        "Weapon Focus"
+      ],
+      "proficiencyPeriod": 3,
+      "magic": "none",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d6",
+          "casterLevel": 1,
+          "spellSlots": []
+        },
+        {
+          "level": 2,
+          "xp": 2000,
+          "hitDice": "2d6",
+          "casterLevel": 2,
+          "spellSlots": []
+        },
+        {
+          "level": 3,
+          "xp": 4000,
+          "hitDice": "3d6",
+          "casterLevel": 3,
+          "spellSlots": []
+        },
+        {
+          "level": 4,
+          "xp": 8000,
+          "hitDice": "4d6",
+          "casterLevel": 4,
+          "spellSlots": []
+        },
+        {
+          "level": 5,
+          "xp": 16000,
+          "hitDice": "5d6",
+          "casterLevel": 5,
+          "spellSlots": []
+        },
+        {
+          "level": 6,
+          "xp": 32000,
+          "hitDice": "6d6",
+          "casterLevel": 6,
+          "spellSlots": []
+        },
+        {
+          "level": 7,
+          "xp": 65000,
+          "hitDice": "7d6",
+          "casterLevel": 7,
+          "spellSlots": []
+        },
+        {
+          "level": 8,
+          "xp": 130000,
+          "hitDice": "8d6",
+          "casterLevel": 8,
+          "spellSlots": []
+        },
+        {
+          "level": 9,
+          "xp": 250000,
+          "hitDice": "9d6",
+          "casterLevel": 9,
+          "spellSlots": []
+        },
+        {
+          "level": 10,
+          "xp": 370000,
+          "hitDice": "9d6+2",
+          "casterLevel": 10,
+          "spellSlots": []
+        },
+        {
+          "level": 11,
+          "xp": 490000,
+          "hitDice": "9d6+4",
+          "casterLevel": 11,
+          "spellSlots": []
+        },
+        {
+          "level": 12,
+          "xp": 610000,
+          "hitDice": "9d6+6",
+          "casterLevel": 12,
+          "spellSlots": []
+        },
+        {
+          "level": 13,
+          "xp": 730000,
+          "hitDice": "9d6+8",
+          "casterLevel": 13,
+          "spellSlots": []
+        },
+        {
+          "level": 14,
+          "xp": 850000,
+          "hitDice": "9d6+10",
+          "casterLevel": 14,
+          "spellSlots": []
+        }
+      ]
+    },
+    "Thief": {
+      "page": 30,
+      "proficiencies": [
+        "Acrobatics",
+        "Alertness",
+        "Arcane Dabbling",
+        "Bribery",
+        "Cat Burglary",
+        "Combat Reflexes",
+        "Combat Trickery (disarm, incapacitate)",
+        "Contortionism",
+        "Fighting Style Specialization",
+        "Gambling",
+        "Intimidation",
+        "Lip Reading",
+        "Lockpicking Expertise",
+        "Mapping",
+        "Poisoning",
+        "Precise Shooting",
+        "Riding",
+        "Running",
+        "Seafaring",
+        "Skirmishing",
+        "Skulking",
+        "Sniping",
+        "Swashbuckling",
+        "Trapfinding",
+        "Unarmed Fighting",
+        "Weapon Finesse",
+        "Weapon Focus"
+      ],
+      "proficiencyPeriod": 4,
+      "magic": "none",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d4",
+          "casterLevel": 1,
+          "spellSlots": []
+        },
+        {
+          "level": 2,
+          "xp": 1250,
+          "hitDice": "2d4",
+          "casterLevel": 2,
+          "spellSlots": []
+        },
+        {
+          "level": 3,
+          "xp": 2500,
+          "hitDice": "3d4",
+          "casterLevel": 3,
+          "spellSlots": []
+        },
+        {
+          "level": 4,
+          "xp": 5000,
+          "hitDice": "4d4",
+          "casterLevel": 4,
+          "spellSlots": []
+        },
+        {
+          "level": 5,
+          "xp": 10000,
+          "hitDice": "5d4",
+          "casterLevel": 5,
+          "spellSlots": []
+        },
+        {
+          "level": 6,
+          "xp": 20000,
+          "hitDice": "6d4",
+          "casterLevel": 6,
+          "spellSlots": []
+        },
+        {
+          "level": 7,
+          "xp": 40000,
+          "hitDice": "7d4",
+          "casterLevel": 7,
+          "spellSlots": []
+        },
+        {
+          "level": 8,
+          "xp": 80000,
+          "hitDice": "8d4",
+          "casterLevel": 8,
+          "spellSlots": []
+        },
+        {
+          "level": 9,
+          "xp": 180000,
+          "hitDice": "9d4",
+          "casterLevel": 9,
+          "spellSlots": []
+        },
+        {
+          "level": 10,
+          "xp": 280000,
+          "hitDice": "9d4+2",
+          "casterLevel": 10,
+          "spellSlots": []
+        },
+        {
+          "level": 11,
+          "xp": 380000,
+          "hitDice": "9d4+4",
+          "casterLevel": 11,
+          "spellSlots": []
+        },
+        {
+          "level": 12,
+          "xp": 480000,
+          "hitDice": "9d4+6",
+          "casterLevel": 12,
+          "spellSlots": []
+        },
+        {
+          "level": 13,
+          "xp": 580000,
+          "hitDice": "9d4+8",
+          "casterLevel": 13,
+          "spellSlots": []
+        },
+        {
+          "level": 14,
+          "xp": 680000,
+          "hitDice": "9d4+10",
+          "casterLevel": 14,
+          "spellSlots": []
+        }
+      ]
+    },
+    "Mage": {
+      "page": 34,
+      "proficiencies": [
+        "Alchemy",
+        "Battle Magic",
+        "Beast Friendship",
+        "Black Lore of Zahar",
+        "Bright Lore of Aura",
+        "Counterspelling",
+        "Diplomacy",
+        "Elementalism",
+        "Elven Bloodline",
+        "Engineering",
+        "Expanded Repertoire",
+        "Experimenting",
+        "Familiar",
+        "Healing",
+        "Illusion Resistance",
+        "Knowledge",
+        "Language",
+        "Loremastery",
+        "Magical Engineering",
+        "Mastery of Enchantments & Illusions",
+        "Mastery of Conjuration & Summoning",
+        "Mystic Aura",
+        "Quiet Magic",
+        "Prestidigitation",
+        "Sensing Power",
+        "Soothsaying",
+        "Transmogrification",
+        "Unflappable Casting"
+      ],
+      "proficiencyPeriod": 6,
+      "magic": "arcane",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d4",
+          "casterLevel": 1,
+          "spellSlots": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 2,
+          "xp": 2500,
+          "hitDice": "2d4",
+          "casterLevel": 2,
+          "spellSlots": [
+            2,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 3,
+          "xp": 5000,
+          "hitDice": "3d4",
+          "casterLevel": 3,
+          "spellSlots": [
+            2,
+            1,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 4,
+          "xp": 10000,
+          "hitDice": "4d4",
+          "casterLevel": 4,
+          "spellSlots": [
+            2,
+            2,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 5,
+          "xp": 20000,
+          "hitDice": "5d4",
+          "casterLevel": 5,
+          "spellSlots": [
+            2,
+            2,
+            1,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 6,
+          "xp": 40000,
+          "hitDice": "6d4",
+          "casterLevel": 6,
+          "spellSlots": [
+            2,
+            2,
+            2,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 7,
+          "xp": 80000,
+          "hitDice": "7d4",
+          "casterLevel": 7,
+          "spellSlots": [
+            3,
+            2,
+            2,
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 8,
+          "xp": 160000,
+          "hitDice": "8d4",
+          "casterLevel": 8,
+          "spellSlots": [
+            3,
+            3,
+            2,
+            2,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 9,
+          "xp": 310000,
+          "hitDice": "9d4",
+          "casterLevel": 9,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            2,
+            1,
+            0
+          ]
+        },
+        {
+          "level": 10,
+          "xp": 460000,
+          "hitDice": "9d4+1",
+          "casterLevel": 10,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            3,
+            2,
+            0
+          ]
+        },
+        {
+          "level": 11,
+          "xp": 610000,
+          "hitDice": "9d4+2",
+          "casterLevel": 11,
+          "spellSlots": [
+            4,
+            3,
+            3,
+            3,
+            2,
+            1
+          ]
+        },
+        {
+          "level": 12,
+          "xp": 760000,
+          "hitDice": "9d4+3",
+          "casterLevel": 12,
+          "spellSlots": [
+            4,
+            4,
+            3,
+            3,
+            3,
+            2
+          ]
+        },
+        {
+          "level": 13,
+          "xp": 910000,
+          "hitDice": "9d4+4",
+          "casterLevel": 13,
+          "spellSlots": [
+            4,
+            4,
+            4,
+            3,
+            3,
+            2
+          ]
+        },
+        {
+          "level": 14,
+          "xp": 1060000,
+          "hitDice": "9d4+5",
+          "casterLevel": 14,
+          "spellSlots": [
+            4,
+            4,
+            4,
+            4,
+            3,
+            3
+          ]
+        }
+      ]
+    },
+    "Crusader": {
+      "page": 36,
+      "proficiencies": [
+        "Battle Magic",
+        "Beast Friendship",
+        "Combat Trickery (force back, overrun, sunder)",
+        "Command",
+        "Contemplation",
+        "Diplomacy",
+        "Divine Blessing",
+        "Divine Health",
+        "Fighting Style Specialization",
+        "Healing",
+        "Laying on Hands",
+        "Leadership",
+        "Loremastery",
+        "Magical Engineering",
+        "Martial Training",
+        "Mounted Combat",
+        "Prestidigitation",
+        "Prophecy",
+        "Quiet Magic",
+        "Righteous Rebuke",
+        "Sensing Evil",
+        "Sensing Power",
+        "Syncretism",
+        "Theology",
+        "Unflappable Casting",
+        "Weapon Focus"
+      ],
+      "proficiencyPeriod": 4,
+      "magic": "divine",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d6",
+          "casterLevel": 1,
+          "spellSlots": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 2,
+          "xp": 1500,
+          "hitDice": "2d6",
+          "casterLevel": 2,
+          "spellSlots": [
+            2,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 3,
+          "xp": 3000,
+          "hitDice": "3d6",
+          "casterLevel": 3,
+          "spellSlots": [
+            2,
+            1,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 4,
+          "xp": 6000,
+          "hitDice": "4d6",
+          "casterLevel": 4,
+          "spellSlots": [
+            2,
+            2,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 5,
+          "xp": 12000,
+          "hitDice": "5d6",
+          "casterLevel": 5,
+          "spellSlots": [
+            2,
+            2,
+            1,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 6,
+          "xp": 24000,
+          "hitDice": "6d6",
+          "casterLevel": 6,
+          "spellSlots": [
+            2,
+            2,
+            2,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 7,
+          "xp": 50000,
+          "hitDice": "7d6",
+          "casterLevel": 7,
+          "spellSlots": [
+            3,
+            2,
+            2,
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 8,
+          "xp": 100000,
+          "hitDice": "8d6",
+          "casterLevel": 8,
+          "spellSlots": [
+            3,
+            3,
+            2,
+            2,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 9,
+          "xp": 200000,
+          "hitDice": "9d6",
+          "casterLevel": 9,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            2,
+            1,
+            0
+          ]
+        },
+        {
+          "level": 10,
+          "xp": 300000,
+          "hitDice": "9d6+1",
+          "casterLevel": 10,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            3,
+            2,
+            0
+          ]
+        },
+        {
+          "level": 11,
+          "xp": 400000,
+          "hitDice": "9d6+2",
+          "casterLevel": 11,
+          "spellSlots": [
+            4,
+            3,
+            3,
+            3,
+            2,
+            1
+          ]
+        },
+        {
+          "level": 12,
+          "xp": 500000,
+          "hitDice": "9d6+3",
+          "casterLevel": 12,
+          "spellSlots": [
+            4,
+            4,
+            3,
+            3,
+            3,
+            2
+          ]
+        },
+        {
+          "level": 13,
+          "xp": 600000,
+          "hitDice": "9d6+4",
+          "casterLevel": 13,
+          "spellSlots": [
+            4,
+            4,
+            4,
+            3,
+            3,
+            2
+          ]
+        },
+        {
+          "level": 14,
+          "xp": 700000,
+          "hitDice": "9d6+5",
+          "casterLevel": 14,
+          "spellSlots": [
+            4,
+            4,
+            4,
+            4,
+            3,
+            3
+          ]
+        }
+      ]
+    },
+    "Venturer": {
+      "page": 40,
+      "proficiencies": [
+        "Alertness",
+        "Ambushing",
+        "Arcane Dabbling",
+        "Bargaining",
+        "Climbing",
+        "Combat Reflexes",
+        "Combat Trickery (disarm, incapacitate)",
+        "Command",
+        "Driving",
+        "Eavesdropping",
+        "Elven Bloodline",
+        "Intimidation",
+        "Land Surveying",
+        "Leadership",
+        "Lip Reading",
+        "Magical Engineering",
+        "Mapping",
+        "Mountaineering",
+        "Mounted Combat",
+        "Passing Without Trace",
+        "Precise Shooting",
+        "Prospecting",
+        "Riding",
+        "Running",
+        "Seafaring",
+        "Skirmishing",
+        "Swashbuckling",
+        "Weapon Finesse"
+      ],
+      "proficiencyPeriod": 4,
+      "magic": "none",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d6",
+          "casterLevel": 1,
+          "spellSlots": []
+        },
+        {
+          "level": 2,
+          "xp": 1500,
+          "hitDice": "2d6",
+          "casterLevel": 2,
+          "spellSlots": []
+        },
+        {
+          "level": 3,
+          "xp": 3000,
+          "hitDice": "3d6",
+          "casterLevel": 3,
+          "spellSlots": []
+        },
+        {
+          "level": 4,
+          "xp": 6000,
+          "hitDice": "4d6",
+          "casterLevel": 4,
+          "spellSlots": []
+        },
+        {
+          "level": 5,
+          "xp": 12000,
+          "hitDice": "5d6",
+          "casterLevel": 5,
+          "spellSlots": []
+        },
+        {
+          "level": 6,
+          "xp": 24000,
+          "hitDice": "6d6",
+          "casterLevel": 6,
+          "spellSlots": []
+        },
+        {
+          "level": 7,
+          "xp": 50000,
+          "hitDice": "7d6",
+          "casterLevel": 7,
+          "spellSlots": []
+        },
+        {
+          "level": 8,
+          "xp": 100000,
+          "hitDice": "8d6",
+          "casterLevel": 8,
+          "spellSlots": []
+        },
+        {
+          "level": 9,
+          "xp": 200000,
+          "hitDice": "9d6",
+          "casterLevel": 9,
+          "spellSlots": []
+        },
+        {
+          "level": 10,
+          "xp": 300000,
+          "hitDice": "9d6+2",
+          "casterLevel": 10,
+          "spellSlots": []
+        },
+        {
+          "level": 11,
+          "xp": 400000,
+          "hitDice": "9d6+4",
+          "casterLevel": 11,
+          "spellSlots": []
+        },
+        {
+          "level": 12,
+          "xp": 500000,
+          "hitDice": "9d6+6",
+          "casterLevel": 12,
+          "spellSlots": []
+        },
+        {
+          "level": 13,
+          "xp": 600000,
+          "hitDice": "9d6+8",
+          "casterLevel": 13,
+          "spellSlots": []
+        },
+        {
+          "level": 14,
+          "xp": 700000,
+          "hitDice": "9d6+10",
+          "casterLevel": 14,
+          "spellSlots": []
+        }
+      ]
+    },
+    "Assassin": {
+      "page": 44,
+      "proficiencies": [
+        "Acrobatics",
+        "Alchemy",
+        "Alertness",
+        "Arcane Dabbling",
+        "Armor Training",
+        "Bribery",
+        "Cat Burglary",
+        "Climbing",
+        "Combat Reflexes",
+        "Combat Trickery (disarm, incapacitate)",
+        "Contortionism",
+        "Disguise",
+        "Eavesdropping",
+        "Fighting Style Specialization",
+        "Gambling",
+        "Intimidation",
+        "Kin-Slaying",
+        "Mimicry",
+        "Poisoning",
+        "Precise Shooting",
+        "Running",
+        "Skirmishing",
+        "Skulking",
+        "Sniping",
+        "Swashbuckling",
+        "Weapon Finesse",
+        "Weapon Focus"
+      ],
+      "proficiencyPeriod": 3,
+      "magic": "none",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d6",
+          "casterLevel": 1,
+          "spellSlots": []
+        },
+        {
+          "level": 2,
+          "xp": 1750,
+          "hitDice": "2d6",
+          "casterLevel": 2,
+          "spellSlots": []
+        },
+        {
+          "level": 3,
+          "xp": 3500,
+          "hitDice": "3d6",
+          "casterLevel": 3,
+          "spellSlots": []
+        },
+        {
+          "level": 4,
+          "xp": 7000,
+          "hitDice": "4d6",
+          "casterLevel": 4,
+          "spellSlots": []
+        },
+        {
+          "level": 5,
+          "xp": 14000,
+          "hitDice": "5d6",
+          "casterLevel": 5,
+          "spellSlots": []
+        },
+        {
+          "level": 6,
+          "xp": 28000,
+          "hitDice": "6d6",
+          "casterLevel": 6,
+          "spellSlots": []
+        },
+        {
+          "level": 7,
+          "xp": 55000,
+          "hitDice": "7d6",
+          "casterLevel": 7,
+          "spellSlots": []
+        },
+        {
+          "level": 8,
+          "xp": 110000,
+          "hitDice": "8d6",
+          "casterLevel": 8,
+          "spellSlots": []
+        },
+        {
+          "level": 9,
+          "xp": 230000,
+          "hitDice": "9d6",
+          "casterLevel": 9,
+          "spellSlots": []
+        },
+        {
+          "level": 10,
+          "xp": 350000,
+          "hitDice": "9d6+2",
+          "casterLevel": 10,
+          "spellSlots": []
+        },
+        {
+          "level": 11,
+          "xp": 470000,
+          "hitDice": "9d6+4",
+          "casterLevel": 11,
+          "spellSlots": []
+        },
+        {
+          "level": 12,
+          "xp": 590000,
+          "hitDice": "9d6+6",
+          "casterLevel": 12,
+          "spellSlots": []
+        },
+        {
+          "level": 13,
+          "xp": 710000,
+          "hitDice": "9d6+8",
+          "casterLevel": 13,
+          "spellSlots": []
+        },
+        {
+          "level": 14,
+          "xp": 830000,
+          "hitDice": "9d6+10",
+          "casterLevel": 14,
+          "spellSlots": []
+        }
+      ]
+    },
+    "Barbarian": {
+      "page": 48,
+      "proficiencies": [
+        "Alertness",
+        "Ambushing",
+        "Armor Training",
+        "Beast Friendship",
+        "Berserkergang",
+        "Blind Fighting",
+        "Climbing",
+        "Combat Ferocity",
+        "Combat Reflexes",
+        "Combat Trickery (force back, knock down, overrun, wrestling)",
+        "Command",
+        "Fighting Style Specialization",
+        "Martial Training",
+        "Mountaineering",
+        "Mounted Combat",
+        "Passing Without Trace",
+        "Precise Shooting",
+        "Riding",
+        "Running",
+        "Seafaring",
+        "Skirmishing",
+        "Sniping",
+        "Swashbuckling",
+        "Weapon Finesse",
+        "Weapon Focus"
+      ],
+      "proficiencyPeriod": 3,
+      "magic": "none",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d8",
+          "casterLevel": 1,
+          "spellSlots": []
+        },
+        {
+          "level": 2,
+          "xp": 2250,
+          "hitDice": "2d8",
+          "casterLevel": 2,
+          "spellSlots": []
+        },
+        {
+          "level": 3,
+          "xp": 4500,
+          "hitDice": "3d8",
+          "casterLevel": 3,
+          "spellSlots": []
+        },
+        {
+          "level": 4,
+          "xp": 9000,
+          "hitDice": "4d8",
+          "casterLevel": 4,
+          "spellSlots": []
+        },
+        {
+          "level": 5,
+          "xp": 18000,
+          "hitDice": "5d8",
+          "casterLevel": 5,
+          "spellSlots": []
+        },
+        {
+          "level": 6,
+          "xp": 36000,
+          "hitDice": "6d8",
+          "casterLevel": 6,
+          "spellSlots": []
+        },
+        {
+          "level": 7,
+          "xp": 70000,
+          "hitDice": "7d8",
+          "casterLevel": 7,
+          "spellSlots": []
+        },
+        {
+          "level": 8,
+          "xp": 140000,
+          "hitDice": "8d8",
+          "casterLevel": 8,
+          "spellSlots": []
+        },
+        {
+          "level": 9,
+          "xp": 260000,
+          "hitDice": "9d8",
+          "casterLevel": 9,
+          "spellSlots": []
+        },
+        {
+          "level": 10,
+          "xp": 380000,
+          "hitDice": "9d8+2",
+          "casterLevel": 10,
+          "spellSlots": []
+        },
+        {
+          "level": 11,
+          "xp": 500000,
+          "hitDice": "9d8+4",
+          "casterLevel": 11,
+          "spellSlots": []
+        },
+        {
+          "level": 12,
+          "xp": 620000,
+          "hitDice": "9d8+6",
+          "casterLevel": 12,
+          "spellSlots": []
+        },
+        {
+          "level": 13,
+          "xp": 740000,
+          "hitDice": "9d8+8",
+          "casterLevel": 13,
+          "spellSlots": []
+        },
+        {
+          "level": 14,
+          "xp": 860000,
+          "hitDice": "9d8+10",
+          "casterLevel": 14,
+          "spellSlots": []
+        }
+      ]
+    },
+    "Bard": {
+      "page": 52,
+      "proficiencies": [
+        "Acrobatics",
+        "Art",
+        "Bargaining",
+        "Beast Friendship",
+        "Bribery",
+        "Combat Trickery (disarm)",
+        "Command",
+        "Diplomacy",
+        "Elven Bloodline",
+        "Fighting Style Specialization",
+        "Healing",
+        "Knowledge",
+        "Language",
+        "Leadership",
+        "Lip Reading",
+        "Magical Engineering",
+        "Magical Music",
+        "Mimicry",
+        "Mystic Aura",
+        "Performance",
+        "Precise Shooting",
+        "Prestidigitation",
+        "Running",
+        "Seduction",
+        "Skirmishing",
+        "Swashbuckling",
+        "Weapon Finesse",
+        "Weapon Focus"
+      ],
+      "proficiencyPeriod": 3,
+      "magic": "none",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d4",
+          "casterLevel": 1,
+          "spellSlots": []
+        },
+        {
+          "level": 2,
+          "xp": 1750,
+          "hitDice": "2d4",
+          "casterLevel": 2,
+          "spellSlots": []
+        },
+        {
+          "level": 3,
+          "xp": 3500,
+          "hitDice": "3d4",
+          "casterLevel": 3,
+          "spellSlots": []
+        },
+        {
+          "level": 4,
+          "xp": 7000,
+          "hitDice": "4d4",
+          "casterLevel": 4,
+          "spellSlots": []
+        },
+        {
+          "level": 5,
+          "xp": 14000,
+          "hitDice": "5d4",
+          "casterLevel": 5,
+          "spellSlots": []
+        },
+        {
+          "level": 6,
+          "xp": 28000,
+          "hitDice": "6d4",
+          "casterLevel": 6,
+          "spellSlots": []
+        },
+        {
+          "level": 7,
+          "xp": 55000,
+          "hitDice": "7d4",
+          "casterLevel": 7,
+          "spellSlots": []
+        },
+        {
+          "level": 8,
+          "xp": 110000,
+          "hitDice": "8d4",
+          "casterLevel": 8,
+          "spellSlots": []
+        },
+        {
+          "level": 9,
+          "xp": 220000,
+          "hitDice": "9d4",
+          "casterLevel": 9,
+          "spellSlots": []
+        },
+        {
+          "level": 10,
+          "xp": 320000,
+          "hitDice": "9d4+2",
+          "casterLevel": 10,
+          "spellSlots": []
+        },
+        {
+          "level": 11,
+          "xp": 420000,
+          "hitDice": "9d4+4",
+          "casterLevel": 11,
+          "spellSlots": []
+        },
+        {
+          "level": 12,
+          "xp": 520000,
+          "hitDice": "9d4+6",
+          "casterLevel": 12,
+          "spellSlots": []
+        },
+        {
+          "level": 13,
+          "xp": 620000,
+          "hitDice": "9d4+8",
+          "casterLevel": 13,
+          "spellSlots": []
+        },
+        {
+          "level": 14,
+          "xp": 720000,
+          "hitDice": "9d4+10",
+          "casterLevel": 14,
+          "spellSlots": []
+        }
+      ]
+    },
+    "Bladedancer": {
+      "page": 56,
+      "proficiencies": [
+        "Acrobatics",
+        "Battle Magic",
+        "Beast Friendship",
+        "Combat Reflexes",
+        "Combat Trickery (disarm, knock down)",
+        "Contemplation",
+        "Diplomacy",
+        "Divine Blessing",
+        "Divine Health",
+        "Elven Bloodline",
+        "Fighting Style Specialization",
+        "Laying on Hands",
+        "Magical Music",
+        "Martial Training",
+        "Mounted Combat",
+        "Mystic Aura",
+        "Prestidigitation",
+        "Prophecy",
+        "Quiet Magic",
+        "Running",
+        "Seduction",
+        "Skirmishing",
+        "Swashbuckling",
+        "Syncretism",
+        "Unarmed Fighting",
+        "Unflappable Casting",
+        "Weapon Focus"
+      ],
+      "proficiencyPeriod": 4,
+      "magic": "divine",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d6",
+          "casterLevel": 1,
+          "spellSlots": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 2,
+          "xp": 1500,
+          "hitDice": "2d6",
+          "casterLevel": 2,
+          "spellSlots": [
+            2,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 3,
+          "xp": 3000,
+          "hitDice": "3d6",
+          "casterLevel": 3,
+          "spellSlots": [
+            2,
+            1,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 4,
+          "xp": 6000,
+          "hitDice": "4d6",
+          "casterLevel": 4,
+          "spellSlots": [
+            2,
+            2,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 5,
+          "xp": 12000,
+          "hitDice": "5d6",
+          "casterLevel": 5,
+          "spellSlots": [
+            2,
+            2,
+            1,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 6,
+          "xp": 24000,
+          "hitDice": "6d6",
+          "casterLevel": 6,
+          "spellSlots": [
+            2,
+            2,
+            2,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 7,
+          "xp": 50000,
+          "hitDice": "7d6",
+          "casterLevel": 7,
+          "spellSlots": [
+            3,
+            2,
+            2,
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 8,
+          "xp": 100000,
+          "hitDice": "8d6",
+          "casterLevel": 8,
+          "spellSlots": [
+            3,
+            3,
+            2,
+            2,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 9,
+          "xp": 200000,
+          "hitDice": "9d6",
+          "casterLevel": 9,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            2,
+            1,
+            0
+          ]
+        },
+        {
+          "level": 10,
+          "xp": 300000,
+          "hitDice": "9d6+1",
+          "casterLevel": 10,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            3,
+            2,
+            0
+          ]
+        },
+        {
+          "level": 11,
+          "xp": 400000,
+          "hitDice": "9d6+2",
+          "casterLevel": 11,
+          "spellSlots": [
+            4,
+            3,
+            3,
+            3,
+            2,
+            1
+          ]
+        },
+        {
+          "level": 12,
+          "xp": 500000,
+          "hitDice": "9d6+3",
+          "casterLevel": 12,
+          "spellSlots": [
+            4,
+            4,
+            3,
+            3,
+            3,
+            2
+          ]
+        },
+        {
+          "level": 13,
+          "xp": 600000,
+          "hitDice": "9d6+4",
+          "casterLevel": 13,
+          "spellSlots": [
+            4,
+            4,
+            4,
+            3,
+            3,
+            2
+          ]
+        },
+        {
+          "level": 14,
+          "xp": 700000,
+          "hitDice": "9d6+5",
+          "casterLevel": 14,
+          "spellSlots": [
+            4,
+            4,
+            4,
+            4,
+            3,
+            3
+          ]
+        }
+      ]
+    },
+    "Paladin": {
+      "page": 60,
+      "proficiencies": [
+        "Alertness",
+        "Beast Friendship",
+        "Berserkergang",
+        "Blind Fighting",
+        "Combat Ferocity",
+        "Combat Reflexes",
+        "Combat Trickery (force back, incapacitate, overrun, sunder)",
+        "Command",
+        "Diplomacy",
+        "Divine Blessing",
+        "Dungeonbashing Expertise",
+        "Fighting Style",
+        "Goblin-Slaying",
+        "Healing",
+        "Illusion Resistance",
+        "Laying on Hands",
+        "Leadership",
+        "Manual of Arms",
+        "Martial Training",
+        "Military Strategy",
+        "Mounted Combat",
+        "Mystic Aura",
+        "Riding",
+        "Running",
+        "Weapon Focus"
+      ],
+      "proficiencyPeriod": 3,
+      "magic": "none",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d8",
+          "casterLevel": 1,
+          "spellSlots": []
+        },
+        {
+          "level": 2,
+          "xp": 2750,
+          "hitDice": "2d8",
+          "casterLevel": 2,
+          "spellSlots": []
+        },
+        {
+          "level": 3,
+          "xp": 5500,
+          "hitDice": "3d8",
+          "casterLevel": 3,
+          "spellSlots": []
+        },
+        {
+          "level": 4,
+          "xp": 11000,
+          "hitDice": "4d8",
+          "casterLevel": 4,
+          "spellSlots": []
+        },
+        {
+          "level": 5,
+          "xp": 22000,
+          "hitDice": "5d8",
+          "casterLevel": 5,
+          "spellSlots": []
+        },
+        {
+          "level": 6,
+          "xp": 44000,
+          "hitDice": "6d8",
+          "casterLevel": 6,
+          "spellSlots": []
+        },
+        {
+          "level": 7,
+          "xp": 90000,
+          "hitDice": "7d8",
+          "casterLevel": 7,
+          "spellSlots": []
+        },
+        {
+          "level": 8,
+          "xp": 180000,
+          "hitDice": "8d8",
+          "casterLevel": 8,
+          "spellSlots": []
+        },
+        {
+          "level": 9,
+          "xp": 300000,
+          "hitDice": "9d8",
+          "casterLevel": 9,
+          "spellSlots": []
+        },
+        {
+          "level": 10,
+          "xp": 420000,
+          "hitDice": "9d8+2",
+          "casterLevel": 10,
+          "spellSlots": []
+        },
+        {
+          "level": 11,
+          "xp": 540000,
+          "hitDice": "9d8+4",
+          "casterLevel": 11,
+          "spellSlots": []
+        },
+        {
+          "level": 12,
+          "xp": 660000,
+          "hitDice": "9d8+6",
+          "casterLevel": 12,
+          "spellSlots": []
+        },
+        {
+          "level": 13,
+          "xp": 780000,
+          "hitDice": "9d8+8",
+          "casterLevel": 13,
+          "spellSlots": []
+        },
+        {
+          "level": 14,
+          "xp": 900000,
+          "hitDice": "9d8+10",
+          "casterLevel": 14,
+          "spellSlots": []
+        }
+      ]
+    },
+    "Priestess": {
+      "page": 64,
+      "proficiencies": [
+        "Alchemy",
+        "Animal Husbandry",
+        "Arcane Dabbling",
+        "Armor Training",
+        "Beast Friendship",
+        "Bright Lore of Aura",
+        "Contemplation",
+        "Divine Blessing",
+        "Familiar",
+        "Healing",
+        "Illusion Resistance",
+        "Knowledge",
+        "Laying on Hands",
+        "Loremastery",
+        "Magical Engineering",
+        "Magical Music",
+        "Mastery of Enchantments & Illusions",
+        "Mystic Aura",
+        "Naturalism",
+        "Performance",
+        "Prestidigitation",
+        "Profession",
+        "Prophecy",
+        "Quiet Magic",
+        "Sensing Evil",
+        "Sensing Power",
+        "Syncretism",
+        "Unflappable Casting"
+      ],
+      "proficiencyPeriod": 4,
+      "magic": "divine",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d4",
+          "casterLevel": 1,
+          "spellSlots": [
+            2,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 2,
+          "xp": 2000,
+          "hitDice": "2d4",
+          "casterLevel": 2,
+          "spellSlots": [
+            3,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 3,
+          "xp": 4000,
+          "hitDice": "3d4",
+          "casterLevel": 3,
+          "spellSlots": [
+            3,
+            2,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 4,
+          "xp": 8000,
+          "hitDice": "4d4",
+          "casterLevel": 4,
+          "spellSlots": [
+            3,
+            3,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 5,
+          "xp": 16000,
+          "hitDice": "5d4",
+          "casterLevel": 5,
+          "spellSlots": [
+            3,
+            3,
+            2,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 6,
+          "xp": 32000,
+          "hitDice": "6d4",
+          "casterLevel": 6,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 7,
+          "xp": 65000,
+          "hitDice": "7d4",
+          "casterLevel": 7,
+          "spellSlots": [
+            5,
+            3,
+            3,
+            2,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 8,
+          "xp": 130000,
+          "hitDice": "8d4",
+          "casterLevel": 8,
+          "spellSlots": [
+            5,
+            5,
+            3,
+            3,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 9,
+          "xp": 230000,
+          "hitDice": "9d4",
+          "casterLevel": 9,
+          "spellSlots": [
+            5,
+            5,
+            5,
+            3,
+            2,
+            0
+          ]
+        },
+        {
+          "level": 10,
+          "xp": 330000,
+          "hitDice": "9d4+1",
+          "casterLevel": 10,
+          "spellSlots": [
+            5,
+            5,
+            5,
+            5,
+            3,
+            0
+          ]
+        },
+        {
+          "level": 11,
+          "xp": 430000,
+          "hitDice": "9d4+2",
+          "casterLevel": 11,
+          "spellSlots": [
+            6,
+            5,
+            5,
+            5,
+            3,
+            2
+          ]
+        },
+        {
+          "level": 12,
+          "xp": 530000,
+          "hitDice": "9d4+3",
+          "casterLevel": 12,
+          "spellSlots": [
+            6,
+            6,
+            5,
+            5,
+            5,
+            3
+          ]
+        },
+        {
+          "level": 13,
+          "xp": 630000,
+          "hitDice": "9d4+4",
+          "casterLevel": 13,
+          "spellSlots": [
+            6,
+            6,
+            6,
+            5,
+            5,
+            3
+          ]
+        },
+        {
+          "level": 14,
+          "xp": 730000,
+          "hitDice": "9d4+5",
+          "casterLevel": 14,
+          "spellSlots": [
+            6,
+            6,
+            6,
+            6,
+            5,
+            5
+          ]
+        }
+      ]
+    },
+    "Shaman": {
+      "page": 68,
+      "proficiencies": [
+        "Animal Husbandry",
+        "Animal Training",
+        "Battle Magic",
+        "Beast Friendship",
+        "Berserkergang",
+        "Command",
+        "Diplomacy",
+        "Divine Blessing",
+        "Divine Health",
+        "Elementalism",
+        "Fighting Style Specialization",
+        "Healing",
+        "Laying on Hands",
+        "Leadership",
+        "Loremastery",
+        "Magical Engineering",
+        "Magical Music",
+        "Naturalism",
+        "Passing Without Trace",
+        "Prestidigitation",
+        "Quiet Magic",
+        "Sensing Evil",
+        "Sensing Power",
+        "Syncretism",
+        "Theology",
+        "Tracking",
+        "Unflappable Casting",
+        "Weapon Focus"
+      ],
+      "proficiencyPeriod": 4,
+      "magic": "divine",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d6",
+          "casterLevel": 1,
+          "spellSlots": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 2,
+          "xp": 1500,
+          "hitDice": "2d6",
+          "casterLevel": 2,
+          "spellSlots": [
+            2,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 3,
+          "xp": 3000,
+          "hitDice": "3d6",
+          "casterLevel": 3,
+          "spellSlots": [
+            2,
+            1,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 4,
+          "xp": 6000,
+          "hitDice": "4d6",
+          "casterLevel": 4,
+          "spellSlots": [
+            2,
+            2,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 5,
+          "xp": 12000,
+          "hitDice": "5d6",
+          "casterLevel": 5,
+          "spellSlots": [
+            2,
+            2,
+            1,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 6,
+          "xp": 24000,
+          "hitDice": "6d6",
+          "casterLevel": 6,
+          "spellSlots": [
+            2,
+            2,
+            2,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 7,
+          "xp": 50000,
+          "hitDice": "7d6",
+          "casterLevel": 7,
+          "spellSlots": [
+            3,
+            2,
+            2,
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 8,
+          "xp": 100000,
+          "hitDice": "8d6",
+          "casterLevel": 8,
+          "spellSlots": [
+            3,
+            3,
+            2,
+            2,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 9,
+          "xp": 200000,
+          "hitDice": "9d6",
+          "casterLevel": 9,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            2,
+            1,
+            0
+          ]
+        },
+        {
+          "level": 10,
+          "xp": 300000,
+          "hitDice": "9d6+1",
+          "casterLevel": 10,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            3,
+            2,
+            0
+          ]
+        },
+        {
+          "level": 11,
+          "xp": 400000,
+          "hitDice": "9d6+2",
+          "casterLevel": 11,
+          "spellSlots": [
+            4,
+            3,
+            3,
+            3,
+            2,
+            1
+          ]
+        },
+        {
+          "level": 12,
+          "xp": 500000,
+          "hitDice": "9d6+3",
+          "casterLevel": 12,
+          "spellSlots": [
+            4,
+            4,
+            3,
+            3,
+            3,
+            2
+          ]
+        },
+        {
+          "level": 13,
+          "xp": 600000,
+          "hitDice": "9d6+4",
+          "casterLevel": 13,
+          "spellSlots": [
+            4,
+            4,
+            4,
+            3,
+            3,
+            2
+          ]
+        },
+        {
+          "level": 14,
+          "xp": 700000,
+          "hitDice": "9d6+5",
+          "casterLevel": 14,
+          "spellSlots": [
+            4,
+            4,
+            4,
+            4,
+            3,
+            3
+          ]
+        }
+      ]
+    },
+    "Warlock": {
+      "page": 72,
+      "proficiencies": [
+        "Alchemy",
+        "Battle Magic",
+        "Beast Friendship",
+        "Black Lore of Zahar",
+        "Counterspelling",
+        "Divine Blessing",
+        "Elementalism",
+        "Elven Bloodline",
+        "Expanded Repertoire",
+        "Experimenting",
+        "Familiar",
+        "Illusion Resistance",
+        "Knowledge",
+        "Language",
+        "Loremastery",
+        "Magical Engineering",
+        "Mastery of Enchantments & Illusions",
+        "Mastery of Conjuration & Summoning",
+        "Mystic Aura",
+        "Naturalism",
+        "Poisoning",
+        "Prestidigitation",
+        "Quiet Magic",
+        "Sensing Good",
+        "Sensing Power",
+        "Soothsaying",
+        "Transmogrification",
+        "Unflappable Casting"
+      ],
+      "proficiencyPeriod": 6,
+      "magic": "arcane",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d4",
+          "casterLevel": 1,
+          "spellSlots": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 2,
+          "xp": 2500,
+          "hitDice": "2d4",
+          "casterLevel": 2,
+          "spellSlots": [
+            2,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 3,
+          "xp": 5000,
+          "hitDice": "3d4",
+          "casterLevel": 3,
+          "spellSlots": [
+            2,
+            1,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 4,
+          "xp": 10000,
+          "hitDice": "4d4",
+          "casterLevel": 4,
+          "spellSlots": [
+            2,
+            2,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 5,
+          "xp": 20000,
+          "hitDice": "5d4",
+          "casterLevel": 5,
+          "spellSlots": [
+            2,
+            2,
+            1,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 6,
+          "xp": 40000,
+          "hitDice": "6d4",
+          "casterLevel": 6,
+          "spellSlots": [
+            2,
+            2,
+            2,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 7,
+          "xp": 80000,
+          "hitDice": "7d4",
+          "casterLevel": 7,
+          "spellSlots": [
+            3,
+            2,
+            2,
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 8,
+          "xp": 160000,
+          "hitDice": "8d4",
+          "casterLevel": 8,
+          "spellSlots": [
+            3,
+            3,
+            2,
+            2,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 9,
+          "xp": 310000,
+          "hitDice": "9d4",
+          "casterLevel": 9,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            2,
+            1,
+            0
+          ]
+        },
+        {
+          "level": 10,
+          "xp": 460000,
+          "hitDice": "9d4+1",
+          "casterLevel": 10,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            3,
+            2,
+            0
+          ]
+        },
+        {
+          "level": 11,
+          "xp": 610000,
+          "hitDice": "9d4+2",
+          "casterLevel": 11,
+          "spellSlots": [
+            4,
+            3,
+            3,
+            3,
+            2,
+            1
+          ]
+        },
+        {
+          "level": 12,
+          "xp": 760000,
+          "hitDice": "9d4+3",
+          "casterLevel": 12,
+          "spellSlots": [
+            4,
+            4,
+            3,
+            3,
+            3,
+            2
+          ]
+        },
+        {
+          "level": 13,
+          "xp": 910000,
+          "hitDice": "9d4+4",
+          "casterLevel": 13,
+          "spellSlots": [
+            4,
+            4,
+            4,
+            3,
+            3,
+            2
+          ]
+        },
+        {
+          "level": 14,
+          "xp": 1060000,
+          "hitDice": "9d4+5",
+          "casterLevel": 14,
+          "spellSlots": [
+            4,
+            4,
+            4,
+            4,
+            3,
+            3
+          ]
+        }
+      ]
+    },
+    "Witch": {
+      "page": 76,
+      "proficiencies": [
+        "Alchemy",
+        "Arcane Dabbling",
+        "Beast Friendship",
+        "Black Lore of Zahar",
+        "Contemplation",
+        "Divine Blessing",
+        "Divine Health",
+        "Elementalism",
+        "Elven Bloodline",
+        "Expanded Repertoire",
+        "Familiar",
+        "Illusion Resistance",
+        "Laying on Hands",
+        "Loremastery",
+        "Magical Engineering",
+        "Magical Music",
+        "Mastery of Enchantments & Illusions",
+        "Mystic Aura",
+        "Naturalism",
+        "Passing without Trace",
+        "Poisoning",
+        "Prestidigitation",
+        "Prophecy",
+        "Quiet Magic",
+        "Sensing Power",
+        "Soothsaying",
+        "Transmogrification",
+        "Unflappable Casting"
+      ],
+      "proficiencyPeriod": 4,
+      "magic": "studious-divine",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d4",
+          "casterLevel": 1,
+          "spellSlots": [
+            2,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 2,
+          "xp": 2000,
+          "hitDice": "2d4",
+          "casterLevel": 2,
+          "spellSlots": [
+            3,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 3,
+          "xp": 4000,
+          "hitDice": "3d4",
+          "casterLevel": 3,
+          "spellSlots": [
+            3,
+            2,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 4,
+          "xp": 8000,
+          "hitDice": "4d4",
+          "casterLevel": 4,
+          "spellSlots": [
+            3,
+            3,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 5,
+          "xp": 16000,
+          "hitDice": "5d4",
+          "casterLevel": 5,
+          "spellSlots": [
+            3,
+            3,
+            2,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 6,
+          "xp": 32000,
+          "hitDice": "6d4",
+          "casterLevel": 6,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 7,
+          "xp": 65000,
+          "hitDice": "7d4",
+          "casterLevel": 7,
+          "spellSlots": [
+            5,
+            3,
+            3,
+            2,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 8,
+          "xp": 130000,
+          "hitDice": "8d4",
+          "casterLevel": 8,
+          "spellSlots": [
+            5,
+            5,
+            3,
+            3,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 9,
+          "xp": 230000,
+          "hitDice": "9d4",
+          "casterLevel": 9,
+          "spellSlots": [
+            5,
+            5,
+            5,
+            3,
+            2,
+            0
+          ]
+        },
+        {
+          "level": 10,
+          "xp": 330000,
+          "hitDice": "9d4+1",
+          "casterLevel": 10,
+          "spellSlots": [
+            5,
+            5,
+            5,
+            5,
+            3,
+            0
+          ]
+        },
+        {
+          "level": 11,
+          "xp": 430000,
+          "hitDice": "9d4+2",
+          "casterLevel": 11,
+          "spellSlots": [
+            6,
+            5,
+            5,
+            5,
+            3,
+            2
+          ]
+        },
+        {
+          "level": 12,
+          "xp": 530000,
+          "hitDice": "9d4+3",
+          "casterLevel": 12,
+          "spellSlots": [
+            6,
+            6,
+            5,
+            5,
+            5,
+            3
+          ]
+        },
+        {
+          "level": 13,
+          "xp": 630000,
+          "hitDice": "9d4+4",
+          "casterLevel": 13,
+          "spellSlots": [
+            6,
+            6,
+            6,
+            5,
+            5,
+            3
+          ]
+        },
+        {
+          "level": 14,
+          "xp": 730000,
+          "hitDice": "9d4+5",
+          "casterLevel": 14,
+          "spellSlots": [
+            6,
+            6,
+            6,
+            6,
+            5,
+            5
+          ]
+        }
+      ]
+    },
+    "Dwarven Craftpriest": {
+      "page": 80,
+      "proficiencies": [
+        "Alchemy",
+        "Battle Magic",
+        "Caving",
+        "Collegiate Wizardry",
+        "Contemplation",
+        "Craft",
+        "Diplomacy",
+        "Divine Blessing",
+        "Divine Health",
+        "Dwarven Brewing",
+        "Engineering",
+        "Expanded Repertoire",
+        "Experimenting",
+        "Fighting Style Specialization",
+        "Goblin-Slaying",
+        "Healing",
+        "Illusion Resistance",
+        "Knowledge",
+        "Laying on Hands",
+        "Loremastery",
+        "Magical Engineering",
+        "Mapping",
+        "Prestidigitation",
+        "Profession (judge)",
+        "Prophecy",
+        "Quiet Magic",
+        "Reliquarianism",
+        "Righteous Rebuke",
+        "Sensing Evil",
+        "Siege Engineering",
+        "Theology",
+        "Unflappable Casting",
+        "Weapon Focus"
+      ],
+      "proficiencyPeriod": 4,
+      "magic": "studious-divine",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d6",
+          "casterLevel": 1,
+          "spellSlots": [
+            1,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 2,
+          "xp": 2400,
+          "hitDice": "2d6",
+          "casterLevel": 2,
+          "spellSlots": [
+            2,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 3,
+          "xp": 4800,
+          "hitDice": "3d6",
+          "casterLevel": 3,
+          "spellSlots": [
+            2,
+            1,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 4,
+          "xp": 9600,
+          "hitDice": "4d6",
+          "casterLevel": 4,
+          "spellSlots": [
+            2,
+            2,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 5,
+          "xp": 19200,
+          "hitDice": "5d6",
+          "casterLevel": 5,
+          "spellSlots": [
+            2,
+            2,
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 6,
+          "xp": 38400,
+          "hitDice": "6d6",
+          "casterLevel": 6,
+          "spellSlots": [
+            2,
+            2,
+            2,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 7,
+          "xp": 75000,
+          "hitDice": "7d6",
+          "casterLevel": 7,
+          "spellSlots": [
+            3,
+            2,
+            2,
+            1,
+            0
+          ]
+        },
+        {
+          "level": 8,
+          "xp": 150000,
+          "hitDice": "8d6",
+          "casterLevel": 8,
+          "spellSlots": [
+            3,
+            3,
+            2,
+            2,
+            0
+          ]
+        },
+        {
+          "level": 9,
+          "xp": 280000,
+          "hitDice": "9d6",
+          "casterLevel": 9,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            2,
+            1
+          ]
+        },
+        {
+          "level": 10,
+          "xp": 410000,
+          "hitDice": "9d6+2",
+          "casterLevel": 10,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            3,
+            2
+          ]
+        }
+      ]
+    },
+    "Dwarven Vaultguard": {
+      "page": 84,
+      "proficiencies": [
+        "Alertness",
+        "Berserkergang",
+        "Blind Fighting",
+        "Caving",
+        "Combat Ferocity",
+        "Combat Reflexes",
+        "Combat Trickery (force back, knock down, overrun, sunder, wrestling)",
+        "Command",
+        "Dungeonbashing Expertise",
+        "Dwarven Brewing",
+        "Fighting Style Specialization",
+        "Goblin-Slaying",
+        "Illusion Resistance",
+        "Intimidation",
+        "Land Surveying",
+        "Leadership",
+        "Military Strategy",
+        "Mountaineering",
+        "Precise Shooting",
+        "Prospecting",
+        "Running",
+        "Siege Engineering",
+        "Vermin-Slaying",
+        "Weapon Focus"
+      ],
+      "proficiencyPeriod": 3,
+      "magic": "none",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d8",
+          "casterLevel": 1,
+          "spellSlots": []
+        },
+        {
+          "level": 2,
+          "xp": 2200,
+          "hitDice": "2d8",
+          "casterLevel": 2,
+          "spellSlots": []
+        },
+        {
+          "level": 3,
+          "xp": 4400,
+          "hitDice": "3d8",
+          "casterLevel": 3,
+          "spellSlots": []
+        },
+        {
+          "level": 4,
+          "xp": 8800,
+          "hitDice": "4d8",
+          "casterLevel": 4,
+          "spellSlots": []
+        },
+        {
+          "level": 5,
+          "xp": 17600,
+          "hitDice": "5d8",
+          "casterLevel": 5,
+          "spellSlots": []
+        },
+        {
+          "level": 6,
+          "xp": 35200,
+          "hitDice": "6d8",
+          "casterLevel": 6,
+          "spellSlots": []
+        },
+        {
+          "level": 7,
+          "xp": 70000,
+          "hitDice": "7d8",
+          "casterLevel": 7,
+          "spellSlots": []
+        },
+        {
+          "level": 8,
+          "xp": 140000,
+          "hitDice": "8d8",
+          "casterLevel": 8,
+          "spellSlots": []
+        },
+        {
+          "level": 9,
+          "xp": 270000,
+          "hitDice": "9d8",
+          "casterLevel": 9,
+          "spellSlots": []
+        },
+        {
+          "level": 10,
+          "xp": 400000,
+          "hitDice": "9d8+3",
+          "casterLevel": 10,
+          "spellSlots": []
+        },
+        {
+          "level": 11,
+          "xp": 530000,
+          "hitDice": "9d8+6",
+          "casterLevel": 11,
+          "spellSlots": []
+        },
+        {
+          "level": 12,
+          "xp": 660000,
+          "hitDice": "9d8+9",
+          "casterLevel": 12,
+          "spellSlots": []
+        },
+        {
+          "level": 13,
+          "xp": 790000,
+          "hitDice": "9d8+12",
+          "casterLevel": 13,
+          "spellSlots": []
+        }
+      ]
+    },
+    "Elven Nightblade": {
+      "page": 86,
+      "proficiencies": [
+        "Battle Magic",
+        "Beast Friendship",
+        "Black Lore of Zahar",
+        "Blind Fighting",
+        "Combat Reflexes",
+        "Contortionism",
+        "Counterspelling",
+        "Eavesdropping",
+        "Elementalism",
+        "Expanded Repertoire",
+        "Familiar",
+        "Fighting Style Specialization",
+        "Kin-Slaying",
+        "Magical Engineering",
+        "Mastery of Enchantments & Illusions",
+        "Mystic Aura",
+        "Passing Without Trace",
+        "Poisoning",
+        "Precise Shooting",
+        "Prestidigitation",
+        "Running",
+        "Sensing Power",
+        "Skirmishing",
+        "Skulking",
+        "Sniping",
+        "Swashbuckling",
+        "Unflappable Casting",
+        "Unarmed Fighting",
+        "Wakefulness",
+        "Weapon Focus",
+        "Weapon Finesse"
+      ],
+      "proficiencyPeriod": 4,
+      "magic": "arcane",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d6+1",
+          "casterLevel": 0,
+          "spellSlots": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 2,
+          "xp": 2875,
+          "hitDice": "2d6",
+          "casterLevel": 1,
+          "spellSlots": [
+            1,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 3,
+          "xp": 5750,
+          "hitDice": "3d6",
+          "casterLevel": 2,
+          "spellSlots": [
+            2,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 4,
+          "xp": 11500,
+          "hitDice": "4d6",
+          "casterLevel": 2,
+          "spellSlots": [
+            2,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 5,
+          "xp": 23000,
+          "hitDice": "5d6",
+          "casterLevel": 3,
+          "spellSlots": [
+            2,
+            1,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 6,
+          "xp": 46000,
+          "hitDice": "6d6",
+          "casterLevel": 4,
+          "spellSlots": [
+            2,
+            2,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 7,
+          "xp": 90000,
+          "hitDice": "7d6",
+          "casterLevel": 5,
+          "spellSlots": [
+            2,
+            2,
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 8,
+          "xp": 180000,
+          "hitDice": "8d6",
+          "casterLevel": 6,
+          "spellSlots": [
+            3,
+            2,
+            2,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 9,
+          "xp": 330000,
+          "hitDice": "9d6",
+          "casterLevel": 7,
+          "spellSlots": [
+            3,
+            2,
+            2,
+            1,
+            0
+          ]
+        },
+        {
+          "level": 10,
+          "xp": 480000,
+          "hitDice": "9d6+2",
+          "casterLevel": 8,
+          "spellSlots": [
+            4,
+            2,
+            2,
+            2,
+            0
+          ]
+        },
+        {
+          "level": 11,
+          "xp": 630000,
+          "hitDice": "9d6+4",
+          "casterLevel": 8,
+          "spellSlots": [
+            4,
+            3,
+            2,
+            2,
+            1
+          ]
+        }
+      ]
+    },
+    "Elven Spellsword": {
+      "page": 90,
+      "proficiencies": [
+        "Battle Magic",
+        "Beast Friendship",
+        "Black Lore of Zahar",
+        "Blind Fighting",
+        "Combat Reflexes",
+        "Combat Trickery (disarm, knock down)",
+        "Command",
+        "Counterspelling",
+        "Elementalism",
+        "Expanded Repertoire",
+        "Experimenting",
+        "Familiar",
+        "Fighting Style Specialization",
+        "Loremastery",
+        "Magical Engineering",
+        "Magical Music",
+        "Mastery of Enchantments & Illusions",
+        "Mounted Combat",
+        "Mystic Aura",
+        "Quiet Magic",
+        "Precise Shooting",
+        "Prestidigitation",
+        "Running",
+        "Sensing Power",
+        "Skirmishing",
+        "Soothsaying",
+        "Swashbuckling",
+        "Unflappable Casting",
+        "Wakefulness",
+        "Weapon Focus",
+        "Weapon Finesse"
+      ],
+      "proficiencyPeriod": 3,
+      "magic": "arcane",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d6+1",
+          "casterLevel": 1,
+          "spellSlots": [
+            1,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 2,
+          "xp": 4000,
+          "hitDice": "2d6",
+          "casterLevel": 2,
+          "spellSlots": [
+            2,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 3,
+          "xp": 8000,
+          "hitDice": "3d6",
+          "casterLevel": 3,
+          "spellSlots": [
+            2,
+            1,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 4,
+          "xp": 16000,
+          "hitDice": "4d6",
+          "casterLevel": 4,
+          "spellSlots": [
+            2,
+            2,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 5,
+          "xp": 32000,
+          "hitDice": "5d6",
+          "casterLevel": 5,
+          "spellSlots": [
+            2,
+            2,
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 6,
+          "xp": 64000,
+          "hitDice": "6d6",
+          "casterLevel": 6,
+          "spellSlots": [
+            2,
+            2,
+            2,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 7,
+          "xp": 130000,
+          "hitDice": "7d6",
+          "casterLevel": 7,
+          "spellSlots": [
+            3,
+            2,
+            2,
+            1,
+            0
+          ]
+        },
+        {
+          "level": 8,
+          "xp": 260000,
+          "hitDice": "8d6",
+          "casterLevel": 8,
+          "spellSlots": [
+            3,
+            3,
+            2,
+            2,
+            0
+          ]
+        },
+        {
+          "level": 9,
+          "xp": 430000,
+          "hitDice": "9d6",
+          "casterLevel": 9,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            2,
+            1
+          ]
+        },
+        {
+          "level": 10,
+          "xp": 600000,
+          "hitDice": "9d6+2",
+          "casterLevel": 10,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            3,
+            2
+          ]
+        }
+      ]
+    },
+    "Nobiran Wonderworker": {
+      "page": 92,
+      "proficiencies": [
+        "Alchemy",
+        "Battle Magic",
+        "Black Lore of Zahar",
+        "Beast Friendship",
+        "Bright Lore of Aura",
+        "Command",
+        "Contemplation",
+        "Counterspelling",
+        "Elementalism",
+        "Expanded Repertoire",
+        "Experimenting",
+        "Familiar",
+        "Healing",
+        "Illusion Resistance",
+        "Laying on Hands",
+        "Loremastery",
+        "Magical Engineering",
+        "Martial Training",
+        "Mastery of Enchantments & Illusions",
+        "Mastery of Conjuration & Summoning",
+        "Mystic Aura",
+        "Prestidigitation",
+        "Prophecy",
+        "Quiet Magic",
+        "Sensing Evil",
+        "Sensing Power",
+        "Soothsaying",
+        "Syncretism",
+        "Transmogrification",
+        "Unflappable Casting"
+      ],
+      "proficiencyPeriod": 6,
+      "magic": "dual",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d4+1",
+          "casterLevel": 1,
+          "spellSlots": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 2,
+          "xp": 3125,
+          "hitDice": "2d4",
+          "casterLevel": 2,
+          "spellSlots": [
+            2,
+            0,
+            0,
+            0,
+            0,
+            0,
+            2,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 3,
+          "xp": 6250,
+          "hitDice": "3d4",
+          "casterLevel": 3,
+          "spellSlots": [
+            2,
+            1,
+            0,
+            0,
+            0,
+            0,
+            2,
+            1,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 4,
+          "xp": 12500,
+          "hitDice": "4d4",
+          "casterLevel": 4,
+          "spellSlots": [
+            2,
+            2,
+            0,
+            0,
+            0,
+            0,
+            2,
+            2,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 5,
+          "xp": 25000,
+          "hitDice": "5d4",
+          "casterLevel": 5,
+          "spellSlots": [
+            2,
+            2,
+            1,
+            0,
+            0,
+            0,
+            2,
+            2,
+            1,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 6,
+          "xp": 50000,
+          "hitDice": "6d4",
+          "casterLevel": 6,
+          "spellSlots": [
+            2,
+            2,
+            2,
+            0,
+            0,
+            0,
+            2,
+            2,
+            2,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 7,
+          "xp": 100000,
+          "hitDice": "7d4",
+          "casterLevel": 7,
+          "spellSlots": [
+            3,
+            2,
+            2,
+            1,
+            0,
+            0,
+            3,
+            2,
+            2,
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 8,
+          "xp": 200000,
+          "hitDice": "8d4",
+          "casterLevel": 8,
+          "spellSlots": [
+            3,
+            3,
+            2,
+            2,
+            0,
+            0,
+            3,
+            3,
+            2,
+            2,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 9,
+          "xp": 390000,
+          "hitDice": "9d4",
+          "casterLevel": 9,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            2,
+            1,
+            0,
+            3,
+            3,
+            3,
+            2,
+            1,
+            0
+          ]
+        },
+        {
+          "level": 10,
+          "xp": 580000,
+          "hitDice": "9d4+1",
+          "casterLevel": 10,
+          "spellSlots": [
+            3,
+            3,
+            3,
+            3,
+            2,
+            0,
+            3,
+            3,
+            3,
+            3,
+            2,
+            0
+          ]
+        },
+        {
+          "level": 11,
+          "xp": 770000,
+          "hitDice": "9d4+2",
+          "casterLevel": 11,
+          "spellSlots": [
+            4,
+            3,
+            3,
+            3,
+            2,
+            1,
+            4,
+            3,
+            3,
+            3,
+            2,
+            1
+          ]
+        },
+        {
+          "level": 12,
+          "xp": 960000,
+          "hitDice": "9d4+3",
+          "casterLevel": 12,
+          "spellSlots": [
+            4,
+            4,
+            3,
+            3,
+            3,
+            2,
+            4,
+            4,
+            3,
+            3,
+            3,
+            2
+          ]
+        }
+      ]
+    },
+    "Zaharan Ruinguard": {
+      "page": 96,
+      "proficiencies": [
+        "Alertness",
+        "Ambushing",
+        "Battle Magic",
+        "Berserkergang",
+        "Black Lore of Zahar",
+        "Blind Fighting",
+        "Combat Ferocity",
+        "Combat Trickery (force back, knock down, overrun, sunder)",
+        "Command",
+        "Dungeonbashing Expertise",
+        "Elementalism",
+        "Familiar",
+        "Fighting Style Specialization",
+        "Kin- Slaying",
+        "Leadership",
+        "Martial Training",
+        "Mastery of Conjuration & Summoning",
+        "Military Strategy",
+        "Mounted Combat",
+        "Mystic Aura",
+        "Sensing Good",
+        "Sensing Power",
+        "Transmogrification",
+        "Unflappable Casting",
+        "Wakefulness"
+      ],
+      "proficiencyPeriod": 3,
+      "magic": "arcane",
+      "levels": [
+        {
+          "level": 1,
+          "xp": 0,
+          "hitDice": "1d6",
+          "casterLevel": 0,
+          "spellSlots": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 2,
+          "xp": 3700,
+          "hitDice": "2d6",
+          "casterLevel": 1,
+          "spellSlots": [
+            1,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 3,
+          "xp": 7400,
+          "hitDice": "3d6",
+          "casterLevel": 2,
+          "spellSlots": [
+            2,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 4,
+          "xp": 14800,
+          "hitDice": "4d6",
+          "casterLevel": 2,
+          "spellSlots": [
+            2,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 5,
+          "xp": 29600,
+          "hitDice": "5d6",
+          "casterLevel": 3,
+          "spellSlots": [
+            2,
+            1,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 6,
+          "xp": 59200,
+          "hitDice": "6d6",
+          "casterLevel": 4,
+          "spellSlots": [
+            2,
+            2,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 7,
+          "xp": 120000,
+          "hitDice": "7d6",
+          "casterLevel": 5,
+          "spellSlots": [
+            2,
+            2,
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "level": 8,
+          "xp": 240000,
+          "hitDice": "8d6",
+          "casterLevel": 6,
+          "spellSlots": [
+            3,
+            2,
+            2,
+            1,
+            0
+          ]
+        },
+        {
+          "level": 9,
+          "xp": 410000,
+          "hitDice": "9d6",
+          "casterLevel": 7,
+          "spellSlots": [
+            4,
+            2,
+            2,
+            2,
+            0
+          ]
+        },
+        {
+          "level": 10,
+          "xp": 580000,
+          "hitDice": "9d6+2",
+          "casterLevel": 8,
+          "spellSlots": [
+            4,
+            3,
+            2,
+            2,
+            0
+          ]
+        },
+        {
+          "level": 11,
+          "xp": 750000,
+          "hitDice": "9d6+4",
+          "casterLevel": 8,
+          "spellSlots": [
+            4,
+            3,
+            3,
+            2,
+            1
+          ]
+        },
+        {
+          "level": 12,
+          "xp": 920000,
+          "hitDice": "9d6+6",
+          "casterLevel": 9,
+          "spellSlots": [
+            4,
+            4,
+            3,
+            2,
+            1
+          ]
+        }
+      ]
+    }
+  }
+}

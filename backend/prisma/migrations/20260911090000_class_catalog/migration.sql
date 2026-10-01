@@ -1,0 +1,5 @@
+ALTER TABLE "Character" ADD COLUMN "classKey" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "CustomClass"
+  ADD COLUMN "description" TEXT NOT NULL DEFAULT '',
+  ADD COLUMN "classFeatures" TEXT NOT NULL DEFAULT '',
+  ADD COLUMN "baseClassKey" TEXT NOT NULL DEFAULT '';

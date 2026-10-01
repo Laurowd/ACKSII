@@ -1,0 +1,11 @@
+node_modules
+dist
+# Keep environment variables out of version control
+.env
+
+# Local databases and logs
+*.db
+*.db-journal
+*.log
+
+/src/generated/prisma

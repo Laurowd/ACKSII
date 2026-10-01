@@ -1,0 +1,481 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  MASTER
+  PLAYER
+}
+
+model User {
+  id              String           @id @default(uuid())
+  username        String           @unique
+  email           String           @unique
+  passwordHash    String
+  sessionVersion  Int              @default(0)
+  passwordResets  PasswordReset[]
+  role            Role             @default(PLAYER)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  characters      Character[]
+  masterCampaigns Campaign[]       @relation("CampaignMaster")
+  campaignMembers CampaignMember[]
+  auditLogs       AuditLog[]
+}
+
+model Campaign {
+  id            String             @id @default(uuid())
+  name          String
+  joinCode      String             @unique
+  masterId      String
+  optionalRules String             @default("{}") // JSON map of optional rules toggles
+  currentYear   Int                @default(1)
+  currentMonth  Int                @default(1)
+  currentWeek   Int                @default(1)
+  master        User               @relation("CampaignMaster", fields: [masterId], references: [id], onDelete: Cascade)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  members       CampaignMember[]
+  characters    Character[]
+  customClasses CustomClass[]
+  economy       CampaignEconomy?
+  activities    CampaignActivity[]
+  auditLogs     AuditLog[]
+}
+
+model CampaignMember {
+  id         String   @id @default(uuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status     String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  createdAt  DateTime @default(now())
+
+  @@unique([campaignId, userId])
+}
+
+model CustomClass {
+  id             String   @id @default(uuid())
+  campaignId     String
+  campaign       Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  name           String
+  description    String   @default("")
+  classFeatures  String   @default("")
+  baseClassKey   String   @default("")
+  hitDie         String   @default("1d8") // e.g., "1d8"
+  conBonus       Boolean  @default(true) // Applies CON bonus?
+  creationRules  String   @default("{}") // JSON: custom prerequisites and spellcasting
+  xpPerLevel     String   @default("[]") // JSON array of XP needed for each level
+  titles         String   @default("[]") // JSON array of titles per level
+  savingThrows   String   @default("[]") // JSON array of saving throws objects per level
+  attackThrows   String   @default("[]") // JSON array of attack throws per level
+  thiefSkills    String   @default("[]") // JSON array of thief skill objects per level
+  rebukingUndead String   @default("[]") // JSON array of rebuking undead rows per level
+  createdAt      DateTime @default(now())
+}
+
+model Character {
+  id         String    @id @default(uuid())
+  version    Int       @default(0)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Bio (ACKS II Character Sheet layout)
+  chroniclesOf  String @default("") // "THE CHRONICLES OF" / campaign name
+  characterName String @default("")
+  birthplace    String @default("")
+  className     String @default("")
+  classKey      String @default("")
+  subclass      String @default("")
+
+  title     String @default("")
+  alignment String @default("")
+  age       Int    @default(0)
+  size      String @default("Medium")
+  gender    String @default("")
+
+  // Core
+  level   Int    @default(1)
+  xp      Int    @default(0)
+  xpNext  Int    @default(0)
+  hpMax   Int    @default(0)
+  hpCurr  Int    @default(0)
+  hitDice String @default("")
+
+  // Attributes (3-18 range)
+  str Int @default(10)
+  int Int @default(10)
+  dex Int @default(10)
+  wil Int @default(10)
+  con Int @default(10)
+  cha Int @default(10)
+
+  // Armor Class
+  acNoArmor    Int    @default(0)
+  acNoShield   Int    @default(0)
+  acWithShield Int    @default(0)
+  armorName    String @default("")
+  armorAcBonus Int    @default(0)
+  armorWeight  Float  @default(0.0)
+  acAdjustment Int   @default(0)
+
+  // Saving Throws
+  saveDeath      Int @default(14)
+  saveImplements Int @default(14)
+  saveParalysis  Int @default(14)
+  saveBlast      Int @default(14)
+  saveSpells     Int @default(14)
+
+  // Movement
+  moveExploration Int @default(120)
+  moveCombat      Int @default(40)
+  moveCharge      Int @default(120)
+  moveExpedition  Int @default(24)
+  moveStealth     Int @default(40)
+
+  // Initiative & Surprise (official sheet: Surprise Others, Avoid Surprise)
+  initiative     Int  @default(0)
+  surprise       Int  @default(0)
+  surpriseOthers Int?
+  avoidSurprise  Int?
+
+  // Healing
+  healingRate  Int @default(0)
+  mortalWounds Int @default(0)
+  cleaves      Int @default(0)
+
+  // Notes / Misc
+  notes String @default("")
+  rulesState String @default("{}") // Server-managed rule workflow state and spell usage.
+
+  // Class Features & Languages (official sheet second page)
+  classFeatures  String @default("")
+  languagesKnown String @default("")
+
+  // Coins & Gems (official sheet: PP, EP, GP, SP, CP, Gems/Jewelry)
+  coinPP      Int    @default(0)
+  coinEP      Int    @default(0)
+  coinGP      Int    @default(0)
+  coinSP      Int    @default(0)
+  coinCP      Int    @default(0)
+  gemsJewelry String @default("")
+
+  // Spellcaster (ACKS II Magic Sheet)
+  isSpellcaster     Boolean @default(false)
+  spellSlotsLevel1  Int     @default(0)
+  spellSlotsLevel2  Int     @default(0)
+  spellSlotsLevel3  Int     @default(0)
+  spellSlotsLevel4  Int     @default(0)
+  spellSlotsLevel5  Int     @default(0)
+  spellSlotsLevel6  Int     @default(0)
+  libraryValue      Int?
+  workshopValue     Int?
+  congregants       Int?
+  magicResearch     String  @default("")
+  spellbook         String  @default("[]") // JSON array of spell names in grimoire
+  learnedSpells     String  @default("[]") // JSON array of learned spell names
+  researchQueue     String  @default("[]") // JSON array of research projects
+  researchTimeWeeks Int     @default(0)
+  researchCostGp    Int     @default(0)
+  xpFromTreasure    Int     @default(0)
+  monthlyUpkeepGp   Int     @default(0)
+
+  // Relations
+  weapons            Weapon[]
+  proficiencies      Proficiency[]
+  items              Item[]
+  spells             Spell[]
+  rituals            Ritual[]
+  magicFormulae      MagicFormula[]
+  henchmen           Henchman[]
+  domain             Domain?
+  scars              Scar[]
+  activities         CharacterActivity[]
+  armyUnits          ArmyUnit[]
+  auditLogs          AuditLog[]
+  magicItemResearch  MagicItemResearch[]
+  mercantileVentures MercantileVenture[]
+}
+
+model MagicItemResearch {
+  id          String    @id @default(uuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  itemName      String
+  spellLevel    Int     @default(1)
+  totalCostGp   Float   @default(0.0)
+  weeksRequired Int     @default(1)
+  isPermanent   Boolean @default(true)
+  effectType    String  @default("MANUAL")
+  effectCount   Int     @default(1)
+  casterLevel   Int     @default(5)
+  researchRateGp Float  @default(50)
+  componentCostGp Float @default(0)
+  materialCostGp Float @default(0)
+  researchCostGp Float @default(0)
+  remainingDays Int     @default(0)
+  hasFormula    Boolean @default(false)
+  hasSample     Boolean @default(false)
+  knowsEffect   Boolean @default(false)
+  status        String  @default("QUEUED") // QUEUED, IN_PROGRESS, COMPLETED
+
+  createdAt DateTime @default(now())
+}
+
+model MercantileVenture {
+  id          String    @id @default(uuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  cargoName         String @default("Cargo")
+  baseValueGp       Float  @default(100.0)
+  originMarketClass Int    @default(3) // 1 to 6
+  destMarketClass   Int    @default(3) // 1 to 6
+  distanceHexes     Int    @default(1)
+  status            String @default("IN_TRANSIT") // IN_TRANSIT, SOLD
+  profitGp          Float  @default(0.0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Weapon {
+  id          String    @id @default(uuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  name        String @default("")
+  style       String @default("") // fighting style
+  initBonus   Int    @default(0)
+  attackThrow Int    @default(10)
+  attackBonus Int    @default(0)
+  damage      String @default("1d6")
+  rangeShort  Int    @default(0)
+  rangeMed    Int    @default(0)
+  rangeLong   Int    @default(0)
+  encumbrance Float  @default(0.0)
+  catalogId String @default("")
+  automaticDamage Boolean @default(false)
+}
+
+model Proficiency {
+  id          String    @id @default(uuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  name        String
+  throwTarget Int    @default(11)
+  category    String @default("general") // "adventuring", "class", "general"
+}
+
+model Item {
+  id          String    @id @default(uuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  name     String
+  quantity Int    @default(1)
+  weight   Float  @default(0) // in stone (1 stone = ~10 lbs)
+  slot     String @default("backpack") // "backpack", "worn", "belt", "pouch", "sack", "hand_right", "hand_left", "head", "hidden"
+  notes    String @default("")
+  magicDetails String @default("{}")
+}
+
+model Spell {
+  id          String    @id @default(uuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  level       Int // 1-6
+  name        String    @default("")
+  tradition   String    @default("") // arcane or divine; blank preserves legacy records
+}
+
+model Ritual {
+  id          String    @id @default(uuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  name        String    @default("")
+}
+
+model MagicFormula {
+  id          String    @id @default(uuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  name        String    @default("")
+}
+
+// ======= ACKS II EXTENSION: HENCHMEN, DOMAIN, AND SCARS =======
+
+model Henchman {
+  id          String    @id @default(uuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  name              String @default("")
+  className         String @default("")
+  subclass          String @default("")
+  roleType          String @default("retainer") // retainer, mercenary, specialist, entourage
+  level             Int    @default(1)
+  morale            Int    @default(0) // Affected by CHA
+  loyalty           Int    @default(0) // Base loyalty score
+  wage              Float  @default(0.0) // Monthly cost in GP
+  capacity          Int    @default(0) // Capacity provided by type (troops, workshop, etc)
+  explorationImpact Int    @default(0)
+  warImpact         Int    @default(0)
+  domainImpact      Int    @default(0)
+  treasureShare     Float  @default(0.0)
+  notes             String @default("")
+}
+
+model Domain {
+  id          String    @id @default(uuid())
+  characterId String    @unique
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  strongholdName      String @default("")
+  peasantFamilies     Int    @default(0)
+  revenuePerFamily    Float  @default(3.0) // Average standard ACKS monthly revenue per family in GP
+  taxRate             Float  @default(20.0) // 20% tax normal
+  servicePerFamily    Float  @default(4)
+  taxPerFamily        Float  @default(2)
+  liturgiesCost       Float  @default(0)
+  titheCost           Float  @default(0)
+  landRevenue         Float  @default(0.0) // This will soon be calculated, but kept for legacy
+  garrisonCost        Float  @default(0.0)
+  civilExpenses       Float  @default(0.0)
+  constructionCosts   Float  @default(0.0)
+  mercenaryPayroll    Float  @default(0.0)
+  specialistPayroll   Float  @default(0.0)
+  maintenanceCost     Float  @default(0.0)
+  peasantMorale       Int    @default(0)
+  stability           Int    @default(0)
+  loyalty             Int    @default(0)
+  monthlyEvent        String @default("")
+  eventModifier       Float  @default(0.0)
+  treasury            Float  @default(0.0)
+  consolidatedBalance Float  @default(0.0)
+  mercantileVentures  String @default("")
+}
+
+model CampaignEconomy {
+  id                  String   @id @default(uuid())
+  campaignId          String   @unique
+  campaign            Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  grossRevenue        Float    @default(0.0)
+  domainRevenue       Float    @default(0.0)
+  mercantileRevenue   Float    @default(0.0)
+  expensesTotal       Float    @default(0.0)
+  garrisonExpenses    Float    @default(0.0)
+  mercenaryExpenses   Float    @default(0.0)
+  specialistExpenses  Float    @default(0.0)
+  maintenanceExpenses Float    @default(0.0)
+  stability           Int      @default(0)
+  loyalty             Int      @default(0)
+  monthlyEvent        String   @default("")
+  consolidatedBalance Float    @default(0.0)
+  notes               String   @default("")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model CampaignActivity {
+  id             String   @id @default(uuid())
+  campaignId     String
+  campaign       Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  type           String   @default("downtime") // travel, downtime, construction, research, war
+  title          String
+  details        String   @default("")
+  costGp         Float    @default(0.0)
+  durationWeeks  Int      @default(1)
+  remainingWeeks Int      @default(1)
+  status         String   @default("QUEUED") // QUEUED, ACTIVE, COMPLETED, CANCELLED
+  impactSummary  String   @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Scar {
+  id          String    @id @default(uuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  description String @default("")
+  daysToRest  Int    @default(0)
+  debuff      String @default("")
+}
+
+// =============================================================
+
+model AuditLog {
+  id          String     @id @default(uuid())
+  createdAt   DateTime   @default(now())
+  characterId String?
+  campaignId  String?
+  userId      String?
+  action      String
+  details     String?
+  user        User?      @relation(fields: [userId], references: [id])
+  character   Character? @relation(fields: [characterId], references: [id])
+  campaign    Campaign?  @relation(fields: [campaignId], references: [id])
+}
+
+model CharacterActivity {
+  id             String    @id @default(uuid())
+  characterId    String
+  character      Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  type           String    @default("downtime") // research, crafting, healing, travel
+  title          String
+  details        String    @default("")
+  costGp         Float     @default(0.0)
+  durationWeeks  Int       @default(1)
+  remainingWeeks Int       @default(1)
+  status         String    @default("QUEUED") // QUEUED, ACTIVE, COMPLETED, CANCELLED
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model ArmyUnit {
+  id          String    @id @default(uuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  name          String @default("")
+  troopType     String @default("Light Infantry")
+  ac            Int    @default(0)
+  damage        String @default("1d6")
+  movement      Int    @default(120)
+  morale        Int    @default(0)
+  hp            Int    @default(1)
+  monthlyCostGp Float  @default(0.0)
+  equipment     String @default("")
+  notes         String @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model PasswordReset {
+  tokenHash String   @id
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  @@index([expiresAt])
+  @@index([userId])
+}
+
+model RateLimitBucket {
+  key       String   @id
+  count     Int
+  expiresAt DateTime
+  @@index([expiresAt])
+}

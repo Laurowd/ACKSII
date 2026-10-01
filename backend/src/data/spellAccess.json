@@ -1,0 +1,2378 @@
+[
+  {
+    "name": "Arcane Armor",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Adjust Self",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Avian Messenger",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Auditory Illusion",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Battering Ram",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Bewitch Crowd",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Beguile Humanoid",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Bewitch Humanoid",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Boil Blood",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Blinding Flash",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Bloody Flux",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Chimerical Figment",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Chameleon",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Burning Sparks",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Clairaudiency",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Choking Grip",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Circling Winds",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Clairvoyancy",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Conjure Cacodemon Spawn",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Conjure Imp",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Cone of Frost",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Counterspell",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Conjure Petty Elemental",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Conjure Hellion",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Desiccate",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Dark Whisper",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Create Chasm",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Discern Gist",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Deathless Minion",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Deflect Ordinary Missiles",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Discern Magic",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Discern Invisible",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Dismember",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Earth’s Excrescence",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Dominate Humanoid",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Dispel Magic",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Faithful Companion",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Earth’s Wave",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Dominate Monster",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Fan of Flames",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Energy Protection",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Earth’s Teeth",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Frighten Humanoid",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Frostbite",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Fireball",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Ice Floe",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Gale of Wind",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Flight",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Illumination",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Halt Humanoids",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Force of Impetus",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Illusory Figment",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Hypnotic Sigil",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Growth",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Infuriate Humanoid",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Illusory Duplicates",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Ice Sheet",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Kindle Flame",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Illusory Interior",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Illumination, Perpetual",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Leaping",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Levitation",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Inaudibility",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Mage Missile",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Locate Object",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Incite Madness",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Seal Portal",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Magic Lock",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Infuriate Crowd",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Sharpness",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Necromantic Potence",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Invisibility",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Shatter Blade",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Ogre Strength",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Lightless Vision",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Silent Step",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Phantasmal Figment",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Lightning Strike",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Slicing Blow",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Physical Protection",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Rune of Warding",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Slickness",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Rain of Vitriol",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Skinchange",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Sling Stone",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Shrouding Fog",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Speak with Dead",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Slumber",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Sudden Staircase",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Spellward",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Spider Climbing",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Summon Insect Swarm",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Strengthen the Unliving",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Summon Manes",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Sunflare",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Summon Hellhounds",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Thunderclap",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Swimming",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Thunderbolt",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Unliving Puppet",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Vitriolic Infusion",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Wall of Thunder",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Wall of Smoke",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Warp Wood",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Water Breathing",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Weave Smoke",
+    "level": 1,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Webbing",
+    "level": 2,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Weave Fire",
+    "level": 3,
+    "tradition": "arcane",
+    "page": 186
+  },
+  {
+    "name": "Animate Undead",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Blast Ward",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Anti-Magic Sphere",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Arcane Shift",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Capsizing Wave",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Banner of Invincibility",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Bewitch Monster",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Carnage",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Body Swap",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Cloud of Poison",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Circle of Agony",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Clairaudiency , Greater",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Conjure Incubus",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Cone of Paralysis",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Clairvoyancy , Greater",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Conjure Major Elemental",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Conjure Dybbuk",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Conflagration",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Earth’s Tremor",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Conjure Supreme Elem.",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Conjure Fiend",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Energy Invulnerability",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Contact Other Sphere",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Conjure Genie",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Cone of Fear",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Control Winds",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Control Weather",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Flesh to Ash",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Curse of the Swine",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Disfigure Body and Soul",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Giant Strength",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Deflect Ordinary Weapons",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Disintegration",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Growth , Plant",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Dominate Plants",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Earth’s Movement",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Guise Self",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Earth’s Mire",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Enslave Humanoid",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Halt Monsters",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Fillet and Serve",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Level Water",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Hidden Host",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Firestorm",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Locate Distant Object",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Illusory Terrain",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Flay the Slain",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Locate Place of Power",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Indiscernibility",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Forest Enchantment",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Madness of Crowds",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Inferno",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Forgetfulness",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Necromantic Invulnerability",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Iron Maiden",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Guise Other",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Panic",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Locate Treasure",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Ice Storm",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Passageway",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Magic Carpet",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Lay of the Land",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Perpetual Figment",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Physical Invulnerability",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Life Transfer",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Petrification",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Safe Travels",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Lightless Vision, Mass",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Programmatic Figment",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Scouring Zephyr",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Locate Haunting",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Quest",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Scry",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Mirage",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Reveal Ritual Magic",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Shrieking Skull",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Phantasmal Horror",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Soul Eating",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Slumber , Deep",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Rouse the Fallen",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Spellwarded Zone",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Spectral Figment",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Selective Fire",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Sphere of Invulnerability , Grt.",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Spellward Other",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Soul Swap",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Summon Invisible Stalker",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Sphere of Invulnerability , Lesser",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Spectral Legion",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Torpor",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Summon Shadow",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Summon Ooze",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Transform Other",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Sunder Structure",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Summon Weather",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Transform Self",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Telepathy",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Telekinesis",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Trollblood",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Wall of Flame",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Teleportation",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Wall of Annihilation",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Wall of Frost",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Wall of Stone",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Wall of Corpses",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Weave Water",
+    "level": 4,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "X- Ray Vision",
+    "level": 5,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Wall of Force",
+    "level": 6,
+    "tradition": "arcane",
+    "page": 187
+  },
+  {
+    "name": "Allure",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Augury",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Avian Messenger",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Angelic Choir",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Beguile Humanoid",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Bewitch Humanoid",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Bane- Rune",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Bewitch Beast",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Call of the Wild Bear",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Call of the Wolf",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Call of the Wolf Pack",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Clairaudiency",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Counterspell",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Choking Grip",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Clairvoyancy",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Cure Light Injury",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Circling Winds",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Cure Blindness",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Delay Disease",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Cure Moderate Injury",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Cure Disease",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Destroy Dead",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Dark Whisper",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Cure Major Injury",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Discern Evil",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Deathless Minion",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Deflect Ordinary Missiles",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Discern Gist",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Delay Poison",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Discern Curse",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Discern Magic",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Discern Bewitchment",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Discern Invisible",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Discern Poison",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Divine Armor",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Dispel Magic",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Faithful Companion",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Divine Grace",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Divine Protection",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Frighten Beast",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Dominate Beasts",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Growth, Beast",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Holy Circle",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Energy Protection",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Holy Circle, Sustained",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Illumination",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Halt Humanoids",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Holy Prayer",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Infuriate Beast",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Holy Blessing",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Illumination, Perpetual",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Kindle Flame",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Holy Chant",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Invulnerability to Evil",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Locate Animal or Plant",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Magic Lock",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Lightning Strike",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Pass Without Trace",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Necromantic Potence",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Phantasmal Figment",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Predict Weather",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Noiselessness",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Remove Curse",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Purify Food and Water",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Physical Protection",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Rune of Warding",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Remove Fear",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Righteous Wrath",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Speak with Dead",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Salving Rest",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Shimmer",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Spellward",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Sanctuary",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Slicing Blow",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Strengthen the Unliving",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Seal Portal",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Slumber",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Striking",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Shatter Blade",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Speak with Beasts",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Swift Sword, Sustained",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Sling Stone",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Spiritual Weapon",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Water Breathing",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Unliving Puppet",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Swift Sword",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Water Walking",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Word of Command",
+    "level": 1,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Transform Beast",
+    "level": 2,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Winged Flight",
+    "level": 3,
+    "tradition": "divine",
+    "page": 188
+  },
+  {
+    "name": "Angelic Aura",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Atonement",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Anti-Magic Sphere",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Call of the Galloping Herd",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Blast Ward",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Arrows of the Sun",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Call of the Regal Pride",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Boil Blood",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Banner of Invincibility",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Crafting",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Call of the Great Cats",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Barrier of Blades",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Create Water",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Communion",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Bath of the Goddess",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Cure Serious Injury",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Cone of Fear",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Bewitch Monster",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Death Ward",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Control Winds",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Blast Ward, Greater",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Dismember",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Create Food",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Call of the Ancient Tusk",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Divination",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Cure Critical Injury",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Call of the Aerophract Steeds",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Energy Invulnerability",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Curse of the Swine",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Clairaudiency, Greater",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Gale of Wind",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Deflect Ordinary Weapons",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Clairvoyancy, Greater",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Growth",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Dominate Monster",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Dispel Evil",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Inaudibility",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Fate",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Fillet and Serve",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Indiscernibility",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Fiery Pillar",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Flesh to Ash",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Inspire Awe",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Giant Strength",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Guise Other",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Invisibility",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Growth, Plant",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Hidden Host",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Lightless Vision",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Guise Self",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Home Ward",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Neutralize Poison",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Healing Circle",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Illusory Terrain",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Physical Invulnerability",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Lay of the Land",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Level Water",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Protection from Temperature",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Locate Haunting",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Locate Place of Power",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Repair Disfigurement & Dis.",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Restore Life and Limb",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Phoenix Aura",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Skinchange",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Safe Travels",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Prophetic Dream",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Smite Undead",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Scry",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Quest",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Snakes to Staffs",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Spiritwalk",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Salvific Rain",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Speak with Plants",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Strength of Mind",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Slumber, Deep",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Spellward Other",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Summon Insect Plague",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Spectral Figment",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Sphere of Invulnerability, Lesser",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Sword of Fire",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Spellward Zone",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Spirit of Healing",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "True Seeing",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Sphere of Invulnerability, Grtr.",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Sunflare",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Turn to Dust",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Summon Weather",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Tongues",
+    "level": 4,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Vigor",
+    "level": 5,
+    "tradition": "divine",
+    "page": 189
+  },
+  {
+    "name": "Summon Winged Herald",
+    "level": 6,
+    "tradition": "divine",
+    "page": 189
+  }
+]

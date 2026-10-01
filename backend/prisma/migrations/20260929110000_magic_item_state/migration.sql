@@ -1,0 +1,1 @@
+ALTER TABLE "Item" ADD COLUMN "magicDetails" TEXT NOT NULL DEFAULT '{}';
