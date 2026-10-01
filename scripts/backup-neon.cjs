@@ -89,16 +89,19 @@ async function verify(requestedFile) {
   try {
     let ready = false;
     for (let attempt = 0; attempt < 60; attempt++) {
-      const result = spawnSync('docker', ['exec', container, 'pg_isready', '-U', 'acks_verify', '-d', 'acks_verify'], { windowsHide: true, stdio: 'ignore' });
+      // The image starts a temporary socket-only server before creating its DB.
+      // Probe an actual query over TCP so neither that server nor a missing DB
+      // can make the restore begin before initialization finishes.
+      const result = spawnSync('docker', ['exec', container, 'psql', '-h', '127.0.0.1', '-U', 'acks_verify', '-d', 'acks_verify', '-v', 'ON_ERROR_STOP=1', '-tAc', 'SELECT 1'], { windowsHide: true, stdio: 'ignore' });
       if (result.status === 0) { ready = true; break; }
       await delay(500);
     }
     if (!ready) throw new Error('Disposable restore database did not become ready.');
     const fd = fs.openSync(file, 'r');
     try {
-      docker(['exec', '-i', container, 'pg_restore', '-U', 'acks_verify', '-d', 'acks_verify', '--exit-on-error', '--no-owner', '--no-acl'], [fd, 'inherit', 'inherit']);
+      docker(['exec', '-i', container, 'pg_restore', '-h', '127.0.0.1', '-U', 'acks_verify', '-d', 'acks_verify', '--exit-on-error', '--no-owner', '--no-acl'], [fd, 'inherit', 'inherit']);
     } finally { fs.closeSync(fd); }
-    docker(['exec', container, 'psql', '-U', 'acks_verify', '-d', 'acks_verify', '-v', 'ON_ERROR_STOP=1', '-c',
+    docker(['exec', container, 'psql', '-h', '127.0.0.1', '-U', 'acks_verify', '-d', 'acks_verify', '-v', 'ON_ERROR_STOP=1', '-c',
       'SELECT count(*) AS characters FROM "Character"; SELECT count(*) AS accounts FROM "User";']);
     console.log('Backup restored successfully into an isolated disposable container.');
   } finally { docker(['rm', '-f', container], 'pipe'); }
