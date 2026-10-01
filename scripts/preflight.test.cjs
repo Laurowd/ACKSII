@@ -41,3 +41,38 @@ test('parses comments and reports duplicate keys', () => {
   assert.equal(parsed.values.SMTP_SECURE, 'false');
   assert.equal(parsed.errors.length, 1);
 });
+
+const neon = {
+  ...valid,
+  POSTGRES_PASSWORD: undefined,
+  DATABASE_URL: 'postgresql://test:sample@ep-test-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require',
+  DIRECT_DATABASE_URL: 'postgresql://test:sample@ep-test.us-east-1.aws.neon.tech/neondb?sslmode=require',
+};
+
+test('accepts Neon with pooled runtime and direct migration URLs without a local database password', () => {
+  assert.deepEqual(validate(neon, { neon: true }), []);
+});
+
+test('rejects insecure Neon URLs, a pooled migration URL and mismatched endpoints', () => {
+  for (const DIRECT_DATABASE_URL of [
+    neon.DATABASE_URL,
+    neon.DIRECT_DATABASE_URL.replace('?sslmode=require', ''),
+    neon.DIRECT_DATABASE_URL.replace('ep-test.', 'ep-other.'),
+    neon.DIRECT_DATABASE_URL.replace('/neondb?', '/other?'),
+    'postgresql://private-password@',
+  ]) {
+    const errors = validate({ ...neon, DIRECT_DATABASE_URL }, { neon: true });
+    assert.ok(errors.length > 0);
+    assert.equal(errors.join('\n').includes('private-password'), false);
+    assert.equal(errors.join('\n').includes(DIRECT_DATABASE_URL), false);
+  }
+});
+
+test('validates Vercel runtime settings without local database, ACME or migration credentials', () => {
+  const settings = { ...valid, APP_DOMAIN: undefined, ACME_EMAIL: undefined, RELEASE_TAG: undefined, POSTGRES_PASSWORD: undefined,
+    DATABASE_URL: neon.DATABASE_URL, CORS_ORIGIN: 'https://acks-app.vercel.app', PUBLIC_APP_URL: 'https://acks-app.vercel.app' };
+  assert.deepEqual(validate(settings, { vercel: true }), []);
+  for (const PUBLIC_APP_URL of ['http://acks-app.vercel.app', 'https://other.vercel.app', 'https://acks-app.vercel.app/']) {
+    assert.ok(validate({ ...settings, PUBLIC_APP_URL }, { vercel: true }).length > 0);
+  }
+});

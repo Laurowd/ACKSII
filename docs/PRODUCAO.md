@@ -1,6 +1,10 @@
 # Implantação e operação
 
+Para a hospedagem escolhida neste projeto, siga [Vercel + Neon](PRODUCAO_VERCEL.md). Este documento descreve a alternativa em servidor com Docker.
+
 O Compose publica Caddy (frontend, HTTPS e proxy `/api`), Fastify e PostgreSQL. Somente portas 80/443 são públicas. Rotas do Vue têm fallback para `index.html`. O banco existente no Neon não é usado automaticamente: esta configuração cria um banco próprio.
+
+Para manter o banco Neon existente, use [Produção com Neon](PRODUCAO_NEON.md), `compose.neon.yml` e `.env.neon.production.example`. Essa configuração separa a conexão da API da conexão de migração e tem um script próprio de backup/restauração.
 
 ## Preparar o servidor
 

@@ -42,6 +42,8 @@ jobs:
         run: npm ci --prefix frontend
       - run: npm run prisma:generate --prefix backend
       - run: npm run build --prefix backend && npm run build --prefix frontend
+      - name: Check compiled Vercel entrypoint and static frontend
+        run: node scripts/check-vercel-build.cjs
       - run: npm test --prefix backend && npm test --prefix frontend
       - run: npm audit --prefix backend --audit-level=moderate && npm audit --prefix frontend --audit-level=moderate
       - run: npm run test:integration --prefix backend
@@ -67,32 +69,52 @@ jobs:
   containers:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - database: local
+            compose_files: compose.yml:compose.test.yml
+          - database: external
+            compose_files: compose.neon.yml:compose.neon.test.yml
     env:
+      COMPOSE_FILE: ${{ matrix.compose_files }}
       APP_DOMAIN: localhost
       ACME_EMAIL: ci@example.com
       POSTGRES_PASSWORD: disposabletestpassword
       JWT_SECRET: disposable-ci-secret-at-least-32-characters
       RELEASE_TAG: ci
+      DATABASE_URL: postgresql://acks_test:local-test-only@db:5432/acks_test
+      DIRECT_DATABASE_URL: postgresql://acks_test:local-test-only@db:5432/acks_test
     steps:
       - uses: actions/checkout@v5
       - name: Validate deployment configuration
-        run: docker compose -p acks-ci -f compose.yml -f compose.test.yml config --quiet
+        run: docker compose -p acks-ci config --quiet
       - name: Build and start isolated deployment
-        run: docker compose -p acks-ci -f compose.yml -f compose.test.yml up -d --build --wait --wait-timeout 180
+        run: docker compose -p acks-ci up -d --build --wait --wait-timeout 180
       - name: Verify proxy, SPA fallback, readiness and headers
         run: |
           curl --fail http://localhost/api/ready
           curl --fail http://localhost/character/deep-link | grep '<div id="app">'
           curl --fail -I http://localhost/login | grep -i 'content-security-policy'
       - name: Backup and restore into a separate database
+        if: matrix.database == 'local'
         env:
           ACKS_COMPOSE_PROJECT: acks-ci
           ACKS_COMPOSE_ENV_FILE: none
         run: |
           node scripts/backup.cjs create backup-ci.dump
           node scripts/backup.cjs verify backup-ci.dump
+      - name: Export external database and verify in a network-isolated container
+        if: matrix.database == 'external'
+        env:
+          ACKS_NEON_ENV_FILE: none
+          ACKS_BACKUP_NETWORK: acks-ci_private
+        run: |
+          node scripts/backup-neon.cjs create backup-external-ci.dump
+          node scripts/backup-neon.cjs verify backup-external-ci.dump
       - name: Logs and cleanup of disposable CI project
         if: always()
         run: |
-          docker compose -p acks-ci -f compose.yml -f compose.test.yml logs --tail 100 || true
-          docker compose -p acks-ci -f compose.yml -f compose.test.yml down --volumes --remove-orphans
+          docker compose -p acks-ci logs --tail 100 || true
+          docker compose -p acks-ci down --volumes --remove-orphans

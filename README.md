@@ -2,7 +2,11 @@
 
 Ficha de personagem para **Adventurer Conqueror King System II** (backend + frontend).
 
-Para publicar, consulte [Implantação e operação](docs/PRODUCAO.md): Docker Compose, HTTPS, migrações, backups, restauração, rollback e homologação.
+Para publicar na hospedagem escolhida, siga [Vercel + Neon](docs/PRODUCAO_VERCEL.md): configuração da API, variáveis, Resend, migrações, verificações e rollback.
+
+Para hospedar em servidor com Docker, consulte [Implantação e operação](docs/PRODUCAO.md): Docker Compose, HTTPS, migrações, backups, restauração, rollback e homologação.
+
+Para continuar usando o banco existente no Neon, siga [Produção com Neon](docs/PRODUCAO_NEON.md). Há um Compose sem banco local, conexões separadas para API/migrações e exportação com teste de restauração isolado.
 
 **Regras atualizadas:** a aba **Evolução & Regras** reúne avanço com rolagem de PV, magia e descanso, XP, domínio mensal, pesquisa e cargas de itens. Há criação com orçamento e validação de escolhas, equipamentos corrigidos e construtor de classes por pontos. Veja [como usar e limites da automação](docs/FLUXOS_ACKS_II.md).
 

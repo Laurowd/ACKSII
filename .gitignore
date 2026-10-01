@@ -4,6 +4,8 @@
 **/.env.*
 !**/.env.example
 !**/.env.production.example
+!**/.env.neon.production.example
+!**/.env.vercel.example
 **/test-results/
 **/playwright-report/
 backups/
@@ -27,7 +29,7 @@ frontend/cypress/.runtime/
 /temp.vue
 /update_feats.cjs
 /update_tab*.cjs
-/package-lock.json
+.vercel/
 /backend/compile_errors.txt
 /backend/fix.cjs
 /backend/fix_quotes.py

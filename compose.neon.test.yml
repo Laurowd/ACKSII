@@ -1,0 +1,28 @@
+# CI only: simulates the external connection with a disposable PostgreSQL.
+# No Neon account, credentials or data are used.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: acks_test
+      POSTGRES_PASSWORD: local-test-only
+      POSTGRES_DB: acks_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acks_test -d acks_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+    networks: [private]
+  migrate:
+    depends_on:
+      db: { condition: service_healthy }
+  api:
+    environment:
+      NODE_ENV: test
+      CORS_ORIGIN: http://localhost
+      PUBLIC_APP_URL: http://localhost
+  web:
+    environment:
+      APP_DOMAIN: ":80"

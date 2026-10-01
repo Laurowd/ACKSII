@@ -6,6 +6,8 @@ const root = path.resolve(__dirname, '..');
 const knownKeys = [
   'APP_DOMAIN', 'ACME_EMAIL', 'RELEASE_TAG', 'POSTGRES_PASSWORD', 'JWT_SECRET',
   'SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_FROM', 'SMTP_USER', 'SMTP_PASS',
+  'DATABASE_URL', 'DIRECT_DATABASE_URL',
+  'CORS_ORIGIN', 'PUBLIC_APP_URL',
 ];
 
 function parseEnv(source) {
@@ -53,9 +55,9 @@ function isReservedEmail(value) {
   return /@(?:[^@]+\.)?(?:example\.(?:com|net|org)|example|invalid|localhost|test)$/i.test(value);
 }
 
-function validate(values) {
+function validate(values, { neon = false, vercel = false } = {}) {
   const errors = [];
-  const required = ['APP_DOMAIN', 'ACME_EMAIL', 'RELEASE_TAG', 'POSTGRES_PASSWORD', 'JWT_SECRET', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_FROM'];
+  const required = ['JWT_SECRET', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_FROM', ...(vercel ? ['DATABASE_URL', 'CORS_ORIGIN', 'PUBLIC_APP_URL'] : ['APP_DOMAIN', 'ACME_EMAIL', 'RELEASE_TAG', ...(neon ? ['DATABASE_URL', 'DIRECT_DATABASE_URL'] : ['POSTGRES_PASSWORD'])])];
   for (const key of required) if (!values[key]?.trim()) errors.push(`${key}: valor obrigatório`);
 
   const domain = values.APP_DOMAIN || '';
@@ -67,7 +69,7 @@ function validate(values) {
     errors.push('RELEASE_TAG: use uma versão imutável, sem espaços (por exemplo, 2026.10.01-1)');
   }
 
-  for (const key of ['POSTGRES_PASSWORD', 'JWT_SECRET']) {
+  for (const key of neon || vercel ? ['JWT_SECRET'] : ['POSTGRES_PASSWORD', 'JWT_SECRET']) {
     const value = values[key] || '';
     if (value && !/^[a-f0-9]{64}$/i.test(value)) errors.push(`${key}: gere exatamente 32 bytes aleatórios em hexadecimal (64 caracteres)`);
   }
@@ -87,6 +89,43 @@ function validate(values) {
   }
   if (Boolean(values.SMTP_USER) !== Boolean(values.SMTP_PASS)) errors.push('SMTP_USER e SMTP_PASS: configure ambos ou deixe ambos vazios');
 
+  if (vercel) {
+    for (const key of ['CORS_ORIGIN', 'PUBLIC_APP_URL']) {
+      if (!values[key]) continue;
+      try {
+        const url = new URL(values[key]);
+        if (url.protocol !== 'https:' || url.origin !== values[key]) throw new Error();
+      } catch { errors.push(`${key}: use a origem HTTPS exata, sem caminho ou barra final`); }
+    }
+    if (values.CORS_ORIGIN && values.PUBLIC_APP_URL && values.CORS_ORIGIN !== values.PUBLIC_APP_URL) {
+      errors.push('CORS_ORIGIN e PUBLIC_APP_URL: use o mesmo domínio da aplicação Vercel');
+    }
+  }
+
+  if (neon || vercel) {
+    const urls = {};
+    for (const key of vercel ? ['DATABASE_URL'] : ['DATABASE_URL', 'DIRECT_DATABASE_URL']) {
+      if (!values[key]) continue;
+      try {
+        const url = new URL(values[key]);
+        if (!['postgres:', 'postgresql:'].includes(url.protocol) || !url.hostname.endsWith('.neon.tech') || !url.username || !url.password || !url.pathname.slice(1)) {
+          errors.push(`${key}: use a conexão PostgreSQL completa fornecida pelo Neon`);
+        }
+        if (!['require', 'verify-full'].includes(url.searchParams.get('sslmode'))) errors.push(`${key}: a conexão exige sslmode=require ou verify-full`);
+        const pooled = url.hostname.split('.')[0].endsWith('-pooler');
+        if ((key === 'DATABASE_URL') !== pooled) errors.push(`${key}: copie a URL com pooling ${key === 'DATABASE_URL' ? 'ativado' : 'desativado'}`);
+        urls[key] = url;
+      } catch {
+        errors.push(`${key}: URL inválida`);
+      }
+    }
+    const pooled = urls.DATABASE_URL;
+    const direct = urls.DIRECT_DATABASE_URL;
+    if (pooled && direct && (pooled.hostname.replace('-pooler.', '.') !== direct.hostname || pooled.pathname !== direct.pathname || pooled.username !== direct.username)) {
+      errors.push('DATABASE_URL e DIRECT_DATABASE_URL: selecione o mesmo endpoint, banco e usuário no Neon');
+    }
+  }
+
   return errors;
 }
 
@@ -104,7 +143,7 @@ function run(argv = process.argv, environment = process.env, platform = process.
         overrides.push(key);
       }
     }
-    const errors = [...parsed.errors, ...validate(values)];
+    const errors = [...parsed.errors, ...validate(values, { neon: argv.includes('--neon'), vercel: argv.includes('--vercel') })];
     if (platform !== 'win32' && (stat.mode & 0o077) !== 0) errors.push('permissões: restrinja o arquivo com chmod 600');
     if (errors.length) {
       output.error('Preflight de produção falhou:');
