@@ -9,7 +9,7 @@ const { db } = vi.hoisted(() => ({ db: {
   character: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   campaign: { findUnique: vi.fn() }, customClass: { findFirst: vi.fn() }, auditLog: { create: vi.fn() },
   weapon: { create: vi.fn(), updateMany: vi.fn() }, item: { create: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
-  proficiency: { findFirst: vi.fn(), update: vi.fn() }, domain: { findUnique: vi.fn(), upsert: vi.fn() }, $transaction: vi.fn(),
+  proficiency: { findFirst: vi.fn(), update: vi.fn() }, domain: { findUnique: vi.fn(), upsert: vi.fn() }, $transaction: vi.fn(), $queryRaw: vi.fn(),
 } }))
 vi.mock('../lib/prisma', () => ({ default: db }))
 import { characterRoutes } from './characters'
@@ -21,7 +21,7 @@ async function request(method: 'POST' | 'PUT', url: string, payload: any, userId
   app.register(jwt, { secret: 'acks-regression' })
   app.register(characterRoutes, { prefix: '/api/characters' })
   await app.ready()
-  try { return await app.inject({ method, url: '/api/characters/c' + url, payload: url === '' ? { version: 0, ...payload } : payload,
+  try { return await app.inject({ method, url: '/api/characters/c' + url, payload: { version: 0, ...payload },
     headers: { authorization: `Bearer ${app.jwt.sign({ id: userId, role: 'PLAYER' })}` } }) }
   finally { await app.close() }
 }
@@ -34,19 +34,18 @@ describe('ACKS II corrections through the API', () => {
     db.character.updateMany.mockResolvedValue({ count: 1 })
     db.$transaction.mockImplementation(async (fn: (tx: typeof db) => unknown) => fn(db))
   })
-  it('awards treasure XP without debiting money and rejects a repeated award', async () => {
-    expect((await request('POST', '/treasure/convert-xp', { awardId: 'session-1', gp: 100 })).statusCode).toBe(200)
-    expect(db.character.update.mock.calls[0]![0].data).toEqual({ xp: { increment: 100 }, xpFromTreasure: { increment: 100 } })
-    db.auditLog.create.mockRejectedValueOnce({ code: 'P2002' })
-    expect((await request('POST', '/treasure/convert-xp', { awardId: 'session-1', gp: 100 })).statusCode).toBe(409)
-    expect(db.character.update).toHaveBeenCalledTimes(1)
+  it('directs legacy treasure awards to adventure settlement without changing XP', async () => {
+    const response = await request('POST', '/treasure/convert-xp', { awardId: 'session-1', gp: 100 })
+    expect(response.statusCode).toBe(409)
+    expect(response.json().code).toBe('USE_ADVENTURE_SETTLEMENT')
+    expect(db.character.update).not.toHaveBeenCalled()
   })
   it('buys an item with integer coin change at the server price', async () => {
     db.item.create.mockResolvedValue({ id: 'item' })
-    db.character.findUniqueOrThrow.mockResolvedValueOnce({ ...character }).mockResolvedValueOnce({ ...character, coinGP: 19, coinSP: 8, version: 1 })
-    const res = await request('POST', '/shop/purchase', { entryId: 'i-torch', costGp: 0 })
+    db.character.findUniqueOrThrow.mockResolvedValueOnce({ ...character }).mockResolvedValue({ ...character, coinGP: 19, coinSP: 9, version: 1 })
+    const res = await request('POST', '/shop/purchase', { entryId: 'i-torch' })
     expect(res.statusCode).toBe(201)
-    expect(res.json().character).toMatchObject({ coinGP: 19, coinSP: 8, coinCP: 0 })
+    expect(res.json().character).toMatchObject({ coinGP: 19, coinSP: 9, coinCP: 0 })
     expect(db.item.create).toHaveBeenCalledOnce()
     expect(db.$transaction).toHaveBeenCalledOnce()
   })

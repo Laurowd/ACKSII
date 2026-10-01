@@ -1,4 +1,16 @@
-# Validação local — 30/09/2026
+# Validação local — 01/10/2026
+
+## Consistência da ficha e revisão do frontend de 01/10
+
+- Tela, JSON e impressão usam os mesmos cálculos de CA, iniciativa e movimento; a exportação respeita a progressão manual da campanha. O caso DEX 16 com armadura de CA 2 resulta em CA 4 sem escudo nos três lugares, mesmo antes do salvamento.
+- Editores de relações, compras e manutenção conferem a versão dentro da transação. Edição concorrente tem um único vencedor. Rascunhos e falhas sobrevivem à troca de aba, e tentativas de comandos com resposta incerta conservam a versão original para evitar duplicação.
+- Conjuração e descanso ficam em Magia. Fechar aventura é o fluxo de XP; o endpoint antigo de tesouro recusa novas concessões. Ajustes de XP exigem mestre responsável e justificativa.
+- A visão de sessão do mestre reúne PV, CA, movimento, salvamentos e magia; filtros e atualização preservam o grupo anterior quando uma requisição falha. A importação JSON cria uma nova ficha com relações e IDs novos, sem reaplicar operações financeiras; veja [portabilidade](PORTABILIDADE_FICHAS.md).
+- Salvamentos comuns preservam a base manual de ataque das armas. A fila de planejamento mágico aceita linhas de texto e objetos antigos. Controles de campanha bloqueiam envios repetidos e falhas de carregamento não expõem configurações padrão como se fossem os dados atuais.
+- Builds de backend e frontend aprovados, com **68 testes unitários de cada aplicação**, **39 casos de integração** e **24 cenários Playwright** verificados. Os **54 casos Cypress** foram verificados na execução completa e na repetição dos 16 casos de regras/ficha após os últimos ajustes. Os testes de integração usam exclusivamente o PostgreSQL descartável local `acks_test`. Os cenários novos cobrem importação, relações concorrentes, permissões da sessão e ajustes de XP.
+- Navegação e layouts foram verificados com Edge/Playwright, mouse, teclado e toque, em 320, 390, 768 e 1440 px, nos temas escuro e pergaminho. Os testes de navegador exercitam exportação/importação, persistência de rascunhos, conflitos, falhas de salvamento e recuperação dos editores da campanha.
+
+Não há migração nova nesta revisão. Nenhum teste criou ou alterou fichas no Neon.
 
 ## Correção da criação guiada de 30/09
 
@@ -52,9 +64,10 @@ No navegador, foram verificados cadastro, criação de campanha, criação guiad
 
 ## Ainda precisa de validação externa
 
-- Construção e execução dos containers, Caddy e backup/restauração via Docker: Docker não está instalado nesta máquina. O job `containers` do CI foi preparado para essas verificações, mas ainda não foi executado no GitHub.
-- O repositório local ainda não tem commits nem remoto configurado. Revisão, versionamento e envio ao repositório escolhido precedem o CI remoto.
-- DNS, emissão de certificado, SMTP do provedor, monitor externo, destinatários dos alertas e cópia dos backups fora do servidor.
-- Migração/restauração de uma cópia do banco existente no ambiente escolhido. Os testes locais usaram dados novos e fixtures; não consultaram nem alteraram o Neon ou o `.env` existente.
+- Configuração do remetente e credencial do provedor de e-mail para testar recuperação de senha no ambiente público.
+- Domínio próprio, caso seja adotado, e preferências de destinatários das notificações operacionais.
+- Guarda da chave dos backups fora desta máquina e ensaio operacional de recuperação em um banco separado.
+
+O remoto `Laurowd/ACKSII` está configurado. Os containers e a restauração de backup já passaram no [CI anterior](https://github.com/Laurowd/ACKSII/actions/runs/36928195384); o primeiro backup automatizado do Neon passou no [workflow de backup](https://github.com/Laurowd/ACKSII/actions/runs/36928195091). Esses resultados anteriores não substituem a validação desta revisão da aplicação.
 
 Consulte [Implantação e operação](PRODUCAO.md) para comandos e critérios de abertura. Este registro não certifica produção pública nem valida integralmente as regras do jogo.

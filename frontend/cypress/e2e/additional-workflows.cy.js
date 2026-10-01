@@ -1,3 +1,5 @@
+import { mutateCharacter } from '../support/characterMutations'
+
 const freeClass = {
   name: 'Fighter', hitDie: '1d8', conBonus: true, xpPerLevel: [0, 2000],
   titles: ['Veteran', 'Warrior'], attackThrows: [10, 9],
@@ -50,6 +52,7 @@ describe('Classes livres, consulta e operações complementares', () => {
 
   it('consulta regras reais e navega pelas tabelas do mestre', function () {
     cy.signIn(this.account, '/dashboard/judge')
+    cy.button('Consultar regras').click()
     cy.intercept('GET', '/api/rules/search*').as('search')
     cy.field('Pesquisar regras').type('Morale')
     cy.wait('@search').its('response.statusCode').should('eq', 200)
@@ -75,34 +78,38 @@ describe('Classes livres, consulta e operações complementares', () => {
     })
   })
 
-  it('premia tesouro uma vez, preserva moedas e invalida versões antigas (API)', function () {
+  it('fecha aventura uma vez, rejeita o atalho de XP e invalida versões antigas (API)', function () {
     cy.character(this.account).then(c => {
       const path = `/characters/${c.id}`
       const award = { awardId: 'Cypress treasure', gp: 100, sp: 0, cp: 0 }
-      cy.api(this.account, 'POST', `${path}/treasure/convert-xp`, award).its('xpGain').should('eq', 100)
-      cy.api(this.account, 'POST', `${path}/treasure/convert-xp`, award, 409)
+      cy.api(this.account, 'POST', `${path}/treasure/convert-xp`, award, 409).its('code').should('eq', 'USE_ADVENTURE_SETTLEMENT')
+      const settlement = { awardId: award.awardId, treasureGp: 100, participants: [{ id: c.id, version: c.version, share: 1 }] }
+      cy.api(this.account, 'POST', '/game-rules/adventures/apply', settlement)
+      cy.api(this.account, 'GET', path).its('character').then(current => {
+        cy.api(this.account, 'POST', '/game-rules/adventures/apply', { ...settlement, participants: [{ id: c.id, version: current.version, share: 1 }] }, 409)
+      })
       cy.api(this.account, 'PUT', path, { version: c.version, xp: 0 }, 409)
       cy.api(this.account, 'GET', path).its('character').should('include', { xp: 100, coinGP: 100 })
-      cy.api(this.account, 'POST', `${path}/maintenance/recalculate`, {})
+      mutateCharacter(this.account, 'POST', `${path}/maintenance/recalculate`)
     })
   })
 
   it('venda rejeita versão antiga sem alterações e não pode ser creditada duas vezes (API)', function () {
     cy.character(this.account).then(c => {
       const path = `/characters/${c.id}`
-      cy.api(this.account, 'POST', `${path}/mercantile`, { cargoName: 'Silk', baseValueGp: 100, originMarketClass: 4, destMarketClass: 2 }, 201).its('venture').then(venture => {
+      mutateCharacter(this.account, 'POST', `${path}/mercantile`, { cargoName: 'Silk', baseValueGp: 100, originMarketClass: 4, destMarketClass: 2 }, 201).its('venture').then(venture => {
         const sale = `${path}/mercantile/${venture.id}/sell`
         cy.api(this.account, 'POST', sale, { version: 100 }, 409)
         cy.api(this.account, 'GET', path).its('character').then(stored => {
           expect(stored.coinGP).to.eq(100)
           expect(stored.mercantileVentures[0].status).to.eq('IN_TRANSIT')
         })
-        cy.api(this.account, 'POST', sale, { version: c.version }).then(result => {
+        mutateCharacter(this.account, 'POST', sale).then(result => {
           expect(result.character.coinGP).to.eq(220)
           cy.api(this.account, 'POST', sale, { version: result.character.version }, 409)
           // Manual status edits must not allow crediting the same cargo again.
-          cy.api(this.account, 'PUT', `${path}/mercantile/${venture.id}`, { status: 'IN_TRANSIT' })
-          cy.api(this.account, 'POST', sale, { version: result.character.version }, 409)
+          mutateCharacter(this.account, 'PUT', `${path}/mercantile/${venture.id}`, { status: 'IN_TRANSIT' })
+          mutateCharacter(this.account, 'POST', sale, {}, 409)
           cy.api(this.account, 'GET', path).its('character.coinGP').should('eq', 220)
         })
       })

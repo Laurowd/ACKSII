@@ -59,14 +59,14 @@
             <h2 class="break-words text-2xl font-bold text-gold">{{ camp.name }}</h2>
             <p class="text-steel flex flex-wrap gap-4 mt-1 text-sm">
               <span>Mestre: <span class="text-gold-light">{{ camp.master?.username }}</span></span>
-              <span v-if="authStore.isMaster">Código: <span class="text-white font-mono bg-dark-bg px-2 py-0.5 rounded tracking-widest">{{ camp.joinCode }}</span></span>
+              <span v-if="ownsCampaign(camp)">Código: <span class="text-white font-mono bg-dark-bg px-2 py-0.5 rounded tracking-widest">{{ camp.joinCode }}</span></span>
             </p>
           </div>
           <div class="flex gap-2">
-            <button v-if="authStore.isMaster" @click="manageInvites(camp)" class="px-4 py-1.5 border border-gold/50 text-gold rounded hover:bg-gold/10 text-sm transition-colors">
+            <button v-if="ownsCampaign(camp)" @click="manageInvites(camp)" class="px-4 py-1.5 border border-gold/50 text-gold rounded hover:bg-gold/10 text-sm transition-colors">
               Gerenciar Convites e Classes
             </button>
-            <button v-else-if="!authStore.isMaster" :disabled="leaving.has(camp.id)" @click="leaveCampaign(camp.id)" class="px-4 py-1.5 border border-red-900/50 text-red-400 bg-red-900/10 rounded hover:bg-red-900/40 text-sm transition-colors disabled:opacity-50">
+            <button v-else :disabled="leaving.has(camp.id)" @click="leaveCampaign(camp.id)" class="px-4 py-1.5 border border-red-900/50 text-red-400 bg-red-900/10 rounded hover:bg-red-900/40 text-sm transition-colors disabled:opacity-50">
               Sair da Campanha
             </button>
           </div>
@@ -74,11 +74,11 @@
 
         <div class="mt-4 border-t border-steel-dark/50 pt-4 flex gap-6">
           <div>
-            <h4 class="text-xs uppercase text-steel font-bold mb-2">Membros ({{ camp.members?.length || 0 }})</h4>
+            <h4 class="text-xs uppercase text-steel font-bold mb-2">Membros ({{ acceptedMembers(camp).length }})</h4>
             <div class="flex flex-wrap gap-2">
-              <span v-for="m in camp.members" :key="m.id" 
+              <span v-for="m in acceptedMembers(camp)" :key="m.id"
                 class="px-2 py-1 bg-dark-bg rounded text-xs border"
-                :class="m.user.username === camp.master?.username ? 'border-gold text-gold' : 'border-steel-dark text-steel-light'">
+                :class="m.userId === camp.masterId ? 'border-gold text-gold' : 'border-steel-dark text-steel-light'">
                 {{ m.user.username }}
               </span>
             </div>
@@ -113,6 +113,9 @@ const newCampaignName = ref('')
 
 const showJoinCampaign = ref(false)
 const joinCodeInput = ref('')
+
+function ownsCampaign(camp: any) { return camp.masterId === authStore.user?.id }
+function acceptedMembers(camp: any) { return (camp.members || []).filter((member: any) => member.status === 'ACCEPTED') }
 
 onMounted(async () => {
   await loadCampaigns()

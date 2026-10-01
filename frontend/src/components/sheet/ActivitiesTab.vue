@@ -155,8 +155,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import api from '../../services/api'
-import { notifyError, notifySuccess } from '../../utils/toast'
-import { errorMessage } from '../../utils/catalog'
+import { useCharacterRelations } from '../../composables/characterRelations'
+import { notifySuccess } from '../../utils/toast'
 
 defineOptions({ name: 'ActivitiesTab' })
 
@@ -165,6 +165,8 @@ const props = defineProps<{
   prepare: () => Promise<boolean>
 }>()
 
+const relations = useCharacterRelations(() => props.character)
+
 const selling = ref(new Set<string>())
 
 const characterActivities = computed(() => {
@@ -172,38 +174,19 @@ const characterActivities = computed(() => {
 })
 
 async function addActivity() {
-  try {
-    const res = await api.post(`/api/characters/${props.character.id}/activities`, {})
-    if (!props.character.activities) props.character.activities = []
-    props.character.activities.push(res.data.activity)
-  } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível adicionar a atividade.'))
-  }
+  await relations.add('activities', 'activities', 'activity')
 }
 
 async function saveActivity(act: any) {
-  try {
-    await api.put(`/api/characters/${props.character.id}/activities/${act.id}`, {
-      title: act.title,
-      type: act.type,
-      durationWeeks: act.durationWeeks,
-      remainingWeeks: act.remainingWeeks,
-      costGp: act.costGp,
-      status: act.status,
-      details: act.details
-    })
-  } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível salvar a atividade. Tente novamente.'))
-  }
+  await relations.update('activities', act, {
+    title: act.title, type: act.type, durationWeeks: act.durationWeeks,
+    remainingWeeks: act.remainingWeeks, costGp: act.costGp,
+    status: act.status, details: act.details,
+  }, 'activity')
 }
 
 async function removeActivity(id: string) {
-  try {
-    await api.delete(`/api/characters/${props.character.id}/activities/${id}`)
-    props.character.activities = props.character.activities.filter((a: any) => a.id !== id)
-  } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível remover a atividade.'))
-  }
+  await relations.remove('activities', 'activities', id)
 }
 
 // ==== MERCANTILE VENTURES ====
@@ -212,38 +195,23 @@ const characterVentures = computed(() => {
 })
 
 async function addVenture() {
-  try {
-    const res = await api.post(`/api/characters/${props.character.id}/mercantile`, {
-      cargoName: 'New Cargo',
-      baseValueGp: 100,
-      originMarketClass: 3,
-      destMarketClass: 3,
-      distanceHexes: 1,
-      status: 'IN_TRANSIT',
-      profitGp: 0
-    })
-    if (!props.character.mercantileVentures) props.character.mercantileVentures = []
-    props.character.mercantileVentures.push(res.data.venture)
-  } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível adicionar a carga mercantil.'))
-  }
+  await relations.add('mercantile', 'mercantileVentures', 'venture', {
+    cargoName: 'Nova carga', baseValueGp: 100,
+    originMarketClass: 3, destMarketClass: 3, distanceHexes: 1,
+    status: 'IN_TRANSIT', profitGp: 0,
+  })
 }
 
 async function removeVenture(id: string) {
-  try {
-    await api.delete(`/api/characters/${props.character.id}/mercantile/${id}`)
-    props.character.mercantileVentures = props.character.mercantileVentures.filter((v: any) => v.id !== id)
-  } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível remover a carga mercantil.'))
-  }
+  await relations.remove('mercantile', 'mercantileVentures', id)
 }
 
 async function saveVenture(ven: any) {
-  try {
-    await api.put(`/api/characters/${props.character.id}/mercantile/${ven.id}`, ven)
-  } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível salvar a carga mercantil. Tente novamente.'))
-  }
+  await relations.update('mercantile', ven, {
+    cargoName: ven.cargoName, baseValueGp: ven.baseValueGp,
+    originMarketClass: ven.originMarketClass, destMarketClass: ven.destMarketClass,
+    distanceHexes: ven.distanceHexes, status: ven.status, profitGp: ven.profitGp,
+  }, 'venture')
 }
 
 function getDemandMod(ven: any) {
@@ -270,13 +238,10 @@ async function sellVenture(ven: any) {
   if (ven.status === 'SOLD' || selling.value.has(ven.id)) return
   selling.value.add(ven.id)
   try {
-    if (!await props.prepare()) return
-    const { data } = await api.post(`/api/characters/${props.character.id}/mercantile/${ven.id}/sell`, { version: props.character.version })
-    Object.assign(ven, data.venture)
-    Object.assign(props.character, data.character)
-    notifySuccess('Carga vendida e saldo atualizado.')
-  } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível vender a carga. Tente novamente.'))
+    const data = await relations.run(`mercantile:${ven.id}:sell`, (version) => api.post(`/api/characters/${props.character.id}/mercantile/${ven.id}/sell`, { version }), (data) => {
+      Object.assign(ven, data.venture)
+    })
+    if (data) notifySuccess('Carga vendida e saldo atualizado.')
   } finally { selling.value.delete(ven.id) }
 }
 </script>

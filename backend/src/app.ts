@@ -13,6 +13,8 @@ import { rulesRoutes } from './routes/rules'
 import { gameRulesRoutes } from './routes/gameRules'
 import { campaignRuleRoutes } from './routes/campaignRules'
 import { classBuilderRoutes } from './routes/classBuilder'
+import { sessionRoutes } from './routes/session'
+import { characterImportRoutes } from './routes/characterImport'
 
 export function buildApp(config = readConfig(), logger = true) {
   const app = Fastify({
@@ -26,7 +28,7 @@ export function buildApp(config = readConfig(), logger = true) {
     reply.header('X-Content-Type-Options', 'nosniff').header('Cache-Control', 'no-store')
   })
   app.setErrorHandler<FastifyError>((error, request, reply) => {
-    if (error.code === 'P2034') return reply.code(409).send({error:'Houve uma alteração concorrente. Refaça a prévia e tente novamente.'})
+    if (error.code === 'P2034') return reply.code(409).send({ code: 'CHARACTER_CONFLICT', error:'Houve uma alteração concorrente. Atualize a ficha e tente novamente.' })
     if (error.code === 'P2002') return reply.code(409).send({ error: 'Este registro já existe.' })
     if (error.code === 'P2025') return reply.code(404).send({ error: 'Registro não encontrado.' })
     if (error.validation) return reply.code(400).send({ error: 'Dados inválidos.', message: error.message })
@@ -35,7 +37,7 @@ export function buildApp(config = readConfig(), logger = true) {
       request.log.error({ err: error, requestId: request.id }, 'request failed')
       return reply.code(500).send({ error: 'Erro interno. Tente novamente.', requestId: request.id })
     }
-    return reply.code(status).send({ error: error.message })
+    return reply.code(status).send({ error: error.message, ...(error.code ? { code: error.code } : {}) })
   })
   app.get('/api/health', async () => ({ status: 'ok' }))
   app.get('/api/ready', async (request, reply) => {
@@ -45,6 +47,7 @@ export function buildApp(config = readConfig(), logger = true) {
   app.register(authRoutes, { prefix: '/api/auth' })
   app.register(characterRoutes, { prefix: '/api/characters' })
   app.register(characterCreationRoutes, { prefix: '/api/characters' })
+  app.register(characterImportRoutes, { prefix: '/api/characters' })
   app.register(campaignsRoutes, { prefix: '/api/campaigns' })
   app.register(customClassesRoutes, { prefix: '/api/classes' })
   app.register(compendiumRoutes, { prefix: '/api/compendium' })
@@ -52,6 +55,7 @@ export function buildApp(config = readConfig(), logger = true) {
   app.register(gameRulesRoutes, { prefix: '/api/game-rules' })
   app.register(campaignRuleRoutes, { prefix: '/api/campaign-rules' })
   app.register(classBuilderRoutes, { prefix: '/api/class-builder' })
+  app.register(sessionRoutes, { prefix: '/api/session' })
   // Fastify drains active requests before running onClose.
   app.addHook('onClose', async () => { await prisma.$disconnect() })
   return app

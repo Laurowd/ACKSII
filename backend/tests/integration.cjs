@@ -21,6 +21,11 @@ let app, auth, user, character;
 const suffix = randomBytes(6).toString('hex');
 const password = 'a-local-test-password';
 async function request(method, url, payload, token = auth) {
+  const relation = url.match(/^\/api\/characters\/([^/]+)\/(weapons|items|proficiencies|spells|rituals|magic-formulae|henchmen|domain|scars|activities|army|magic-research|mercantile|shop|maintenance)(?:\/|$)/);
+  if (relation && ['POST', 'PUT', 'DELETE'].includes(method) && payload?.version === undefined) {
+    const current = await db.character.findUnique({ where: { id: relation[1] } });
+    payload = { ...payload, version: current?.version ?? 0 };
+  }
   return app.inject({ method, url, payload, headers: token ? { authorization: `Bearer ${token}` } : {} });
 }
 before(async () => {
@@ -150,6 +155,7 @@ test('guided validation, weapon style, advancement and adventure awards persist 
   await request('PUT',`/api/characters/${id}/weapons/${weapon.id}`,{automaticDamage:false,damage:'2d6',style:'Single Weapon'});
   await request('PUT',`/api/characters/${id}/weapons/${weapon.id}`,{style:'Two-Handed Weapon'});
   assert.equal((await db.weapon.findUnique({where:{id:weapon.id}})).damage,'2d6');
+  c=await db.character.findUnique({where:{id}});
   const award={awardId:`rules-${suffix}`,treasureGp:2000,participants:[{id,version:c.version,share:1}]};
   const preview=await request('POST','/api/game-rules/adventures/preview',award);
   assert.equal(preview.statusCode,200,preview.body);assert.equal(preview.json().awards[0].gained,2200);
@@ -205,6 +211,7 @@ test('tracked research pays once, advances only through work reports and consume
   assert.ok(project);
   const component=await db.item.create({data:{characterId:c.id,name:'Appropriate components',quantity:2,weight:1}});
   const base=`/api/campaign-rules/characters/${c.id}/research/${project.id}`;
+  c=await db.character.findUnique({where:{id:c.id}});
   const input={version:c.version,casterLevel:5,tradition:'arcane',rateBonusPercent:0,dedication:'dedicated',assistants:[],duration:'instant',affectsUser:false,esoteric:false,healing:false,eligible:true,itemKind:'other'};
   const preview=await request('POST',`${base}/preview`,input);assert.equal(preview.statusCode,200,preview.body);
   const started=await request('POST',`${base}/start`,{...input,fingerprint:preview.json().fingerprint});assert.equal(started.statusCode,200,started.body);
@@ -259,9 +266,10 @@ test('magic item charges are separate from notes and concurrent use spends once'
 test('concurrent cargo settlement credits coins once and preserves an audit record', async () => {
   const created = await request('POST', '/api/characters/guided', { characterName: `Trader ${suffix}`, classKey: 'catalog:fighter', str: 10, int: 10, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 6, coinGP: 100 });
   assert.equal(created.statusCode, 201, created.body);
-  const c = created.json().character;
+  let c = created.json().character;
   const cargo = await request('POST', `/api/characters/${c.id}/mercantile`, { cargoName: 'Silk', baseValueGp: 100, originMarketClass: 4, destMarketClass: 2 });
   assert.equal(cargo.statusCode, 201, cargo.body);
+  c=await db.character.findUnique({where:{id:c.id}});
   const venture = cargo.json().venture;
   const endpoint = `/api/characters/${c.id}/mercantile/${venture.id}/sell`;
   const results = await Promise.all([request('POST', endpoint, { version: c.version }), request('POST', endpoint, { version: c.version })]);

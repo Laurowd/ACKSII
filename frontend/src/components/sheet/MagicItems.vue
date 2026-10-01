@@ -18,15 +18,22 @@
 import {ref,computed,watch} from 'vue'
 import api from '../../services/api'
 import {errorMessage} from '../../utils/catalog'
+import { useCharacterOperations } from '../../composables/characterOperations'
 const props=defineProps<{character:any;prepare:()=>Promise<boolean>;refresh:()=>Promise<void>}>()
+const operations=useCharacterOperations()
 const itemId=ref(''),busy=ref(false),error=ref(''),notice=ref(''),charged=ref(false),spend=ref(1)
 const item=computed(()=>props.character.items?.find((i:any)=>i.id===itemId.value))
 const stored=computed(()=>{try{return JSON.parse(item.value?.magicDetails||'{}')}catch{return {}}})
 const details=ref<any>({identified:false,charges:0,effect:'',apparentValueGp:0,identifiedValueGp:0})
 watch(item,()=>{const d=stored.value;charged.value=d.charges!=null;details.value={identified:d.identified||false,charges:d.charges||0,effect:d.effect||d.effectType||'',apparentValueGp:d.apparentValueGp||0,identifiedValueGp:d.identifiedValueGp||0}},{immediate:true})
-async function run(fn:()=>Promise<void>){if(busy.value)return;busy.value=true;error.value='';notice.value='';try{await fn();await props.refresh();notice.value='Item atualizado.'}catch(e){error.value=errorMessage(e,'Não foi possível atualizar o item.')}finally{busy.value=false}}
-async function version(){if(!await props.prepare())throw Error('Salve a ficha antes de continuar.');return (await api.get(`/api/game-rules/characters/${props.character.id}`)).data.version}
+async function run(fn:()=>Promise<boolean>){if(busy.value)return;busy.value=true;error.value='';notice.value='';try{if(await fn())notice.value='Item atualizado.'}catch(e){error.value=errorMessage(e,'Não foi possível atualizar o item.')}finally{busy.value=false}}
 const url=()=>`/api/campaign-rules/characters/${props.character.id}/items/${itemId.value}`
-async function save(){await run(async()=>{await api.post(`${url()}/magic`,{version:await version(),details:{...details.value,charges:charged.value?details.value.charges:null}})})}
-async function use(){await run(async()=>{await api.post(`${url()}/charge`,{version:await version(),charges:spend.value})})}
+async function save(){await run(async()=>{
+  const endpoint=`${url()}/magic`,input={details:{...details.value,charges:charged.value?details.value.charges:null}}
+  return !!await operations.run(`items:${itemId.value}:magic:update`,version=>api.post(endpoint,{...input,version}),undefined,{retainDraft:true})
+})}
+async function use(){await run(async()=>{
+  const endpoint=`${url()}/charge`,charges=spend.value
+  return !!await operations.run(`items:${itemId.value}:charge`,version=>api.post(endpoint,{version,charges}))
+})}
 </script>

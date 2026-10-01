@@ -1,14 +1,15 @@
 <template>
   <div class="space-y-4">
+    <SpellcastingPanel :character="character" :prepare="prepare" :refresh="refresh" />
     <!-- ====== MAGIC SHEET ====== -->
     <div class="bg-dark-card border border-gold/20 rounded-xl p-5 mb-4">
-      <h2 class="text-xl font-bold text-gold mb-4 border-b border-gold/10 pb-2">Magic Sheet</h2>
+      <h2 class="text-xl font-bold text-gold mb-4 border-b border-gold/10 pb-2">Recursos e pesquisa de magia</h2>
 
       <!-- Spells per day + resources -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div>
-          <h3 class="text-lg font-bold text-gold mb-3">Usos diários — referência manual</h3>
-          <p class="text-xs text-steel-light mb-2">A aba Evolução &amp; Regras calcula a progressão e acompanha os usos por tradição. Estes campos são anotações manuais.</p>
+        <details v-if="canManage" class="rounded-lg border border-steel-dark p-3">
+          <summary class="text-sm font-bold text-gold cursor-pointer">Referência manual de usos (mestre)</summary>
+          <p class="text-xs text-steel-light my-3">Use para regras de campanha ou fichas antigas. Estes valores não alteram os usos calculados acima.</p>
           <div class="grid grid-cols-3 gap-2">
             <div v-for="lev in 6" :key="lev" class="text-center">
               <label class="lbl">Nível {{ lev }}</label>
@@ -16,37 +17,37 @@
                 class="inp text-center font-bold w-full" />
             </div>
           </div>
-        </div>
+        </details>
         <div>
           <h3 class="text-lg font-bold text-gold mb-3">Recursos de magia</h3>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <div class="mb-1 flex items-center gap-1"><label for="magic-library" class="lbl">Library Value</label>
-                <HelpTooltip label="Library Value">
+              <div class="mb-1 flex items-center gap-1"><label for="magic-library" class="lbl">Valor da biblioteca</label>
+                <HelpTooltip label="Valor da biblioteca">
                   Valor total da biblioteca arcana disponível para aprendizado e pesquisa de magia.
                 </HelpTooltip>
               </div>
               <input id="magic-library" v-model.number="character.libraryValue" @change="emit('save')" type="number" min="0" class="inp" />
             </div>
             <div>
-              <div class="mb-1 flex items-center gap-1"><label for="magic-workshop" class="lbl">Workshop Value</label>
-                <HelpTooltip label="Workshop Value">
+              <div class="mb-1 flex items-center gap-1"><label for="magic-workshop" class="lbl">Valor da oficina</label>
+                <HelpTooltip label="Valor da oficina">
                   Estrutura material/laboratório para criação e desenvolvimento de fórmulas e itens mágicos.
                 </HelpTooltip>
               </div>
               <input id="magic-workshop" v-model.number="character.workshopValue" @change="emit('save')" type="number" min="0" class="inp" />
             </div>
             <div>
-              <div class="mb-1 flex items-center gap-1"><label for="magic-congregants" class="lbl">Congregants</label>
-                <HelpTooltip label="Congregants">
+              <div class="mb-1 flex items-center gap-1"><label for="magic-congregants" class="lbl">Congregantes</label>
+                <HelpTooltip label="Congregantes">
                   Seguidores, aprendizes e assistentes ligados ao seu círculo mágico/templo.
                 </HelpTooltip>
               </div>
               <input id="magic-congregants" v-model.number="character.congregants" @change="emit('save')" type="number" min="0" class="inp" />
             </div>
             <div class="col-span-2">
-              <label class="lbl">Magic Research</label>
-              <input v-model="character.magicResearch" @change="emit('save')" class="inp" placeholder="Pesquisa em andamento..." />
+              <label for="magic-research-summary" class="lbl">Pesquisa de magia</label>
+              <input id="magic-research-summary" v-model="character.magicResearch" @change="emit('save')" class="inp" placeholder="Pesquisa em andamento..." />
             </div>
           </div>
         </div>
@@ -82,25 +83,28 @@
       </div>
 
       <!-- Spells by level (1–6) -->
-      <h3 class="text-lg font-bold text-gold mb-3">Spells</h3>
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+      <details class="rounded-lg border border-steel-dark p-3 mb-6">
+      <summary class="font-bold text-gold cursor-pointer">Repertório manual e exceções {{ canManage ? '(mestre)' : '(consulta)' }}</summary>
+      <p class="text-xs text-steel-light my-3">Para o repertório normal, use o editor com validação acima. Este registro preserva magias de campanha e entradas de fichas anteriores.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <div v-for="lev in 6" :key="lev" class="bg-dark-bg/30 rounded-lg p-3">
           <div class="flex items-center justify-between mb-2">
-            <span class="font-bold text-gold">Level {{ lev }}</span>
-            <button type="button" @click="addSpell(lev)" :aria-label="`Adicionar magia de nível ${lev}`" class="text-gold hover:text-gold-light text-sm">+</button>
+            <span class="font-bold text-gold">Nível {{ lev }}</span>
+            <button v-if="canManage" type="button" @click="addSpell(lev)" :aria-label="`Adicionar magia de nível ${lev}`" class="text-gold hover:text-gold-light text-sm">+</button>
           </div>
           <div v-for="s in getSpellsByLevel(lev)" :key="s.id" class="flex items-center gap-1 mb-1 relative">
-            <input v-model="s.name" @change="saveSpellName(s)" class="inp-table min-w-0 flex-1 text-sm" placeholder="Nome da magia" :aria-label="`Magia de nível ${lev}`" :list="'acks-spell-compendium-' + lev" />
+            <input v-model="s.name" @change="saveSpellName(s)" :readonly="!canManage" class="inp-table min-w-0 flex-1 text-sm" placeholder="Nome da magia" :aria-label="`Magia de nível ${lev}`" :list="'acks-spell-compendium-' + lev" />
             <HelpTooltip v-if="getSpellTooltip(s.name)" :label="s.name">{{ getSpellTooltip(s.name) }}</HelpTooltip>
-            <button type="button" @click="removeSpell(s.id)" :aria-label="`Remover magia ${s.name || 'sem nome'}`" class="text-crimson-light hover:text-crimson text-xs font-bold pl-1">X</button>
+            <button v-if="canManage" type="button" @click="removeSpell(s.id)" :aria-label="`Remover magia ${s.name || 'sem nome'}`" class="text-crimson-light hover:text-crimson text-xs font-bold pl-1">X</button>
           </div>
         </div>
       </div>
+      </details>
 
       <!-- Rituals known -->
       <div class="mb-6">
         <div class="flex items-center justify-between mb-2">
-          <h3 class="text-lg font-bold text-gold">Rituals known</h3>
+          <h3 class="text-lg font-bold text-gold">Rituais conhecidos</h3>
           <button type="button" @click="addRitual" class="text-sm text-gold hover:text-gold-light">+ Adicionar</button>
         </div>
         <div v-for="r in (character.rituals || [])" :key="r.id" class="flex items-center gap-2 mb-1.5 bg-dark-bg/30 rounded-lg px-3 py-1.5">
@@ -112,7 +116,7 @@
       <!-- Magic formulae known -->
       <div>
         <div class="flex items-center justify-between mb-2">
-          <h3 class="text-lg font-bold text-gold">Magic formulae known</h3>
+          <h3 class="text-lg font-bold text-gold">Fórmulas mágicas conhecidas</h3>
           <button type="button" @click="addMagicFormula" class="text-sm text-gold hover:text-gold-light">+ Adicionar</button>
         </div>
         <div v-for="f in (character.magicFormulae || [])" :key="f.id" class="flex items-center gap-2 mb-1.5 bg-dark-bg/30 rounded-lg px-3 py-1.5">
@@ -124,18 +128,18 @@
       <!-- ====== MAGICAL LABORATORY (ITEM CREATION) ====== -->
       <div class="mt-8 pt-6 border-t border-gold/20">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-bold text-gold">Magical Laboratory (Item Creation)</h3>
-          <button type="button" @click="addMagicResearch" class="text-sm bg-gold/10 text-gold px-3 py-1 rounded hover:bg-gold/20 transition-all">+ Add New Project</button>
+          <h3 class="text-lg font-bold text-gold">Laboratório mágico · criação de itens</h3>
+          <button type="button" @click="addMagicResearch" class="text-sm bg-gold/10 text-gold px-3 py-1 rounded hover:bg-gold/20 transition-all">+ Novo projeto</button>
         </div>
         
         <div class="overflow-x-auto">
           <table class="w-full text-sm text-left">
             <thead>
               <tr class="text-steel-light border-b border-gold/20">
-                <th class="py-2 px-2">Item Name</th>
-                <th class="py-2 px-2 text-center w-24">Type</th>
-                <th class="py-2 px-2 text-center w-20">Spell Lvl</th>
-                <th class="py-2 px-2 text-center w-28">Cost / Time</th>
+                <th class="py-2 px-2">Item</th>
+                <th class="py-2 px-2 text-center w-24">Tipo</th>
+                <th class="py-2 px-2 text-center w-20">Nível da magia</th>
+                <th class="py-2 px-2 text-center w-28">Custo / prazo</th>
                 <th class="py-2 px-2 text-center w-28">Status</th>
                 <th class="py-2 px-2"></th>
               </tr>
@@ -205,7 +209,10 @@ export default { name: 'MagicTab' }
 
 <script setup lang="ts">
 import api from '../../services/api'
+import { useCharacterRelations } from '../../composables/characterRelations'
 import HelpTooltip from '../HelpTooltip.vue'
+import SpellcastingPanel from './SpellcastingPanel.vue'
+import { useAuthStore } from '../../stores/auth'
 import { notifyError } from '../../utils/toast'
 import { errorMessage } from '../../utils/catalog'
 import { computed, ref, onMounted } from 'vue'
@@ -213,9 +220,14 @@ import { computed, ref, onMounted } from 'vue'
 const props = defineProps<{
   character: any,
   optionalRules?: Record<string, boolean>
+  prepare: () => Promise<boolean>
+  refresh: () => Promise<void>
 }>()
 
 const emit = defineEmits(['save'])
+const relations = useCharacterRelations(() => props.character)
+const authStore = useAuthStore()
+const canManage = computed(() => authStore.isMaster)
 
 function isRuleEnabled(key: string) {
   return props.optionalRules?.[key] !== false
@@ -308,68 +320,41 @@ function getSpellsByLevel(level: number) {
 
 // Spells
 async function addSpell(level: number) {
-  try {
-    const res = await api.post(`/api/characters/${props.character.id}/spells`, { level, name: '' })
-    if (!props.character.spells) props.character.spells = []
-    props.character.spells.push(res.data.spell)
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível adicionar a magia.')) }
+  await relations.add('spells', 'spells', 'spell', { level, name: '' }, String(level))
 }
 
 async function removeSpell(id: string) {
-  try {
-    await api.delete(`/api/characters/${props.character.id}/spells/${id}`)
-    props.character.spells = props.character.spells.filter((s: any) => s.id !== id)
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível remover a magia.')) }
+  await relations.remove('spells', 'spells', id)
 }
 
 async function saveSpellName(s: any) {
-  try {
-    await api.put(`/api/characters/${props.character.id}/spells/${s.id}`, { name: s.name })
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível salvar a magia. Tente novamente.')) }
+  await relations.update('spells', s, { name: s.name, level: s.level, tradition: s.tradition }, 'spell')
 }
 
 // Rituals
 async function addRitual() {
-  try {
-    const res = await api.post(`/api/characters/${props.character.id}/rituals`, { name: '' })
-    if (!props.character.rituals) props.character.rituals = []
-    props.character.rituals.push(res.data.ritual)
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível adicionar o ritual.')) }
+  await relations.add('rituals', 'rituals', 'ritual', { name: '' })
 }
 
 async function removeRitual(id: string) {
-  try {
-    await api.delete(`/api/characters/${props.character.id}/rituals/${id}`)
-    props.character.rituals = props.character.rituals.filter((r: any) => r.id !== id)
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível remover o ritual.')) }
+  await relations.remove('rituals', 'rituals', id)
 }
 
 async function saveRitualName(r: any) {
-  try {
-    await api.put(`/api/characters/${props.character.id}/rituals/${r.id}`, { name: r.name })
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível salvar o ritual. Tente novamente.')) }
+  await relations.update('rituals', r, { name: r.name }, 'ritual')
 }
 
 // Magic formulae known
 async function addMagicFormula() {
-  try {
-    const res = await api.post(`/api/characters/${props.character.id}/magic-formulae`, { name: '' })
-    if (!props.character.magicFormulae) props.character.magicFormulae = []
-    props.character.magicFormulae.push(res.data.formula)
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível adicionar a fórmula.')) }
+  await relations.add('magic-formulae', 'magicFormulae', 'formula', { name: '' })
 }
 
 async function removeMagicFormula(id: string) {
-  try {
-    await api.delete(`/api/characters/${props.character.id}/magic-formulae/${id}`)
-    props.character.magicFormulae = props.character.magicFormulae.filter((f: any) => f.id !== id)
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível remover a fórmula.')) }
+  await relations.remove('magic-formulae', 'magicFormulae', id)
 }
 
 async function saveMagicFormulaName(f: any) {
-  try {
-    await api.put(`/api/characters/${props.character.id}/magic-formulae/${f.id}`, { name: f.name })
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível salvar a fórmula. Tente novamente.')) }
+  await relations.update('magic-formulae', f, { name: f.name }, 'formula')
 }
 
 // ==== MAGICAL RESEARCH (ITEM CREATION) ====
@@ -381,40 +366,25 @@ function isTrackedResearch(id: string) {
   return trackedResearch.value === null || Boolean(trackedResearch.value[id])
 }
 async function addMagicResearch() {
-  try {
-    const res = await api.post(`/api/characters/${props.character.id}/magic-research`, {
-      itemName: 'Novo item',
-      spellLevel: 1,
-      effectType: 'ONE_USE',
-      status: 'QUEUED'
-    })
-    if (!props.character.magicItemResearch) props.character.magicItemResearch = []
-    props.character.magicItemResearch.push(res.data.research)
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível criar a pesquisa.')) }
+  await relations.add('magic-research', 'magicItemResearch', 'research', {
+    itemName: 'Novo item', spellLevel: 1, effectType: 'ONE_USE', status: 'QUEUED',
+  })
 }
 
 async function removeMagicResearch(id: string) {
   if (isTrackedResearch(id)) return
-  try {
-    await api.delete(`/api/characters/${props.character.id}/magic-research/${id}`)
-    props.character.magicItemResearch = props.character.magicItemResearch.filter((r: any) => r.id !== id)
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível remover a pesquisa.')) }
+  await relations.remove('magic-research', 'magicItemResearch', id)
 }
 
-async function saveMagicResearch(res: any) {
-  if (isTrackedResearch(res.id)) { notifyError('Projeto acompanhado: use Evolução & Regras para trabalho, resolução ou cancelamento.'); return }
-  try {
-    const saved = await api.put(`/api/characters/${props.character.id}/magic-research/${res.id}`, {
-      itemName: res.itemName,
-      spellLevel: res.spellLevel,
-      totalCostGp: res.totalCostGp,
-      weeksRequired: res.weeksRequired,
-      isPermanent: res.isPermanent,
-      effectType: res.effectType, effectCount: res.effectCount, casterLevel: res.casterLevel,
-      researchRateGp: res.researchRateGp, hasFormula: res.hasFormula, hasSample: res.hasSample, knowsEffect: res.knowsEffect,
-      status: res.status
-    })
-    Object.assign(res, saved.data.research)
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível salvar a pesquisa. Revise os campos.')) }
+async function saveMagicResearch(project: any) {
+  if (isTrackedResearch(project.id)) { notifyError('Projeto acompanhado: use Evolução & Regras para trabalho, resolução ou cancelamento.'); return }
+  await relations.update('magic-research', project, {
+    itemName: project.itemName, spellLevel: project.spellLevel,
+    totalCostGp: project.totalCostGp, weeksRequired: project.weeksRequired,
+    isPermanent: project.isPermanent, effectType: project.effectType,
+    effectCount: project.effectCount, casterLevel: project.casterLevel,
+    researchRateGp: project.researchRateGp, hasFormula: project.hasFormula,
+    hasSample: project.hasSample, knowsEffect: project.knowsEffect, status: project.status,
+  }, 'research')
 }
 </script>

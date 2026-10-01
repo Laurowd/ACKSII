@@ -1,9 +1,22 @@
 <template>
-  <div class="min-h-screen lg:h-[calc(100vh-65px)] lg:min-h-0 flex flex-col lg:flex-row bg-dark-bg text-steel-light lg:overflow-hidden">
+  <div class="judge-page text-steel-light">
+    <header class="judge-page-header">
+      <div>
+        <p class="eyebrow">Preparar, acompanhar, consultar</p>
+        <h1 class="text-2xl sm:text-3xl text-gold">Painel do Mestre</h1>
+        <p class="mt-2 text-sm text-steel-light">Os recursos do grupo e as regras da sessão em um só lugar.</p>
+      </div>
+      <div class="view-switch" aria-label="Visões do painel">
+        <button :aria-pressed="view === 'session'" @click="view = 'session'">Sessão da campanha</button>
+        <button :aria-pressed="view === 'rules'" @click="view = 'rules'">Consultar regras</button>
+      </div>
+    </header>
+    <JudgeSessionOverview v-if="view === 'session'" />
+    <div v-else class="judge-rules-layout flex flex-col lg:flex-row bg-dark-bg lg:overflow-hidden">
     <!-- Left Column: Search & Results -->
     <div class="min-w-0 flex-1 flex flex-col p-4 sm:p-6 border-r border-gold/10 lg:overflow-hidden relative">
       <div class="mb-6 flex-shrink-0">
-        <h1 class="text-3xl font-[Cinzel] text-gold mb-2">Painel do Mestre (ACKS II)</h1>
+        <h2 class="text-xl text-gold mb-2">Compêndio de regras</h2>
         <p class="text-sm">Pesquise por qualquer regra, classe, magia, ou monstro do livro oficial.</p>
       </div>
 
@@ -37,7 +50,7 @@
           </div>
         </div>
         
-        <div v-else class="flex flex-col items-center justify-center h-full text-steel/50 opacity-50">
+        <div v-else class="flex flex-col items-center justify-center min-h-52 h-full text-steel">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
             <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
             <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
@@ -71,7 +84,7 @@
         <!-- MONSTER REACTION TAB -->
         <div v-if="activeTab === 'reaction'">
           <h3 class="font-bold text-gold-light mb-3">Encounter Reactions (2d6)</h3>
-          <p class="text-xs text-steel mb-4">Roll 2d6. Add Charisma modifier. Apply additional modifiers (e.g. +1 for speaking language).</p>
+          <p class="text-xs text-steel mb-4">Role 2d6 e aplique o modificador de Carisma do porta-voz, seus poderes e os ajustes definidos pelo mestre. Um 2 natural limita a reação a Unfriendly ou pior; um 12 natural garante Indifferent ou melhor.</p>
           <table class="w-full text-left border-collapse">
             <thead>
               <tr class="border-b border-gold/20 text-gold text-xs">
@@ -98,13 +111,13 @@
               </tr>
               <tr class="border-b border-white/5">
                 <td class="py-2 font-bold text-emerald-400">9-11</td>
-                <td class="py-2 font-bold text-emerald-400">Friendly</td>
-                <td class="py-2 text-steel">Will not attack. Interested in trade, parley or alliance.</td>
+                <td class="py-2 font-bold text-emerald-400">Indifferent</td>
+                <td class="py-2 text-steel">Ignora o grupo se não for abordado; aceita conversar.</td>
               </tr>
               <tr class="border-b border-white/5">
                 <td class="py-2 font-bold text-teal-400">12+</td>
-                <td class="py-2 font-bold text-teal-400">Helpful</td>
-                <td class="py-2 text-steel">Provides aid, information, shelter, or escorts party.</td>
+                <td class="py-2 font-bold text-teal-400">Friendly</td>
+                <td class="py-2 text-steel">Busca cooperar de forma benéfica para ambos os lados.</td>
               </tr>
             </tbody>
           </table>
@@ -113,40 +126,37 @@
         <!-- MORALE TAB -->
         <div v-if="activeTab === 'morale'">
           <h3 class="font-bold text-gold-light mb-3">Morale Rolls (2d6)</h3>
-          <p class="text-xs text-steel mb-4">When required, roll 2d6. If roll > Morale Score, force retreats or surrenders.</p>
+          <p class="text-xs text-steel mb-4">Role 2d6, some o valor de moral e os ajustes da situação, e consulte o resultado abaixo. Moral é um modificador, não um número-alvo.</p>
           
           <h4 class="font-bold text-white mb-2 text-xs">When to Check Morale (Monsters)</h4>
           <ul class="list-disc pl-5 text-xs space-y-1 mb-4 text-steel-light/90">
-            <li>When the monster/group takes its first casualty or combatant drops to 0 hp.</li>
-            <li>When half the monsters/group is incapacitated or have fled.</li>
-            <li>When a lone monster is reduced to 1/3 hit points or less.</li>
+            <li>Grupo: ao fim da rodada em que um terço foi morto ou incapacitado, e nas rodadas seguintes em que outra criatura do grupo cair.</li>
+            <li>Criatura solitária: quando perder um terço dos PV, e nas rodadas seguintes em que sofrer dano.</li>
+            <li>Também verifique ao fim da primeira rodada em que os aventureiros fugirem, para determinar perseguição.</li>
           </ul>
 
-          <h4 class="font-bold text-white mb-2 text-xs">When to Check Morale (Retainers)</h4>
-          <ul class="list-disc pl-5 text-xs space-y-1 mb-4 text-steel-light/90">
-            <li>First time they encounter a monster in a given adventure.</li>
-            <li>When their party is reduced to half strength.</li>
-            <li>If they begin a round subject to magical fear.</li>
-          </ul>
-
-          <div class="bg-dark-surface p-3 rounded text-xs border border-white/10 mt-6">
-            <span class="font-bold text-gold">Base Retainer Morale:</span> 0<br>
-            <span class="text-steel">Modified by employer's CHA.</span><br>
-            <span class="font-bold text-gold mt-2 block">Typical Monster Morale:</span> 
-            <span class="text-steel">Varies from -2 (Cowardly) to +4 (Fanatic). Undead/Constructs never check morale.</span>
+          <table class="w-full text-left text-xs border-collapse"><thead><tr class="border-b border-gold/20 text-gold"><th class="py-2" scope="col">2d6 + ajustes</th><th class="py-2" scope="col">Resultado</th></tr></thead><tbody>
+            <tr class="border-b border-steel-dark"><td class="py-2">2 ou menos</td><td>Retirada amedrontada</td></tr>
+            <tr class="border-b border-steel-dark"><td class="py-2">3–5</td><td>Moral vacilante</td></tr>
+            <tr class="border-b border-steel-dark"><td class="py-2">6–8</td><td>Continua combatendo</td></tr>
+            <tr class="border-b border-steel-dark"><td class="py-2">9–11</td><td>Avança e persegue</td></tr>
+            <tr><td class="py-2">12 ou mais</td><td>Vitória ou morte</td></tr>
+          </tbody></table>
+          <div class="bg-dark-surface p-3 rounded text-xs border border-steel-dark mt-6">
+            <p>A moral de monstros varia de −6 a +4. Para contratados, use a moral da profissão ou tropa e os bônus de quem os lidera; obediência e lealdade usam tabelas próprias.</p>
           </div>
         </div>
 
         <!-- SURPRISE & INITIATIVE -->
         <div v-if="activeTab === 'combat'">
           <h3 class="font-bold text-gold-light mb-3">Surprise (1d6)</h3>
-          <p class="text-xs text-steel mb-4">Roll 1d6 per side when encountering unexpectedly. 1-2 = Surprised (or 1-3 for unprepared out of cover). Cannot act during surprise round.</p>
+          <p class="text-xs text-steel mb-4">Consulte a matriz de surpresa conforme conhecimento prévio e linha de visão. Quando exigida, a rolagem de 1d6 ajustada resulta em surpresa com 1–2. Uma criatura surpresa não pode agir até a próxima rodada.</p>
           
           <h3 class="font-bold text-gold-light mb-3 mt-6">Initiative (1d6)</h3>
           <p class="text-xs text-steel mb-2">Roll 1d6 per combatant plus DEX & modifiers.</p>
           <ul class="list-disc pl-5 text-xs space-y-1 mb-4 text-steel-light/90">
-            <li>Ties go to the combatant with higher raw die roll.</li>
-            <li>If still tied, combatants act simultaneously.</li>
+            <li>Empates são resolvidos em sequência. Aliados escolhem sua ordem de ação.</li>
+            <li>Entre lados opostos, o lado com menos combatentes escolhe agir antes ou depois. Em números iguais, o mestre escolhe para os monstros.</li>
           </ul>
           
           <h3 class="font-bold text-gold-light mb-3 mt-6">Combat Sequence</h3>
@@ -164,6 +174,7 @@
       </div>
     </div>
   </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -172,6 +183,9 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import api from '../services/api'
 import { errorMessage } from '../utils/catalog'
+import JudgeSessionOverview from '../components/JudgeSessionOverview.vue'
+
+const view = ref<'session' | 'rules'>('session')
 
 marked.use({
   breaks: true,

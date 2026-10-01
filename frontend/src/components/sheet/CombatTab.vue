@@ -2,7 +2,7 @@
   <div class="space-y-4">
     <!-- ====== HEADER / BIO ====== -->
     <div class="bg-dark-card border border-gold/20 rounded-xl p-5 mb-4">
-      <h2 class="text-xl font-bold text-gold mb-4 border-b border-gold/10 pb-2">CHARACTER SHEET</h2>
+      <h2 class="text-xl font-bold text-gold mb-4 border-b border-gold/10 pb-2">Identidade do personagem</h2>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="col-span-2">
           <label class="lbl">Campanha Atual</label>
@@ -24,11 +24,11 @@
           <input v-model="character.characterName" @change="emit('save')" class="inp text-lg font-bold text-gold" />
         </div>
         <div>
-          <label class="lbl">OF — Birthplace</label>
+          <label class="lbl">Local de origem</label>
           <input v-model="character.birthplace" @change="emit('save')" class="inp" />
         </div>
         <div>
-          <label class="lbl">Class</label>
+          <label class="lbl">Classe</label>
           <select v-if="customClasses.length > 0" v-model="character.classKey" @change="emit('class-change')" class="inp">
             <option v-if="!character.classKey && character.className" value="">{{ character.className }} (cadastro anterior)</option>
             <option v-else value="" disabled>Selecione uma classe</option>
@@ -46,36 +46,36 @@
           </select>
         </div>
         <div>
-          <label class="lbl">AND — Title</label>
+          <label class="lbl">Título</label>
           <input v-model="character.title" @change="emit('save')" class="inp" />
         </div>
         <div>
-          <label class="lbl">Alignment</label>
+          <label class="lbl">Alinhamento</label>
           <select v-model="character.alignment" @change="emit('save')" class="inp">
             <option value="">-</option>
-            <option value="Lawful">Lawful</option>
-            <option value="Neutral">Neutral</option>
-            <option value="Chaotic">Chaotic</option>
+            <option value="Lawful">Ordeiro</option>
+            <option value="Neutral">Neutro</option>
+            <option value="Chaotic">Caótico</option>
           </select>
         </div>
         <div>
-          <label class="lbl">Age</label>
+          <label class="lbl">Idade</label>
           <input v-model.number="character.age" @change="emit('save')" type="number" class="inp" />
         </div>
         <div>
-          <label class="lbl">Size</label>
+          <label class="lbl">Tamanho</label>
           <select v-model="character.size" @change="emit('save')" class="inp">
-            <option value="Small">Small</option>
-            <option value="Medium">Medium</option>
-            <option value="Large">Large</option>
+            <option value="Small">Pequeno</option>
+            <option value="Medium">Médio</option>
+            <option value="Large">Grande</option>
           </select>
         </div>
         <div>
-          <label class="lbl">Gender</label>
+          <label class="lbl">Gênero</label>
           <input v-model="character.gender" @change="emit('save')" class="inp" />
         </div>
         <div>
-          <label class="lbl">Hit Die</label>
+          <label class="lbl">Dados de vida</label>
           <input v-model="character.hitDice" @change="emit('save')" class="inp" placeholder="1d8" />
         </div>
       </div>
@@ -89,7 +89,8 @@
       </div>
       <div class="stat-box">
         <label class="lbl">XP</label>
-        <input v-model.number="character.xp" @change="emit('save')" type="number" class="inp text-center" />
+        <input :value="character.xp" readonly type="number" aria-label="XP acumulado" class="inp text-center" />
+        <p class="text-[10px] text-steel-light mt-1">Atualizado ao fechar aventuras.</p>
       </div>
       <div class="stat-box">
         <label class="lbl">XP Próx. Nível</label>
@@ -112,7 +113,7 @@
       <div class="grid grid-cols-3 md:grid-cols-6 gap-4">
         <div v-for="attr in ATTRS" :key="attr.key" class="text-center">
           <label class="text-xs font-bold uppercase tracking-wider" :class="attr.color">{{ attr.label }}</label>
-          <input v-model.number="character[attr.key]" @change="emit('save')" type="number" min="3" max="18"
+          <input v-model.number="character[attr.key]" @change="emit('save')" :aria-label="attr.label" type="number" min="3" max="18"
             class="inp text-center text-2xl font-bold mt-1" />
           <div class="mt-1 text-sm font-bold px-2 py-0.5 rounded"
             :class="getModifier(character[attr.key]) >= 0 ? 'text-green-400 bg-green-400/10' : 'text-red-400 bg-red-400/10'">
@@ -147,10 +148,10 @@
     <!-- ====== COMBAT ROW ====== -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
       <div class="bg-dark-card border border-gold/20 rounded-xl p-5">
-        <h3 class="text-lg font-bold text-gold mb-3">ARMOR CLASS</h3>
+        <h3 class="text-lg font-bold text-gold mb-3">Classe de armadura</h3>
         <div class="grid grid-cols-2 gap-2 mb-4 border-b border-steel-dark pb-4">
           <div class="col-span-2">
-            <label class="lbl">Armor Worn</label>
+            <label class="lbl">Armadura equipada</label>
             <input v-model="character.armorName" @change="emit('save')" class="inp" placeholder="e.g. Chainmail" />
           </div>
           <div>
@@ -160,7 +161,7 @@
             <input v-model.number="character.acAdjustment" @change="emit('save')" type="number" class="inp text-center" />
           </div>
           <div>
-            <label class="lbl">Weight (Stone)</label>
+            <label class="lbl">Peso (stone)</label>
             <input v-model.number="character.armorWeight" @change="emit('save')" type="number" step="0.1" class="inp text-center" />
           </div>
         </div>
@@ -181,36 +182,36 @@
       </div>
 
       <div class="bg-dark-card border border-gold/20 rounded-xl p-5">
-        <h3 class="text-lg font-bold text-gold mb-3">SAVING THROWS</h3>
+        <h3 class="text-lg font-bold text-gold mb-3">Salvamentos</h3>
         <div class="grid grid-cols-1 gap-2">
           <div v-for="save in SAVES" :key="save.key" class="flex items-center justify-between bg-dark-bg/35 border border-steel-dark/50 rounded-lg px-3 py-2 hover:bg-dark-bg/50 transition-colors">
             <label class="text-xs uppercase tracking-wider text-steel-light shrink-0 font-semibold">{{ save.label }}</label>
-            <input v-model.number="character[save.key]" @change="emit('save')" type="number"
+            <input v-model.number="character[save.key]" @change="emit('save')" :aria-label="`Salvamento: ${save.label}`" type="number"
               class="w-16 py-1 px-2 text-center text-sm font-bold bg-dark-bg border border-steel-dark rounded-lg text-gold focus:outline-none focus:border-gold transition-all shrink-0" />
           </div>
         </div>
       </div>
 
       <div class="bg-dark-card border border-gold/20 rounded-xl p-5">
-        <h3 class="text-lg font-bold text-gold mb-3">INITIATIVE & SURPRISE</h3>
+        <h3 class="text-lg font-bold text-gold mb-3">Iniciativa e surpresa</h3>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="lbl">Initiative</label>
+            <label class="lbl">Iniciativa</label>
             <div class="inp text-center text-lg font-bold bg-dark-bg/50 text-gold cursor-default">{{ formatMod(computedInitiative) }}</div>
             <p class="text-xs text-steel-light">{{ effects.initiativeSources.map(e => `${e.source} ${formatMod(e.value)}`).join(' · ') }}</p>
             <p class="text-xs text-steel-light">Ao conjurar: {{ formatMod(effects.castingInitiative) }}. Some ajustes situacionais aplicáveis.</p>
             <p v-for="effect in effects.conditional" :key="effect" class="text-xs text-gold">{{ effect }}</p>
           </div>
           <div>
-            <label class="lbl">Surprise (mod)</label>
+            <label class="lbl">Surpresa (ajuste)</label>
             <input v-model.number="character.surprise" @change="emit('save')" type="number" class="inp text-center" />
           </div>
           <div>
-            <label class="lbl">Surprise Others</label>
+            <label class="lbl">Surpreender outros</label>
             <input v-model.number="character.surpriseOthers" @change="emit('save')" type="number" class="inp text-center" />
           </div>
           <div>
-            <label class="lbl">Avoid Surprise</label>
+            <label class="lbl">Evitar surpresa</label>
             <input v-model.number="character.avoidSurprise" @change="emit('save')" type="number" class="inp text-center" />
             <p class="text-xs text-steel-light">Bônus de classe/proficiências: {{ formatMod(effects.avoidSurprise) }}. Campo acima: total manual.</p>
           </div>
@@ -325,32 +326,32 @@
     <!-- ====== WEAPONS ====== -->
     <div class="bg-dark-card border border-gold/20 rounded-xl p-5 mb-4">
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-lg font-bold text-gold">WEAPONS</h3>
-        <button @click="addWeapon" class="text-sm text-gold hover:text-gold-light transition-colors">+ Add</button>
+        <h3 class="text-lg font-bold text-gold">Armas</h3>
+        <button type="button" @click="addWeapon" class="text-sm text-gold hover:text-gold-light transition-colors">+ Adicionar arma</button>
       </div>
       <p class="mb-3 text-xs text-steel-light">O alvo é Base + CA − bônus. Escolha o estilo para usar FOR no corpo a corpo ou DES à distância, inclusive ao arremessar uma arma. “Outros” guarda bônus de arma, estilo e efeitos.</p>
       <div v-if="character.weapons?.length" class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
             <tr class="text-steel-light border-b border-steel-dark text-xs uppercase tracking-wider">
-              <th class="text-left py-2.5 px-2">Weapon & Fighting Style</th>
+              <th class="text-left py-2.5 px-2">Arma e estilo de combate</th>
               <th class="text-center py-2.5 px-1">Init</th>
               <th class="text-center py-2.5 px-1">Base</th>
               <th class="text-center py-2.5 px-1">Atributo</th>
               <th class="text-center py-2.5 px-1">Outros</th>
-              <th class="text-center py-2.5 px-1">Dmg</th>
-              <th class="text-center py-2.5 px-1">Range</th>
-              <th class="text-center py-2.5 px-1">Enc</th>
+              <th class="text-center py-2.5 px-1">Dano</th>
+              <th class="text-center py-2.5 px-1">Alcance</th>
+              <th class="text-center py-2.5 px-1">Carga</th>
               <th class="text-center py-2 px-1"></th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="w in character.weapons" :key="w.id" class="border-b border-steel-dark/30 align-top hover:bg-dark-bg/20 transition-colors">
               <td class="py-2 px-2">
-                <input v-model="w.name" @blur="saveWeapon(w)" class="inp-table w-full" placeholder="Weapon" list="acks-weapon-compendium" />
+                <input v-model="w.name" @blur="saveWeapon(w)" :aria-label="`Nome da arma ${w.name || 'nova'}`" class="inp-table w-full" placeholder="Arma" list="acks-weapon-compendium" />
                 <button type="button" @click="applyCompendiumWeapon(w)" class="text-xs text-gold underline">Usar valores do catálogo</button>
-                <select v-model="w.style" @change="saveWeapon(w)" class="inp-table w-full text-xs mt-0.5">
-                  <option value="">Automático pelo alcance</option><option>Single Weapon</option><option>Dual Weapon</option><option>Two-Handed Weapon</option><option>Weapon and Shield</option><option>Missile Weapon</option>
+                <select v-model="w.style" @change="saveWeapon(w)" :aria-label="`Estilo de ${w.name || 'arma'}`" class="inp-table w-full text-xs mt-0.5">
+                  <option value="">Automático pelo alcance</option><option value="Single Weapon">Arma única</option><option value="Dual Weapon">Duas armas</option><option value="Two-Handed Weapon">Arma de duas mãos</option><option value="Weapon and Shield">Arma e escudo</option><option value="Missile Weapon">Arma de projéteis</option>
                   <option v-if="w.style && !['Single Weapon','Dual Weapon','Two-Handed Weapon','Weapon and Shield','Missile Weapon'].includes(w.style)" :value="w.style">{{ w.style }}</option>
                 </select>
               </td>
@@ -390,7 +391,7 @@
                 <input v-model.number="w.encumbrance" @blur="saveWeapon(w)" type="number" step="any" class="w-14 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-dark-text text-center focus:outline-none focus:border-gold" />
               </td>
               <td class="py-2 px-1 text-center">
-                <button type="button" @click="removeWeapon(w.id)" class="text-crimson-light hover:text-crimson text-xs font-bold px-1.5 py-0.5 rounded border border-transparent hover:border-crimson/40">X</button>
+                <button type="button" @click="removeWeapon(w.id)" :aria-label="`Remover arma ${w.name || 'sem nome'}`" class="text-crimson-light hover:text-crimson text-xs font-bold px-1.5 py-0.5 rounded border border-transparent hover:border-crimson/40">X</button>
               </td>
             </tr>
           </tbody>
@@ -398,10 +399,10 @@
       </div>
       <div v-if="character.weapons?.length" class="mt-4 pt-4 border-t border-steel-dark space-y-4">
         <div v-for="w in character.weapons" :key="w.id">
-          <h4 class="text-sm font-bold text-gold mb-2">{{ w.name || 'Arma sem nome' }} <span class="text-steel font-normal text-xs">— ATTACK THROW (to hit AC)</span></h4>
+          <h4 class="text-sm font-bold text-gold mb-2">{{ w.name || 'Arma sem nome' }} <span class="text-steel font-normal text-xs">· ataque necessário para acertar a CA</span></h4>
           <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11 gap-1.5">
             <div v-for="ac in 11" :key="ac - 1" class="bg-dark-bg/40 border border-steel-dark/60 rounded px-2 py-1.5 flex items-center justify-between">
-              <span class="text-[11px] text-steel-light font-semibold">AC {{ ac - 1 }}</span>
+              <span class="text-[11px] text-steel-light font-semibold">CA {{ ac - 1 }}</span>
               <div class="min-w-8 text-center text-sm font-bold text-gold">
                 {{ attackThrowForWeaponAC(w, ac - 1) }}
               </div>
@@ -409,7 +410,7 @@
           </div>
         </div>
       </div>
-      <p v-else class="text-steel text-sm pt-2">No weapons added</p>
+      <p v-else class="text-steel text-sm pt-2">Nenhuma arma registrada. Adicione uma arma ou compre na loja do inventário.</p>
       <datalist id="acks-weapon-compendium">
         <option v-for="entry in compendiumWeapons" :key="entry.id" :value="entry.name" :label="entry.name" />
       </datalist>
@@ -420,13 +421,13 @@
       <div v-for="cat in PROF_CATS" :key="cat.key" class="bg-dark-card border border-gold/20 rounded-xl p-5">
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-lg font-bold text-gold">{{ cat.icon }} {{ cat.label }}</h3>
-          <button @click="addProficiency(cat.key)" class="text-sm text-gold hover:text-gold-light transition-colors">+</button>
+          <button type="button" @click="addProficiency(cat.key)" :aria-label="`Adicionar proficiência: ${cat.label}`" class="text-sm text-gold hover:text-gold-light transition-colors">+</button>
         </div>
         <div v-for="p in getProfsByCategory(cat.key)" :key="p.id" class="flex items-center gap-2 mb-2 bg-dark-bg/35 border border-steel-dark/50 rounded-lg px-2.5 py-2 hover:bg-dark-bg/50 transition-colors">
-          <input v-model="p.name" @change="saveProficiency(p)" class="flex-1 min-w-0 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-dark-text text-sm focus:outline-none focus:border-gold" placeholder="Proficiency" />
+          <input v-model="p.name" @change="saveProficiency(p)" :aria-label="`Nome da proficiência ${p.name || 'nova'}`" class="flex-1 min-w-0 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-dark-text text-sm focus:outline-none focus:border-gold" placeholder="Proficiência" />
           <label class="text-[10px] uppercase tracking-wider text-steel w-10 text-right font-semibold shrink-0">Throw</label>
-          <input v-model.number="p.throwTarget" @change="saveProficiency(p)" type="number" class="w-14 shrink-0 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-gold text-center text-sm font-bold focus:outline-none focus:border-gold" />
-          <button type="button" @click="removeProficiency(p.id)" class="text-crimson-light hover:text-crimson text-xs font-bold px-1.5 py-0.5 rounded border border-transparent hover:border-crimson/40 shrink-0">X</button>
+          <input v-model.number="p.throwTarget" @change="saveProficiency(p)" :aria-label="`Alvo da proficiência ${p.name || 'nova'}`" type="number" class="w-14 shrink-0 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-gold text-center text-sm font-bold focus:outline-none focus:border-gold" />
+          <button type="button" @click="removeProficiency(p.id)" :aria-label="`Remover proficiência ${p.name || 'sem nome'}`" class="text-crimson-light hover:text-crimson text-xs font-bold px-1.5 py-0.5 rounded border border-transparent hover:border-crimson/40 shrink-0">X</button>
         </div>
       </div>
     </div>
@@ -434,13 +435,13 @@
     <!-- ====== CLASS FEATURES & LANGUAGES ====== -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
       <div class="bg-dark-card border border-gold/20 rounded-xl p-5">
-        <h3 class="text-lg font-bold text-gold mb-3">CLASS FEATURES</h3>
+        <h3 class="text-lg font-bold text-gold mb-3">Características de classe</h3>
         <details v-if="selectedCustomClass?.classFeatures" class="mb-3 text-sm"><summary class="text-gold cursor-pointer">Poderes cadastrados na classe</summary><p class="whitespace-pre-wrap mt-2">{{ selectedCustomClass.classFeatures }}</p></details>
         <textarea v-model="character.classFeatures" @change="emit('save')" rows="5"
           class="w-full inp resize-y" placeholder="Class abilities and features..."></textarea>
       </div>
       <div class="bg-dark-card border border-gold/20 rounded-xl p-5">
-        <h3 class="text-lg font-bold text-gold mb-3">LANGUAGES KNOWN</h3>
+        <h3 class="text-lg font-bold text-gold mb-3">Idiomas conhecidos</h3>
         <textarea v-model="character.languagesKnown" @change="emit('save')" rows="5"
           class="w-full inp resize-y" placeholder="Languages..."></textarea>
       </div>
@@ -457,6 +458,7 @@
 defineOptions({ name: 'CombatTab' })
 
 import api from '../../services/api'
+import { useCharacterRelations } from '../../composables/characterRelations'
 import HelpTooltip from '../HelpTooltip.vue'
 import { classEffects } from '../../utils/classEffects'
 import { getModifier, formatMod, calculateAttackThrow, getWeaponAbilityModifier } from '../../utils/mechanics'
@@ -479,6 +481,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['save', 'campaign-change', 'owner-change', 'class-change', 'level-change'])
+const relations = useCharacterRelations(() => props.character)
 const compendiumWeapons = ref<any[]>([])
 
 // Constants and local logic
@@ -492,11 +495,11 @@ const ATTRS = [
 ]
 
 const SAVES = [
-  { key: 'saveDeath', label: 'Death' },
-  { key: 'saveImplements', label: 'Implements' },
-  { key: 'saveParalysis', label: 'Paralysis' },
-  { key: 'saveBlast', label: 'Blast' },
-  { key: 'saveSpells', label: 'Spells' },
+  { key: 'saveDeath', label: 'Morte' },
+  { key: 'saveImplements', label: 'Implementos' },
+  { key: 'saveParalysis', label: 'Paralisia' },
+  { key: 'saveBlast', label: 'Explosão' },
+  { key: 'saveSpells', label: 'Magias' },
 ]
 
 const MOVES = [
@@ -509,9 +512,9 @@ const MOVES = [
 ]
 
 const PROF_CATS = [
-  { key: 'adventuring', label: 'Adventuring Proficiencies', icon: '' },
-  { key: 'class', label: 'Class Proficiencies', icon: '' },
-  { key: 'general', label: 'General Proficiencies', icon: '' },
+  { key: 'adventuring', label: 'Proficiências de aventura', icon: '' },
+  { key: 'class', label: 'Proficiências de classe', icon: '' },
+  { key: 'general', label: 'Proficiências gerais', icon: '' },
 ]
 
 
@@ -539,12 +542,7 @@ function weaponAbilityLabel(w: any) {
 }
 
 async function saveProficiency(p: any) {
-  try {
-    const result = await api.put(`/api/characters/${props.character.id}/proficiencies/${p.id}`, {
-      name: p.name, category: p.category, throwTarget: p.throwTarget,
-    })
-    Object.assign(p, result.data.proficiency)
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível salvar a proficiência. Tente novamente.')) }
+  await relations.update('proficiencies', p, { name: p.name, category: p.category, throwTarget: p.throwTarget }, 'proficiency')
 }
 
 
@@ -673,71 +671,44 @@ function applyCompendiumWeapon(weapon: any) {
 
 // Weapons
 async function addWeapon() {
-  try {
-    const res = await api.post(`/api/characters/${props.character.id}/weapons`, { name: 'Nova Arma' })
-    props.character.weapons.push(res.data.weapon)
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível adicionar a arma.')) }
+  await relations.add('weapons', 'weapons', 'weapon', { name: 'Nova arma' })
 }
 
 async function removeWeapon(id: string) {
-  try {
-    await api.delete(`/api/characters/${props.character.id}/weapons/${id}`)
-    props.character.weapons = props.character.weapons.filter((w: any) => w.id !== id)
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível remover a arma.')) }
+  await relations.remove('weapons', 'weapons', id)
 }
 
 async function saveWeapon(w: any) {
-  try {
-    const result = await api.put(`/api/characters/${props.character.id}/weapons/${w.id}`, {
-      name: w.name, style: w.style, initBonus: w.initBonus, attackThrow: w.attackThrow,
-      attackBonus: w.attackBonus ?? 0,
-      damage: w.damage,
-      catalogId: w.catalogId || '', automaticDamage: w.automaticDamage || false,
-      rangeShort: w.rangeShort ?? 0,
-      rangeMed: w.rangeMed ?? 0,
-      rangeLong: w.rangeLong ?? 0,
-      encumbrance: w.encumbrance ?? 0
-    })
-    Object.assign(w, result.data.weapon)
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível salvar a arma. Tente novamente.')) }
+  await relations.update('weapons', w, {
+    name: w.name, style: w.style, initBonus: w.initBonus, attackThrow: w.attackThrow,
+    attackBonus: w.attackBonus ?? 0, damage: w.damage,
+    catalogId: w.catalogId || '', automaticDamage: w.automaticDamage || false,
+    rangeShort: w.rangeShort ?? 0, rangeMed: w.rangeMed ?? 0,
+    rangeLong: w.rangeLong ?? 0, encumbrance: w.encumbrance ?? 0,
+  }, 'weapon')
 }
 
 // Proficiencies
 async function addProficiency(category: string) {
-  try {
-    const res = await api.post(`/api/characters/${props.character.id}/proficiencies`, { name: '', category })
-    props.character.proficiencies.push(res.data.proficiency)
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível adicionar a proficiência.')) }
+  await relations.add('proficiencies', 'proficiencies', 'proficiency', { name: '', category }, category)
 }
 
 async function removeProficiency(id: string) {
-  try {
-    await api.delete(`/api/characters/${props.character.id}/proficiencies/${id}`)
-    props.character.proficiencies = props.character.proficiencies.filter((p: any) => p.id !== id)
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível remover a proficiência.')) }
+  await relations.remove('proficiencies', 'proficiencies', id)
 }
 
   // Scars / Mortal Wounds
-  async function addScar() {
-    try {
-      const res = await api.post(`/api/characters/${props.character.id}/scars`, {})
-      if (!props.character.scars) props.character.scars = []
-      props.character.scars.push(res.data.scar)
-    } catch (e) { notifyError(errorMessage(e, 'Não foi possível adicionar a cicatriz.')) }
-  }
+async function addScar() {
+  await relations.add('scars', 'scars', 'scar')
+}
 
-  async function saveScar(s: any) {
-    try {
-      await api.put(`/api/characters/${props.character.id}/scars/${s.id}`, s)
-    } catch (e) { notifyError(errorMessage(e, 'Não foi possível salvar a cicatriz. Tente novamente.')) }
-  }
+async function saveScar(s: any) {
+  await relations.update('scars', s, { description: s.description, daysToRest: s.daysToRest, debuff: s.debuff }, 'scar')
+}
 
-  async function removeScar(id: string) {
-    try {
-      await api.delete(`/api/characters/${props.character.id}/scars/${id}`)
-      props.character.scars = props.character.scars.filter((s: any) => s.id !== id)
-    } catch (e) { notifyError(errorMessage(e, 'Não foi possível remover a cicatriz.')) }
-  }
+async function removeScar(id: string) {
+  await relations.remove('scars', 'scars', id)
+}
 </script>
 
 

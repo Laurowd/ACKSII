@@ -1,5 +1,5 @@
 describe('Ficha, persistência e componentes', () => {
-  beforeEach(() => cy.makeUser().then(account => {
+  beforeEach(() => cy.makeUser('MASTER').then(account => {
     cy.wrap(account, { log: false }).as('account')
     cy.character(account, { classKey: 'catalog:mage', int: 16, hpMax: 4,
       spells: [{ name: 'Slumber', level: 1, tradition: 'arcane' }],
@@ -12,7 +12,7 @@ describe('Ficha, persistência e componentes', () => {
     cy.button('Inventário & Tesouro').click()
     cy.findByRole('button', { name: /Loja/ }).click()
     cy.intercept('POST', '/api/characters/*/shop/purchase').as('purchase')
-    cy.get('[title="Torches (6)"]').parent().parent().within(() => cy.button('BUY').click())
+    cy.get('[title="Torches (6)"]').parent().parent().within(() => cy.button('Comprar').click())
     cy.wait('@purchase').its('response.statusCode').should('eq', 201)
     cy.intercept('PUT', `/api${path}`).as('save')
     cy.button('Salvar').click()
@@ -76,10 +76,12 @@ describe('Ficha, persistência e componentes', () => {
       expect(option.text().trim()).to.eq('')
     })
     cy.intercept('PUT', '/api/characters/*/spells/*').as('spell')
+    cy.findByText('Repertório manual e exceções (mestre)', {exact:true}).click()
     cy.findByRole('combobox', { name: 'Magia de nível 1', exact: true }).clear().type('Arcane Armor').blur()
     cy.wait('@spell').its('response.statusCode').should('eq', 200)
     cy.reload()
     cy.button('Magia').click()
+    cy.findByText('Repertório manual e exceções (mestre)', {exact:true}).click()
     cy.findByRole('combobox', { name: 'Magia de nível 1', exact: true }).should('have.value', 'Arcane Armor')
     cy.intercept('PUT', '/api/characters/*/spells/*', { statusCode: 503, body: { error: 'Falha simulada ao salvar magia.' } })
     cy.findByRole('combobox', { name: 'Magia de nível 1', exact: true }).clear().type('Slumber').blur()
@@ -89,11 +91,11 @@ describe('Ficha, persistência e componentes', () => {
   it('mostra ajuda somente no acionador e fecha com Escape', function () {
     cy.signIn(this.account, `/character/${this.character.id}`)
     cy.button('Magia').click()
-    cy.findByText('Library Value', { exact: true }).trigger('mouseenter')
+    cy.findByText('Valor da biblioteca', { exact: true }).trigger('mouseenter')
     cy.findByRole('tooltip').should('not.exist')
-    cy.button('Ajuda: Library Value').focus()
+    cy.button('Ajuda: Valor da biblioteca').focus()
     cy.findByRole('tooltip').should('contain.text', 'biblioteca arcana')
-    cy.button('Ajuda: Library Value').trigger('keydown', { key: 'Escape' })
+    cy.button('Ajuda: Valor da biblioteca').trigger('keydown', { key: 'Escape' })
     cy.findByRole('tooltip').should('not.exist')
   })
 
@@ -101,14 +103,14 @@ describe('Ficha, persistência e componentes', () => {
     cy.viewport(390, 844)
     cy.signIn(this.account, `/character/${this.character.id}`)
     cy.button('Magia').click()
-    cy.button('Ajuda: Workshop Value').click()
+    cy.button('Ajuda: Valor da oficina').click()
     cy.findByRole('tooltip').should('be.visible').then(tip => {
       const bounds = tip[0].getBoundingClientRect()
       expect(bounds.left).to.be.at.least(0)
       expect(bounds.right).to.be.at.most(390)
     })
     cy.document().its('documentElement.scrollWidth').should('be.lte', 390)
-    cy.field('Workshop Value').click()
+    cy.field('Valor da oficina').click()
     cy.findByRole('tooltip').should('not.exist')
   })
 

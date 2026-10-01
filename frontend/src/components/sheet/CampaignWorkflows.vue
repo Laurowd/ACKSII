@@ -64,7 +64,9 @@ import {ref,computed,watch} from 'vue'
 import api from '../../services/api'
 import {errorMessage} from '../../utils/catalog'
 import MagicItems from './MagicItems.vue'
+import { useCharacterOperations } from '../../composables/characterOperations'
 const props=defineProps<{character:any;prepare:()=>Promise<boolean>;refresh:()=>Promise<void>}>()
+const operations=useCharacterOperations()
 const busy=ref(false),error=ref(''),notice=ref(''),projectId=ref('')
 const project=computed(()=>props.character.magicItemResearch?.find((p:any)=>p.id===projectId.value))
 const tracked=computed(()=>{try{return !!JSON.parse(props.character.rulesState||'{}').research?.[projectId.value]}catch{return false}})
@@ -76,16 +78,41 @@ let domainInput:any,planInput:any,finishInput:any
 const root=()=>`/api/campaign-rules/characters/${props.character.id}`
 const research=()=>`${root()}/research/${projectId.value}`
 async function run(fn:()=>Promise<void>){if(busy.value)return;busy.value=true;error.value='';notice.value='';try{await fn()}catch(e){error.value=errorMessage(e,'Não foi possível concluir.')}finally{busy.value=false}}
-async function version(){if(!await props.prepare())throw Error('Resolva o salvamento da ficha antes de continuar.');return (await api.get(`/api/game-rules/characters/${props.character.id}`)).data.version}
-async function done(message:string){await props.refresh();domainPreview.value=planPreview.value=outcome.value=null;notice.value=message}
+async function version(){if(!await props.prepare() || !await operations.retryPending())throw Error('Resolva o salvamento da ficha antes de continuar.');return props.character.version}
+async function done(message:string){domainPreview.value=planPreview.value=outcome.value=null;notice.value=message}
 async function previewDomain(){await run(async()=>{domainInput={...JSON.parse(JSON.stringify(month.value)),version:await version()};domainPreview.value=(await api.post(`${root()}/domain/preview`,domainInput)).data})}
-async function applyDomain(){await run(async()=>{await api.post(`${root()}/domain/apply`,{...domainInput,fingerprint:domainPreview.value.fingerprint});await done('Mês registrado no histórico do domínio.')})}
+async function applyDomain(){await run(async()=>{
+  const input={...domainInput,fingerprint:domainPreview.value.fingerprint}
+  domainPreview.value=null
+  const data=await operations.run('domain:month:apply',()=>api.post(`${root()}/domain/apply`,input))
+  if(data)await done('Mês registrado no histórico do domínio.')
+})}
 async function previewResearch(){await run(async()=>{planInput={...JSON.parse(JSON.stringify(plan.value)),version:await version()};planPreview.value=(await api.post(`${research()}/preview`,planInput)).data})}
-async function startResearch(){await run(async()=>{await api.post(`${research()}/start`,{...planInput,fingerprint:planPreview.value.fingerprint});await done('Materiais pagos; pesquisa iniciada.')})}
-async function recordWork(){await run(async()=>{await api.post(`${research()}/work`,{...work.value,version:await version()});work.value.period='';await done('Período de trabalho registrado.')})}
+async function startResearch(){await run(async()=>{
+  const input={...planInput,fingerprint:planPreview.value.fingerprint},endpoint=`${research()}/start`
+  planPreview.value=null
+  const data=await operations.run(`research:${projectId.value}:start`,()=>api.post(endpoint,input))
+  if(data)await done('Materiais pagos; pesquisa iniciada.')
+})}
+async function recordWork(){await run(async()=>{
+  const input={...work.value},endpoint=`${research()}/work`
+  const data=await operations.run(`research:${projectId.value}:work`,version=>api.post(endpoint,{...input,version}))
+  if(!data)return
+  work.value.period=''
+  await done('Período de trabalho registrado.')
+})}
 async function previewOutcome(){await run(async()=>{finishInput={...JSON.parse(JSON.stringify(finish.value)),version:await version()};outcome.value=(await api.post(`${research()}/outcome`,finishInput)).data})}
-async function finishResearch(){await run(async()=>{await api.post(`${research()}/finish`,{...finishInput,fingerprint:outcome.value.fingerprint});await done('Resultado registrado e inventário atualizado.')})}
-async function cancelResearch(){await run(async()=>{await api.post(`${research()}/cancel`,{version:await version()});await done('Projeto cancelado; materiais pagos preservados no histórico.')})}
+async function finishResearch(){await run(async()=>{
+  const input={...finishInput,fingerprint:outcome.value.fingerprint},endpoint=`${research()}/finish`
+  outcome.value=null
+  const data=await operations.run(`research:${projectId.value}:finish`,()=>api.post(endpoint,input))
+  if(data)await done('Resultado registrado e inventário atualizado.')
+})}
+async function cancelResearch(){await run(async()=>{
+  const endpoint=`${research()}/cancel`
+  const data=await operations.run(`research:${projectId.value}:cancel`,version=>api.post(endpoint,{version}))
+  if(data)await done('Projeto cancelado; materiais pagos preservados no histórico.')
+})}
 watch(month,()=>domainPreview.value=null,{deep:true});watch(plan,()=>planPreview.value=null,{deep:true});watch(finish,()=>outcome.value=null,{deep:true})
 watch(projectId,()=>{planPreview.value=outcome.value=null})
 </script>

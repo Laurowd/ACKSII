@@ -11,11 +11,15 @@
       <router-link to="/dashboard" class="text-gold underline">Voltar aos personagens</router-link>
     </div>
     <template v-else-if="char">
-      <div v-if="saveConflict" role="alert" class="mb-4 rounded border border-red-400 p-4 text-steel-light">
+      <div v-if="anyConflict" role="alert" class="mb-4 rounded border border-red-400 p-4 text-steel-light">
         A ficha mudou em outra sessão. Suas alterações locais foram preservadas.
         Exporte o JSON antes de carregar a versão atual para comparar os dados.
         <button @click="exportSheet('json')" class="mx-3 text-gold underline">Exportar minhas alterações</button>
         <button @click="reloadAfterConflict" class="text-gold underline">Carregar versão atual</button>
+      </div>
+      <div v-if="operationState.error && !anyConflict" role="alert" class="mb-4 rounded-xl border border-red-400/50 bg-red-400/5 p-4 text-sm">
+        <p>{{ errorMessage(operationState.error, 'Não foi possível salvar a alteração. O rascunho continua nesta ficha.') }}</p>
+        <p class="mt-1 text-steel-light">Confira os dados e use Salvar para tentar novamente.</p>
       </div>
       <!-- Top bar -->
       <div class="flex flex-wrap gap-3 items-center justify-between mb-6">
@@ -25,32 +29,35 @@
         <div class="flex flex-wrap items-center gap-3">
           <button @click="exportSheet('json')" class="text-gold text-sm underline">Exportar JSON</button>
           <button @click="exportSheet('html')" class="text-gold text-sm underline" title="Baixa uma ficha imprimível; abra o arquivo para salvar como PDF">Ficha para impressão/PDF</button>
-          <span v-if="saving" class="text-gold text-sm animate-pulse">Salvando...</span>
-          <span v-else-if="saveError" class="text-red-400 text-xs">Falha ao salvar</span>
-          <span v-else-if="hasPendingChanges" class="text-steel-light text-xs">Alterações pendentes</span>
+          <span v-if="anySaving" class="text-gold text-sm animate-pulse">Salvando...</span>
+          <span v-else-if="anySaveError" class="text-red-400 text-xs">Falha ao salvar</span>
+          <span v-else-if="anyPendingChanges" class="text-steel-light text-xs">Alterações pendentes</span>
           <span v-else-if="lastSaved" class="text-steel text-xs">Salvo </span>
-          <button @click="saveCharacter" :disabled="saving" class="px-4 py-2 bg-linear-to-r from-gold-dark to-gold text-dark-bg font-bold rounded-lg
+          <button @click="manualSave" :disabled="anySaving" class="px-4 py-2 bg-linear-to-r from-gold-dark to-gold text-dark-bg font-bold rounded-lg
                  hover:from-gold hover:to-gold-light transition-all text-sm disabled:cursor-wait disabled:opacity-60">
             Salvar
           </button>
         </div>
       </div>
       
-      <!-- Interactive Title -->
-      <div class="text-center mb-8 px-4">
-        <h1 class="break-words text-2xl md:text-4xl font-bold text-transparent bg-clip-text bg-linear-to-r from-gold-light via-gold to-gold-dark font-serif leading-relaxed">
-          The Chronicles of <span class="border-b border-gold/30 pb-0.5 mx-1">{{ char.characterName || '_____' }}</span> of <span class="border-b border-gold/30 pb-0.5 mx-1">{{ char.birthplace || '_____' }}</span>.<br/>
-          <span class="text-xl md:text-2xl mt-4 block text-gold/80">
-            <span class="border-b border-gold/30 pb-0.5 mx-1">{{ char.className || '_____' }}</span> and <span class="border-b border-gold/30 pb-0.5 mx-1">{{ char.title || '_____' }}</span>
-          </span>
-        </h1>
-      </div>
+      <header class="mb-6 rounded-2xl border border-gold/15 bg-dark-card p-5 sm:p-6">
+        <p class="text-xs uppercase tracking-widest text-steel-light mb-2">{{ char.chroniclesOf || 'Ficha de personagem' }}</p>
+        <h1 class="text-3xl sm:text-4xl text-gold font-serif font-bold break-words">{{ char.characterName || 'Personagem sem nome' }}</h1>
+        <p class="text-steel-light mt-2">{{ char.className || 'Classe livre' }} · Nível {{ char.level }}<span v-if="char.title"> · {{ char.title }}</span><span v-if="char.birthplace"> · {{ char.birthplace }}</span></p>
+        <dl class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+          <div class="rounded-lg bg-dark-bg/70 p-3"><dt class="text-xs text-steel-light">Pontos de vida</dt><dd class="text-xl font-bold text-dark-text">{{ char.hpCurr }} / {{ char.hpMax }}</dd></div>
+          <div class="rounded-lg bg-dark-bg/70 p-3"><dt class="text-xs text-steel-light">CA sem escudo / com escudo</dt><dd class="text-xl font-bold text-gold">{{ computedAC.noShield }} / {{ computedAC.withShield }}</dd></div>
+          <div class="rounded-lg bg-dark-bg/70 p-3"><dt class="text-xs text-steel-light">Movimento em combate</dt><dd class="text-xl font-bold text-dark-text">{{ encumbranceResult.moveCombat }} <span class="text-sm font-normal">pés</span></dd></div>
+          <div class="rounded-lg bg-dark-bg/70 p-3"><dt class="text-xs text-steel-light">Experiência</dt><dd class="text-xl font-bold text-dark-text">{{ Number(char.xp || 0).toLocaleString('pt-BR') }} <span class="text-sm font-normal">XP</span></dd></div>
+        </dl>
+      </header>
 
       <!-- Tabs Navigation -->
-      <div class="flex border-b border-steel-dark mb-6 overflow-x-auto scrollbar-hide">
+      <div role="group" aria-label="Seções da ficha" class="flex border-b border-steel-dark mb-6 overflow-x-auto">
         <button 
           v-for="tab in TABS" :key="tab.id"
           @click="currentTab = tab.id"
+          :aria-pressed="currentTab === tab.id" :aria-controls="`sheet-${tab.id}`" :id="`tab-${tab.id}`"
           class="px-5 py-3 font-bold whitespace-nowrap transition-all border-b-2 -mb-px"
           :class="currentTab === tab.id ? 'border-gold text-gold' : 'border-transparent text-steel-light hover:text-gold hover:border-gold/50'"
         >
@@ -59,8 +66,8 @@
       </div>
 
       <!-- Tab Contents -->
-      <div class="tab-content transition-all">
-        <RulesAssistant v-if="currentTab === 'rules'" :character="char" :prepare="saveCharacter" :refresh="refreshRuleCharacter" />
+      <div role="tabpanel" :id="`sheet-${currentTab}`" :aria-labelledby="`tab-${currentTab}`" class="tab-content transition-all">
+        <RulesAssistant v-if="currentTab === 'rules'" :character="char" :prepare="saveCharacter" :refresh="refreshRuleCharacter" :can-manage="canManageRules" @open-magic="currentTab = 'magic'" />
         <CombatTab
           v-if="currentTab === 'combat'"
           :character="char"
@@ -88,11 +95,13 @@
           :enc-percent="encPercent"
           :optional-rules="campaignOptionalRules"
           :before-operation="saveCharacter"
+          @open-adventure="currentTab = 'rules'"
           @save="autoSave"
         />
 
         <MagicTab
           v-if="currentTab === 'magic'"
+          :prepare="saveCharacter" :refresh="refreshRuleCharacter"
           :character="char"
           :optional-rules="campaignOptionalRules"
           @save="autoSave"
@@ -115,10 +124,10 @@
       <div class="fixed bottom-0 left-0 right-0 p-3 bg-dark-card border-t border-gold/20 shadow-[0_-5px_15px_rgba(0,0,0,0.5)] z-50 flex items-center justify-between md:hidden rounded-t-xl transition-colors pb-safe">
         <div class="flex flex-col">
           <span class="text-gold font-bold font-serif text-sm">{{ char.characterName || 'Desconhecido' }}</span>
-          <span class="text-xs text-steel font-bold">AC: {{ computedAC.withShield || computedAC.noShield || computedAC.noArmor }}</span>
+          <span class="text-xs text-steel font-bold">CA: {{ computedAC.noShield }} / {{ computedAC.withShield }}</span>
         </div>
         <div class="flex items-center gap-1">
-          <span class="text-xs text-steel uppercase">HP</span>
+          <span class="text-xs text-steel uppercase">PV</span>
           <div class="text-lg font-bold" :class="hpPercent > 50 ? 'text-green-400' : hpPercent > 25 ? 'text-yellow-400' : 'text-red-400'">
             {{ char.hpCurr }}<span class="text-xs text-steel font-normal">/{{ char.hpMax }}</span>
           </div>
@@ -129,20 +138,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted, provide } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import api from '../services/api'
-import { classEffects } from '../utils/classEffects'
+import { calculateCharacterMetrics } from '../utils/characterMetrics'
+import { createCharacterOperations, characterOperationsKey, mergeUnchangedDraft, type OperationState } from '../composables/characterOperations'
 import { notifyError } from '../utils/toast'
 import { errorMessage, selectedClass, type CatalogClass } from '../utils/catalog'
 import { characterExport, characterPrintHtml, downloadCharacter } from '../utils/characterExport'
-import {
-  getModifier,
-  calculateEncumbrance, getEncumbranceMovement,
-  getMaximumEncumbrance, calculateAC,
-  calculateHealingRate,
-} from '../utils/mechanics'
+
 
 import CombatTab from '../components/sheet/CombatTab.vue';
 // re-trigger volar
@@ -163,6 +168,16 @@ const lastSaved = ref(false)
 const saveError = ref(false)
 const saveConflict = ref(false)
 const hasPendingChanges = ref(false)
+const operationState = ref<OperationState>({ pending: 0, busy: false, error: null, conflict: false })
+const operations = createCharacterOperations({ getCharacter: () => char.value, prepare: saveCharacter, onState: (state) => { operationState.value = state } })
+provide(characterOperationsKey, operations)
+const anyPendingChanges = computed(() => hasPendingChanges.value || operationState.value.pending > 0)
+const anyConflict = computed(() => saveConflict.value || operationState.value.conflict)
+const anySaveError = computed(() => saveError.value || Boolean(operationState.value.error))
+const anySaving = computed(() => saving.value || operationState.value.busy)
+async function saveAllChanges() { return await saveCharacter() && await operations.retryPending() }
+async function manualSave() { if (!anyPendingChanges.value) hasPendingChanges.value = true; return saveAllChanges() }
+
 let saveTimeout: ReturnType<typeof setTimeout> | null = null
 let savedNoticeTimeout: ReturnType<typeof setTimeout> | null = null
 let saveInFlight: Promise<boolean> | null = null
@@ -192,16 +207,36 @@ const TABS = [
   { id: 'activities', label: 'Atividades e Downtime' },
 ]
 const currentTab = ref('combat')
+const canManageRules = computed(() => authStore.isMaster && (!char.value?.campaignId || campaigns.value.some(c => c.id === char.value.campaignId && c.masterId === authStore.user?.id)))
 async function refreshRuleCharacter() {
-  const res=await api.get(`/api/characters/${char.value.id}`)
-  char.value=res.data.character
+  const before = JSON.parse(JSON.stringify(char.value))
+  const res = await api.get(`/api/characters/${char.value.id}`)
+  const returned = res.data.character
+  if (returned.version < char.value.version) return
+  for (const [key, value] of Object.entries(returned)) {
+    if (Array.isArray(value) && Array.isArray(before[key]) && Array.isArray(char.value[key])) {
+      const local = char.value[key]
+      const original = new Map(before[key].map((entry: any) => [entry.id, entry]))
+      const byId = new Map(local.map((entry: any) => [entry.id, entry]))
+      const merged = value.map((entry: any) => {
+        const draft = byId.get(entry.id)
+        if (!draft) return entry
+        mergeUnchangedDraft(draft, original.get(entry.id) || {}, entry)
+        return draft
+      })
+      for (const draft of local) if (!value.some((entry: any) => entry.id === draft.id) && JSON.stringify(draft) !== JSON.stringify(original.get(draft.id))) merged.push(draft)
+      char.value[key] = merged
+    } else if (JSON.stringify(char.value[key]) === JSON.stringify(before[key])) char.value[key] = value
+  }
+  char.value.version = returned.version
   normalizeLoadedCharacter()
 }
 
 function exportSheet(format: 'json' | 'html') {
   if (!char.value) return
   const definition = selectedClass(customClasses.value, char.value)
-  const content = format === 'json' ? JSON.stringify(characterExport(char.value, definition), null, 2) : characterPrintHtml(char.value, definition)
+  const automaticProgression = campaignOptionalRules.value.enableClassAutoProgression !== false
+  const content = format === 'json' ? JSON.stringify(characterExport(char.value, definition, automaticProgression), null, 2) : characterPrintHtml(char.value, definition, automaticProgression)
   downloadCharacter(content, char.value.characterName || 'personagem', format)
 }
 
@@ -292,34 +327,11 @@ const hpPercent = computed(() => {
   return (char.value.hpCurr / char.value.hpMax) * 100
 })
 
-const computedAC = computed(() => {
-  if (!char.value) return { noArmor: 0, noShield: 0, withShield: 0 }
-  const dexMod = getModifier(char.value.dex)
-  const base = calculateAC(Number(char.value.armorAcBonus || 0), dexMod, true)
-  const adjustment = Number(char.value.acAdjustment ?? 0)
-  return { noArmor: base.noArmor + adjustment, noShield: base.noShield + adjustment, withShield: base.withShield + adjustment }
-})
-
-const computedInitiative = computed(() => {
-  if (!char.value) return 0
-  return classEffects(char.value, selectedClass(customClasses.value, char.value)?.ruleProfile).initiative
-})
-
-const computedHealingRate = computed(() => {
-  return calculateHealingRate()
-})
-
-const encumbranceResult = computed(() => {
-  if (!char.value) return getEncumbranceMovement(0)
-  const items = char.value.items || []
-  const weapons = char.value.weapons || []
-  const totalCoins = (char.value.coinPP || 0) + (char.value.coinEP || 0) + (char.value.coinGP || 0) + (char.value.coinSP || 0) + (char.value.coinCP || 0)
-  const armorWeight = char.value.armorWeight || 0
-
-  const totalStone = calculateEncumbrance(items, weapons, totalCoins, armorWeight)
-  const maxCapacity = getMaximumEncumbrance(getModifier(char.value.str))
-  return getEncumbranceMovement(totalStone, maxCapacity)
-})
+const metrics = computed(() => calculateCharacterMetrics(char.value || {}, selectedClass(customClasses.value, char.value || {})))
+const computedAC = computed(() => metrics.value.armorClass)
+const computedInitiative = computed(() => metrics.value.initiative)
+const computedHealingRate = computed(() => metrics.value.healingRate)
+const encumbranceResult = computed(() => metrics.value.encumbrance)
 
 const encPercent = computed(() => {
   if (!encumbranceResult.value) return 0
@@ -363,7 +375,9 @@ function characterPayload() {
 
 async function saveCharacter(): Promise<boolean> {
   if (!char.value) return true
-  if (saveConflict.value) return false
+  if (anyConflict.value) return false
+  await operations.waitForActive()
+  if (!hasPendingChanges.value && !saveInFlight) return true
   if (saveTimeout) {
     clearTimeout(saveTimeout)
     saveTimeout = null
@@ -389,6 +403,7 @@ async function saveCharacter(): Promise<boolean> {
       }
 
       try {
+        const beforeWeapons = JSON.parse(JSON.stringify(char.value.weapons || []))
         const sent = JSON.parse(JSON.stringify(characterPayload()))
         const res = await api.put(`/api/characters/${char.value.id}`, sent)
         char.value.version = res.data.character.version
@@ -396,10 +411,12 @@ async function saveCharacter(): Promise<boolean> {
         for (const key of ['classKey', 'className', 'title', 'hitDice', 'xpNext', 'saveDeath', 'saveParalysis', 'saveBlast', 'saveImplements', 'saveSpells']) {
           if (char.value[key] === sent[key] && res.data.character[key] !== undefined) char.value[key] = res.data.character[key]
         }
-        if (char.value.level === sent.level && char.value.classKey === sent.classKey && campaignOptionalRules.value.enableClassAutoProgression !== false) {
-          const selected = selectedClass(customClasses.value, char.value)
-          const attack = selected && JSON.parse(selected.attackThrows)[char.value.level - 1]
-          if (attack !== undefined) for (const w of char.value.weapons || []) w.attackThrow = attack
+        if (!operationState.value.pending) {
+          for (const weapon of char.value.weapons || []) {
+            const before = beforeWeapons.find((entry: any) => entry.id === weapon.id)
+            const returned = res.data.character.weapons?.find((entry: any) => entry.id === weapon.id)
+            if (before && returned && weapon.attackThrow === before.attackThrow) weapon.attackThrow = returned.attackThrow
+          }
         }
         saveError.value = false
       } catch (error) {
@@ -432,6 +449,7 @@ async function reloadAfterConflict() {
   if (!window.confirm('Descartar as alterações locais e carregar a ficha atual? Exporte o JSON primeiro se quiser guardá-las.')) return
   try {
     const res = await api.get(`/api/characters/${char.value.id}`)
+    operations.clearPending()
     char.value = res.data.character
     normalizeLoadedCharacter()
     saveConflict.value = false
@@ -455,14 +473,14 @@ function normalizeLoadedCharacter() {
 }
 
 function warnAboutPendingChanges(event: BeforeUnloadEvent) {
-  if (!hasPendingChanges.value && !saveInFlight) return
+  if (!anyPendingChanges.value && !saveInFlight && !operationState.value.busy) return
   event.preventDefault()
   event.returnValue = ''
 }
 
 onBeforeRouteLeave(async () => {
-  if (!hasPendingChanges.value && !saveInFlight) return true
-  return await saveCharacter()
+  if (!anyPendingChanges.value && !saveInFlight && !operationState.value.busy) return true
+  return await saveAllChanges()
 })
 
 // Load

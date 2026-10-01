@@ -8,7 +8,9 @@ Para hospedar em servidor com Docker, consulte [Implantação e operação](docs
 
 Para continuar usando o banco existente no Neon, siga [Produção com Neon](docs/PRODUCAO_NEON.md). Há um Compose sem banco local, conexões separadas para API/migrações e exportação com teste de restauração isolado.
 
-**Regras atualizadas:** a aba **Evolução & Regras** reúne avanço com rolagem de PV, magia e descanso, XP, domínio mensal, pesquisa e cargas de itens. Há criação com orçamento e validação de escolhas, equipamentos corrigidos e construtor de classes por pontos. Veja [como usar e limites da automação](docs/FLUXOS_ACKS_II.md).
+**Fluxos principais:** conjuração, repertório e descanso ficam na aba **Magia**. **Evolução & Regras** reúne avanço com rolagem de PV, fechamento de aventura para XP, domínio mensal, pesquisa e cargas de itens. Há criação com orçamento e validação de escolhas, equipamentos corrigidos e construtor de classes por pontos. Veja [como usar e limites da automação](docs/FLUXOS_ACKS_II.md).
+
+O **Painel do Mestre** oferece uma visão compacta dos recursos do grupo. Fichas podem ser exportadas para impressão ou JSON e importadas como novas fichas: consulte [portabilidade e consulta de sessão](docs/PORTABILIDADE_FICHAS.md).
 
 ## Pré-requisitos
 
@@ -50,7 +52,7 @@ npx prisma migrate dev
 
 ### Subir o servidor
 
-**Desenvolvimento** (com hot reload):
+**Desenvolvimento**:
 
 ```bash
 npm run dev
@@ -116,7 +118,7 @@ npm run dev
 
 Depois acesse **http://localhost:5173**, registre um usuário e use a ficha.
 
-## Catálogo, criação por etapas e exportação
+## Catálogo, criação por etapas e portabilidade
 
 - **Classes** no menu abre o catálogo base, disponível mesmo sem campanha. Ao selecionar uma campanha, suas classes próprias aparecem junto às bases, com identificação da origem.
 - **Novo personagem** abre cinco etapas: atributos, classe, identidade, equipamento e revisão. A confirmação cria a ficha e seus itens/proficiências em uma única operação. Nenhuma ficha parcial é criada ao apenas avançar etapas. Sair descarta o rascunho após confirmação.
@@ -124,14 +126,15 @@ Depois acesse **http://localhost:5173**, registre um usuário e use a ficha.
 - A cópia de uma base inclui progressão e requisitos de atributos. O editor livre permite tabelas manuais; o construtor por pontos calcula custos, progressão e magia. Poderes condicionais, seleções específicas e exceções continuam sujeitos ao mestre.
 - Classes de campanha existentes são preservadas. Novas escolhas usam um identificador estável; renomear uma classe mantém o vínculo e atualiza o nome nas fichas. Classes em uso não podem ser excluídas. Para transferir um personagem com classe própria a outra campanha, escolha e salve uma classe base primeiro.
 - Título, dado de vida, XP do próximo nível, salvamentos e ataque usam a progressão da classe ao salvar, respeitando a opção de progressão automática da campanha. Para conduzir a rolagem de PV e conferir escolhas ao subir de nível, use **Evolução & Regras**; os editores manuais continuam disponíveis.
-- **Exportar JSON** baixa os dados atuais da ficha, inclusive inventário, magia e domínio, e uma cópia da definição da classe. O formato possui versão; não há importação implementada. Dados de conta e IDs de relações são omitidos.
-- **Ficha para impressão/PDF** baixa um HTML independente. Abra-o e use **Imprimir / salvar em PDF**. A exportação inclui as edições atuais, mesmo se ainda estiverem pendentes de salvamento no servidor.
+- **Exportar JSON** baixa os dados atuais da ficha e uma cópia de referência da definição da classe. **Personagens → Importar JSON** cria uma nova ficha na conta conectada, com novos identificadores, preservando valores e saldos. A definição de uma classe própria precisa estar disponível no destino; histórico de operações não é restaurado. Veja [formato, passos e limites](docs/PORTABILIDADE_FICHAS.md).
+- **Ficha para impressão/PDF** baixa um HTML independente. Abra-o e use **Imprimir / salvar em PDF**. JSON e impressão calculam CA e movimento pelos valores atuais, incluindo edições pendentes de salvamento.
+- **Painel do Mestre → Sessão da campanha** reúne PV, CA, movimento, salvamentos e magia restante das campanhas administradas e fichas avulsas do próprio mestre. A consulta de regras fica em uma visão separada do mesmo painel.
 
 ### Atualizar uma instalação existente
 
 A migração `20260911090000_class_catalog` adiciona os campos de vínculo e descrição de classes. Ela deve ser aplicada antes de iniciar a API atualizada. As migrações anteriores pendentes também serão aplicadas. Para um banco existente, confira o destino configurado e tenha um backup; não use `migrate reset`.
 
-Esta entrega também exige `20260929100000_rule_workflows` e `20260929110000_magic_item_state`, além do endurecimento de produção de 28/09. As migrações foram testadas apenas no banco local descartável.
+O histórico inclui `20260929100000_rule_workflows` e `20260929110000_magic_item_state`, além do endurecimento de produção de 28/09. Confira todas as migrações pendentes no destino antes de atualizar.
 
 ```bash
 cd backend
@@ -184,8 +187,12 @@ Para executar o Cypress, prepare os builds e o PostgreSQL isolado conforme [Test
 - Toasts globais no frontend para feedback de sucesso/erro (incluindo `401` e `429`).
 - Pipeline de CI em [`.github/workflows/ci.yml`](.github/workflows/ci.yml) com build e testes de backend/frontend.
 - Acesso de mestres isolado às campanhas que administram.
-- Premiação de XP de tesouro com identificador único, sem consumir moedas e com proteção contra repetição do mesmo registro.
-- Salvamento da ficha com fila, indicação de alterações pendentes e proteção ao sair da página.
+- **Fechar aventura** centraliza tesouro e monstros para distribuir XP, com identificador único, proteção contra repetição e atualização conjunta dos participantes. A conversão direta do inventário foi desativada; ajustes excepcionais de XP ficam disponíveis ao mestre com justificativa.
+- **Magia** centraliza conjuração, repertório e descanso usando o saldo automático; referências manuais ficam recolhidas para o mestre.
+- Salvamento da ficha e dos editores menores coordenado por versão, com fila, indicação de alterações pendentes, tentativa de recuperação e proteção ao sair da página.
+- Exportação JSON/HTML com cálculos compartilhados e importação transacional de novas fichas, conforme [portabilidade](docs/PORTABILIDADE_FICHAS.md).
+- Visão de sessão do mestre com recursos atuais do grupo, filtros e indicação de atualização; navegação responsiva, contraste dos temas e estados de foco revisados.
+- Gerenciamento de campanha com tratamento de falhas de carregamento e bloqueio de envios repetidos de calendário, configurações, economia, atividades e convites.
 - Migrações sincronizadas com os recursos de atividades, exércitos, pesquisa mágica e comércio.
 
 ### Correções de regras de setembro de 2026
@@ -195,10 +202,10 @@ A migração `20260911140000_acks_rules_alignment` acrescenta campos de pesquisa
 - Ataque usa base + CA − bônus, com escolha de estilo para diferenciar corpo a corpo de arremesso. CA usa armadura, DEX e ajuste explícito. Cura natural mostra 1d3 por dia de descanso. Carga superior a 20 + modificador de STR impede movimento.
 - Itens e proficiências têm salvamento próprio. Compras atualizam saldo e inventário na mesma transação, com troco em GP/SP/CP. PP e EP podem ser convertidos manualmente antes de comprar.
 - Salvamentos preservam ajustes ao mudar nível ou WIL. Os limites das seis classes raciais estão no catálogo. Fichas antigas e classes próprias copiadas anteriormente continuam exigindo conferência dos valores existentes.
-- A criação oferece o método padrão de atributos, requisitos de classe, rolagem de PV e Adventuring. O fluxo de escolhas/equipamento é a variante manual sem templates; listas de proficiências, repertórios, poderes condicionais e templates ainda precisam de validação completa.
+- A criação oferece o método padrão de atributos, requisitos de classe, rolagem de PV e Adventuring. O modo do livro confere listas e limites das escolhas iniciais e orçamento de equipamento. Templates, poderes condicionais e exceções específicas continuam sujeitos à conferência do mestre.
 - Domínio separa terra, serviços e impostos. Receitas representam valor econômico e não aumentam automaticamente o tesouro. Despesas normais podem ser preenchidas pelo botão específico.
-- Pesquisa de um efeito calcula componentes, materiais, trabalho e prazo. Ao terminar o trabalho, fica aguardando resolução; teste, pagamento de componentes e entrada do item são conferidos na mesa. Multiefeitos, experimentação e exceções de classes/proficiências permanecem manuais.
-- O calendário usa quatro semanas por mês e avança atividades ativas das fichas e pesquisas em andamento, junto da fila de campanha. Recarregue fichas abertas para ver o avanço. Custos extras de domínio são somados aos salários dos seguidores; não lance o mesmo salário nos dois lugares.
-- Classes próprias têm requisitos e conjuração estruturados. O construtor completo por pontos do Judges Journal permanece pendente; o editor atual valida tabelas e requisitos, não o equilíbrio da classe.
+- Pesquisa acompanhada calcula componentes, materiais, trabalho e prazo, registra pagamento inicial e períodos de trabalho, e resolve o teste final com consumo de componentes. Multiefeitos, experimentação e exceções de classes/proficiências permanecem manuais; veja [os limites do fluxo](docs/FLUXOS_ACKS_II.md).
+- O calendário usa quatro semanas por mês e avança atividades das fichas, projetos antigos/manuais e a fila de campanha. Pesquisas acompanhadas usam seus próprios períodos de trabalho. Recarregue fichas abertas para ver o avanço. Custos extras de domínio são somados aos salários dos seguidores; não lance o mesmo salário nos dois lugares.
+- O construtor de classes por pontos calcula categorias, custos/trocas iniciais, XP, ataque, salvamentos, PV, magia e limites raciais. O editor livre permanece disponível; poderes condicionais e variantes além da construção suportada exigem revisão do mestre.
 
 Os testes unitários não escrevem no Neon; os testes de backend usam banco simulado. Rode `npm.cmd test` em `backend` e `frontend`. Cypress, Playwright e os testes de integração usam PostgreSQL local isolado, conforme [o guia de testes](docs/TESTES_CYPRESS.md).

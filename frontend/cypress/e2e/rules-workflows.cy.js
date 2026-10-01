@@ -1,3 +1,5 @@
+import { mutateCharacter } from '../support/characterMutations'
+
 describe('Regras, magia e pesquisa', () => {
   beforeEach(() => cy.makeUser('MASTER').as('account'))
 
@@ -21,13 +23,13 @@ describe('Regras, magia e pesquisa', () => {
       spells: [{ name: 'Slumber', level: 1, tradition: 'arcane' }],
     }).then(c => {
       cy.signIn(this.account, `/character/${c.id}`)
-      cy.button('Evolução & Regras').click()
+      cy.button('Magia').click()
       cy.findByText('Editar repertório com validação', { exact: true }).click()
-      cy.findByPlaceholderText('Nome da magia').clear().type('Not a catalog spell')
-      cy.button('Salvar este repertório').click()
+      cy.field('Nome da magia 1').clear().type('Not a catalog spell')
+      cy.button('Salvar repertório').click()
       cy.findByRole('alert').should('be.visible')
-      cy.findByPlaceholderText('Nome da magia').clear().type('Arcane Armor')
-      cy.button('Salvar este repertório').click()
+      cy.field('Nome da magia 1').clear().type('Arcane Armor')
+      cy.button('Salvar repertório').click()
       cy.contains('[role=status]', 'Repertório registrado').should('be.visible')
       cy.api(this.account, 'GET', `/characters/${c.id}`).its('character.spells').then(rows => {
         expect(rows).to.have.length(1)
@@ -38,7 +40,7 @@ describe('Regras, magia e pesquisa', () => {
 
   it('concede XP, avança nível e fecha mês do domínio', function () {
     cy.character(this.account).then(c => {
-      cy.api(this.account, 'PUT', `/characters/${c.id}/domain`, { peasantFamilies: 100, treasury: 1000, garrisonCost: 200, liturgiesCost: 100, titheCost: 100 })
+      mutateCharacter(this.account, 'PUT', `/characters/${c.id}/domain`, { peasantFamilies: 100, treasury: 1000, garrisonCost: 200, liturgiesCost: 100, titheCost: 100 })
       cy.signIn(this.account, `/character/${c.id}`)
       cy.button('Evolução & Regras').click()
       cy.field('Identificador único da aventura').type('cypress-adventure')
@@ -65,8 +67,8 @@ describe('Regras, magia e pesquisa', () => {
       spells: [{ name: 'Slumber', level: 1, tradition: 'arcane' }],
     }).then(c => {
       cy.signIn(this.account, `/character/${c.id}`)
-      cy.button('Evolução & Regras').click()
-      cy.button('Gastar uso').click()
+      cy.button('Magia').click()
+      cy.findByRole('button', { name: 'Conjurar Slumber', exact: true }).click()
       cy.contains('[role=status]', 'Uso de magia registrado').should('be.visible')
       cy.api(this.account, 'GET', `/characters/${c.id}`).its('character').then(current => {
         cy.api(this.account, 'POST', `/game-rules/characters/${c.id}/magic/cast`, { version: current.version, spellId: current.spells[0].id }, 400)
@@ -80,7 +82,7 @@ describe('Regras, magia e pesquisa', () => {
 
   it('identifica item mágico, consome cargas e impede gasto além do saldo', function () {
     cy.character(this.account).then(c => {
-      cy.api(this.account, 'POST', `/characters/${c.id}/items`, { name: 'Wand', quantity: 1, weight: 1 }, 201).its('item').then(item => {
+      mutateCharacter(this.account, 'POST', `/characters/${c.id}/items`, { name: 'Wand', quantity: 1, weight: 1 }, 201).its('item').then(item => {
         cy.signIn(this.account, `/character/${c.id}`)
         cy.button('Evolução & Regras').click()
         cy.field('Item mágico').should('be.enabled').select(item.id)
@@ -103,8 +105,8 @@ describe('Regras, magia e pesquisa', () => {
   it('inicia pesquisa, registra trabalho e consome componentes para criar item', function () {
     cy.character(this.account, { classKey: 'catalog:mage', int: 16, hpMax: 4, coinGP: 1000 }).then(c => {
       cy.api(this.account, 'PUT', `/characters/${c.id}`, { version: c.version, level: 5, workshopValue: 4000 })
-      cy.api(this.account, 'POST', `/characters/${c.id}/magic-research`, { itemName: 'Test scroll', effectType: 'ONE_USE', spellLevel: 1, hasFormula: true }, 201).its('research').as('project')
-      cy.api(this.account, 'POST', `/characters/${c.id}/items`, { name: 'Monster component', quantity: 1, weight: 1 }, 201).its('item').as('component')
+      mutateCharacter(this.account, 'POST', `/characters/${c.id}/magic-research`, { itemName: 'Test scroll', effectType: 'ONE_USE', spellLevel: 1, hasFormula: true }, 201).its('research').as('project')
+      mutateCharacter(this.account, 'POST', `/characters/${c.id}/items`, { name: 'Monster component', quantity: 1, weight: 1 }, 201).its('item').as('component')
       cy.signIn(this.account, `/character/${c.id}`)
       cy.button('Evolução & Regras').click()
       cy.get('@project').then(project => cy.field('Projeto de pesquisa').should('be.enabled').select(project.id))

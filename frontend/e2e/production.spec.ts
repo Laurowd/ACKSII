@@ -1,5 +1,10 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
+async function relation(page: Page, headers: Record<string,string>, method: 'post'|'put', path: string, data: any) {
+  const id = path.split('/')[3]
+  const current = (await (await page.request.get('/api/characters/' + id, {headers})).json()).character
+  return page.request[method](path, {headers, data: {...data, version: current.version}})
+}
 
 test('registration, campaign, creation, purchase, saving, conflict, export and logout', async ({ page }) => {
   const suffix = Date.now().toString(36)
@@ -38,7 +43,7 @@ test('registration, campaign, creation, purchase, saving, conflict, export and l
   await page.getByRole('button', { name: /Loja/ }).click()
   const torch = page.locator('[title="Torches (6)"]').locator('../..')
   const purchased = page.waitForResponse(r => r.url().endsWith('/shop/purchase') && r.request().method() === 'POST')
-  await torch.getByRole('button', { name: 'BUY', exact: true }).click()
+  await torch.getByRole('button', { name: 'Comprar', exact: true }).click()
   expect((await purchased).status()).toBe(201)
   const save = page.waitForResponse(r => r.url().endsWith(`/characters/${id}`) && r.request().method() === 'PUT')
   await page.getByRole('button', { name: 'Salvar', exact: true }).click()
@@ -90,7 +95,7 @@ test('rule assistant awards XP, advances HP and settles a domain month',async({p
   const created=await page.request.post('/api/characters/guided',{headers,data:{characterName:suffix,classKey:'catalog:fighter',str:10,int:10,dex:10,wil:10,con:10,cha:10,hpMax:6}})
   expect(created.status()).toBe(201)
   const {id}= (await created.json()).character
-  expect((await page.request.put(`/api/characters/${id}/domain`,{headers,data:{peasantFamilies:100,treasury:1000,garrisonCost:200,liturgiesCost:100,titheCost:100}})).status()).toBe(200)
+  expect((await relation(page,headers,'put',`/api/characters/${id}/domain`,{peasantFamilies:100,treasury:1000,garrisonCost:200,liturgiesCost:100,titheCost:100})).status()).toBe(200)
   await page.goto('/login')
   await page.evaluate(({token,user})=>{localStorage.setItem('token',token);localStorage.setItem('user',JSON.stringify(user))},{token,user})
   await page.goto(`/character/${id}`)
@@ -123,14 +128,15 @@ test('rule assistant spends a spell and restores it after an acknowledged rest',
   await page.evaluate(({token,user})=>{localStorage.setItem('token',token);localStorage.setItem('user',JSON.stringify(user))},{token,user})
   await page.goto(`/character/${id}`)
   await page.getByRole('button',{name:'Evolução & Regras',exact:true}).click()
-  await page.getByRole('button',{name:'Gastar uso',exact:true}).click()
+  await page.getByRole('button',{name:'Magia',exact:true}).click()
+  await page.getByRole('button',{name:'Conjurar Slumber',exact:true}).click()
   await expect(page.getByRole('status')).toContainText('Uso de magia registrado')
   await page.getByLabel(/Foram cumpridas 8 horas/).check()
   await page.getByRole('button',{name:'Registrar descanso',exact:true}).click()
   await expect(page.getByRole('status')).toContainText('Usos de magia recuperados')
   const c=(await(await page.request.get(`/api/characters/${id}`,{headers})).json()).character
   expect(JSON.parse(c.rulesState).used).toEqual({})
-  const itemResponse=await page.request.post(`/api/characters/${id}/items`,{headers,data:{name:'Wand',quantity:1,weight:1/6}})
+  const itemResponse=await relation(page,headers,'post',`/api/characters/${id}/items`,{name:'Wand',quantity:1,weight:1/6})
   expect(itemResponse.status()).toBe(201)
   const item=(await itemResponse.json()).item
   await page.reload()
@@ -154,10 +160,10 @@ test('tracked research consumes components and creates its item through the UI',
   expect(created.status()).toBe(201)
   const c=(await created.json()).character
   expect((await page.request.put(`/api/characters/${c.id}`,{headers,data:{version:c.version,level:5,workshopValue:4000}})).status()).toBe(200)
-  const projectResponse=await page.request.post(`/api/characters/${c.id}/magic-research`,{headers,data:{itemName:'Test scroll',effectType:'ONE_USE',spellLevel:1,hasFormula:true}})
+  const projectResponse=await relation(page,headers,'post',`/api/characters/${c.id}/magic-research`,{itemName:'Test scroll',effectType:'ONE_USE',spellLevel:1,hasFormula:true})
   expect(projectResponse.status()).toBe(201)
   const project=(await projectResponse.json()).research
-  const componentResponse=await page.request.post(`/api/characters/${c.id}/items`,{headers,data:{name:'Monster component',quantity:1,weight:1}})
+  const componentResponse=await relation(page,headers,'post',`/api/characters/${c.id}/items`,{name:'Monster component',quantity:1,weight:1})
   const component=(await componentResponse.json()).item
   await page.goto('/login')
   await page.evaluate(({token,user})=>{localStorage.setItem('token',token);localStorage.setItem('user',JSON.stringify(user))},{token,user})

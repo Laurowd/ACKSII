@@ -1,12 +1,16 @@
 import { test, expect, type Page } from '@playwright/test'
+let account: any
 
 async function openMage(page: Page) {
   const suffix = `ui_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
-  const registration = await page.request.post('/api/auth/register', {
-    data: { username: suffix, email: `${suffix}@test.invalid`, password: 'browser-test-password' },
-  })
-  expect(registration.status()).toBe(201)
-  const { token, user } = await registration.json()
+  if (!account) {
+    const registration = await page.request.post('/api/auth/register', {
+      data: { username: suffix, email: `${suffix}@test.invalid`, password: 'browser-test-password', role: 'MASTER' },
+    })
+    expect(registration.status()).toBe(201)
+    account = await registration.json()
+  }
+  const { token, user } = account
   const headers = { authorization: `Bearer ${token}` }
   const created = await page.request.post('/api/characters/guided', { headers, data: {
     characterName: suffix, classKey: 'catalog:mage', str: 10, int: 16, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 4,
@@ -28,16 +32,16 @@ test('help opens only at its trigger and works with hover, keyboard and Escape',
   page.on('pageerror', error => errors.push(error.message))
   await openMage(page)
   await page.getByRole('button', { name: 'Magia', exact: true }).click()
-  await page.getByText('Library Value', { exact: true }).hover()
+  await page.getByText('Valor da biblioteca', { exact: true }).hover()
   await expect(page.getByRole('tooltip')).toHaveCount(0)
-  const help = page.getByRole('button', { name: 'Ajuda: Library Value', exact: true })
+  const help = page.getByRole('button', { name: 'Ajuda: Valor da biblioteca', exact: true })
   await help.hover()
   await expect(page.getByRole('tooltip')).toContainText('biblioteca arcana')
   await page.getByRole('tooltip').hover()
   await expect(page.getByRole('tooltip')).toBeVisible()
-  await page.getByLabel('Library Value', { exact: true }).hover()
+  await page.getByLabel('Valor da biblioteca', { exact: true }).hover()
   await expect(page.getByRole('tooltip')).toHaveCount(0)
-  await page.getByLabel('Library Value', { exact: true }).focus()
+  await page.getByLabel('Valor da biblioteca', { exact: true }).focus()
   await page.keyboard.press('Shift+Tab')
   await expect(help).toBeFocused()
   await expect(page.getByRole('tooltip')).toBeVisible()
@@ -66,6 +70,7 @@ test('spell suggestions show names, persist selection and report save failures',
     return option.label === option.value && !option.textContent?.trim()
   }))).toBe(true)
   expect(await page.locator('datalist option[value="Spell Name"]').count()).toBe(0)
+  await page.getByText('Repertório manual e exceções (mestre)', {exact:true}).click()
   const spell = page.getByRole('combobox', { name: 'Magia de nível 1', exact: true })
   await expect(spell).not.toHaveAttribute('title')
   await spell.fill('Arcane Armor')
@@ -74,6 +79,7 @@ test('spell suggestions show names, persist selection and report save failures',
   expect((await saved).status()).toBe(200)
   await page.reload()
   await page.getByRole('button', { name: 'Magia', exact: true }).click()
+  await page.getByText('Repertório manual e exceções (mestre)', {exact:true}).click()
   await expect(spell).toHaveValue('Arcane Armor')
   await page.getByRole('button', { name: 'Ajuda: Arcane Armor', exact: true }).hover()
   await expect(page.getByRole('tooltip')).toContainText('invisible suit of armor')
@@ -97,9 +103,9 @@ test('editing inventory keeps the full shop and suggestions available', async ({
   await page.getByRole('button', { name: 'Inventário & Tesouro', exact: true }).click()
   await page.getByRole('button', { name: /Loja/ }).click()
   const torch = page.locator('[title="Torches (6)"]').locator('../..')
-  await expect(torch.getByRole('button', { name: 'BUY', exact: true })).toBeEnabled()
-  await expect(torch.getByRole('button', { name: 'BUY', exact: true })).toHaveClass(/bg-gold/)
-  await page.getByRole('button', { name: '+ Add', exact: true }).click()
+  await expect(torch.getByRole('button', { name: 'Comprar', exact: true })).toBeEnabled()
+  await expect(torch.getByRole('button', { name: 'Comprar', exact: true })).toHaveClass(/bg-gold/)
+  await page.getByRole('button', { name: '+ Adicionar', exact: true }).click()
   const item = page.getByPlaceholder('Item', { exact: true }).first()
   await item.fill('Rope')
   await item.press('Tab')
@@ -116,7 +122,7 @@ test.describe('touch help', () => {
   test('help toggles on tap, stays within the viewport and dismisses outside', async ({ page }, testInfo) => {
     await openMage(page)
     await page.getByRole('button', { name: 'Magia', exact: true }).tap()
-    const help = page.getByRole('button', { name: 'Ajuda: Workshop Value', exact: true })
+    const help = page.getByRole('button', { name: 'Ajuda: Valor da oficina', exact: true })
     await help.tap()
     const tip = page.getByRole('tooltip')
     await expect(tip).toContainText('Estrutura material')
@@ -129,7 +135,7 @@ test.describe('touch help', () => {
     await expect(tip).toHaveCount(0)
     await help.tap()
     await expect(tip).toBeVisible()
-    await page.getByLabel('Workshop Value', { exact: true }).tap()
+    await page.getByLabel('Valor da oficina', { exact: true }).tap()
     await expect(tip).toHaveCount(0)
   })
 })

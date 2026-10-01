@@ -2,7 +2,7 @@
   <div class="space-y-4">
     <!-- ====== COINS, GEMS & JEWELRY ====== -->
     <div class="bg-dark-card border border-gold/20 rounded-xl p-5 mb-4">
-      <h3 class="text-lg font-bold text-gold mb-3">COINS, GEMS & JEWELRY</h3>
+      <h3 class="text-lg font-bold text-gold mb-3">Moedas, gemas e joias</h3>
       <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-3">
         <div><label class="lbl">PP</label><input v-model.number="character.coinPP" @change="emit('save')" type="number" min="0" class="inp text-center" /></div>
         <div><label class="lbl">EP</label><input v-model.number="character.coinEP" @change="emit('save')" type="number" min="0" class="inp text-center" /></div>
@@ -11,9 +11,9 @@
         <div><label class="lbl">CP</label><input v-model.number="character.coinCP" @change="emit('save')" type="number" min="0" class="inp text-center" /></div>
       </div>
       <div>
-        <label class="lbl">Gems / Jewelry</label>
-        <textarea v-model="character.gemsJewelry" @change="emit('save')" rows="3"
-          class="w-full inp resize-y text-sm" placeholder="Gems and jewelry..."></textarea>
+        <label for="inventory-gems" class="lbl">Gemas e joias</label>
+        <textarea id="inventory-gems" v-model="character.gemsJewelry" @change="emit('save')" rows="3"
+          class="w-full inp resize-y text-sm" placeholder="Descreva as gemas, joias e seus valores..."></textarea>
       </div>
     </div>
 
@@ -21,22 +21,22 @@
     <div class="bg-dark-card border border-gold/20 rounded-xl p-5 mb-4">
       <div class="flex items-center justify-between mb-2">
         <h3 class="text-lg font-bold text-gold">
-          INVENTORY
+          Inventário
           <span class="text-sm font-normal text-steel-light ml-2">
             ({{ encumbranceResult.totalStone.toFixed(1) }} Stone)
           </span>
         </h3>
         <div class="flex gap-2">
           <button type="button" @click="showShop = !showShop" class="text-xs bg-gold/10 text-gold px-2 py-1 rounded hover:bg-gold/20 transition-all font-bold">🛒 Loja</button>
-          <button type="button" @click="addItem" class="text-sm text-gold hover:text-gold-light transition-colors">+ Add</button>
+          <button type="button" @click="addItem" class="text-sm text-gold hover:text-gold-light transition-colors">+ Adicionar</button>
         </div>
       </div>
       
       <!-- SHOP SECTION -->
       <div v-if="showShop" class="mb-4 p-4 border border-gold/40 rounded bg-dark-bg/50">
         <div class="flex items-center justify-between mb-3 border-b border-gold/20 pb-2">
-          <h4 class="text-sm font-bold text-gold">EQUIPMENT SHOP</h4>
-          <button @click="showShop = false" class="text-crimson text-xs font-bold">X</button>
+          <h4 class="text-sm font-bold text-gold">Loja de equipamentos</h4>
+          <button type="button" @click="showShop = false" aria-label="Fechar loja" class="text-crimson text-xs font-bold">X</button>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-2 scrollbar-thin">
           <div v-for="shopItem in shopItems" :key="shopItem.id" class="flex justify-between items-center bg-dark-bg p-2 rounded border border-steel-dark text-xs">
@@ -49,13 +49,13 @@
               <button @click="buyItem(shopItem)" :disabled="buying || availableGp < (shopItem.costGp || 0)" 
                 class="px-2 py-0.5 rounded text-[10px] font-bold"
                 :class="!buying && availableGp >= (shopItem.costGp || 0) ? 'bg-gold text-dark-bg hover:bg-gold-light' : 'bg-steel-dark text-steel cursor-not-allowed'">
-                BUY
+                Comprar
               </button>
             </div>
           </div>
         </div>
       </div>
-      <p class="text-xs text-steel mb-3">6 items = 1 Stone. Backpack max 4 Stone.</p>
+      <p class="text-xs text-steel mb-3">6 itens leves = 1 stone. Capacidade da mochila: 4 stone.</p>
 
       <!-- Encumbrance bar -->
       <div class="w-full bg-dark-bg rounded-full h-3 mb-4 overflow-hidden">
@@ -70,14 +70,14 @@
           {{ slot.label }}
         </h4>
         <div v-for="item in getItemsBySlot(slot.key)" :key="item.id" 
-          class="flex items-center gap-2 mb-1.5 bg-dark-bg/30 rounded-lg px-3 py-1.5">
-          <input v-model="item.name" @change="applyCompendiumItem(item)" class="inp-table min-w-0 flex-1" placeholder="Item" list="acks-item-compendium" />
-          <input v-model.number="item.quantity" @change="saveItem(item)" type="number" min="1" class="inp-table w-12 text-center" />
-          <input v-model.number="item.weight" @change="saveItem(item)" type="number" min="0" step="any" class="inp-table w-16 text-center" placeholder="st" />
-          <select v-model="item.slot" @change="saveItem(item)" class="inp-table w-24 text-xs bg-dark-bg text-gold">
+          class="grid grid-cols-[minmax(0,1fr)_3rem_4rem] sm:flex items-center gap-2 mb-2 bg-dark-bg/30 rounded-lg px-3 py-2">
+          <input v-model="item.name" @change="applyCompendiumItem(item)" :aria-label="`Nome do item ${item.name || 'novo'}`" class="inp-table min-w-0 flex-1" placeholder="Item" list="acks-item-compendium" />
+          <input v-model.number="item.quantity" @change="saveItem(item)" :aria-label="`Quantidade de ${item.name || 'item'}`" type="number" min="1" class="inp-table w-12 text-center" />
+          <input v-model.number="item.weight" @change="saveItem(item)" :aria-label="`Peso de ${item.name || 'item'} em stone`" type="number" min="0" step="any" class="inp-table w-16 text-center" placeholder="st" />
+          <select v-model="item.slot" @change="saveItem(item)" :aria-label="`Local de ${item.name || 'item'}`" class="inp-table col-span-2 min-w-0 sm:w-28 text-xs bg-dark-bg text-gold">
             <option v-for="s in SLOTS" :key="s.key" :value="s.key" class="bg-dark-bg text-gold">{{ s.label }}</option>
           </select>
-          <button @click="removeItem(item.id)" class="text-crimson-light hover:text-crimson text-xs ml-1 font-bold">X</button>
+          <button type="button" @click="removeItem(item.id)" :aria-label="`Remover ${item.name || 'item'}`" class="text-crimson-light hover:text-crimson text-xs ml-1 font-bold justify-self-end">X</button>
         </div>
       </div>
       <datalist id="acks-item-compendium">
@@ -86,31 +86,15 @@
     </div>
 
     <div v-if="showTreasureOrMaintenance" class="bg-dark-card border border-gold/20 rounded-xl p-5 mb-4">
-      <h3 class="text-lg font-bold text-gold mb-3">TESOURO, XP E MANUTENCAO</h3>
-      <label class="lbl">Identificação do tesouro (use a mesma para repetir uma tentativa)</label>
-      <input v-model="awardId" class="inp mb-2" maxlength="120" placeholder="Sessão 12 — tesouro da cripta" />
-      <p class="text-xs text-steel-light mb-2">Informe a parcela elegível recuperada nesta aventura. Receber XP preserva as moedas; o identificador evita premiar a mesma parcela novamente.</p>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-        <div>
-          <label class="lbl">Converter GP em XP</label>
-          <input v-model.number="treasureToConvert.gp" type="number" min="0" class="inp" />
-        </div>
-        <div>
-          <label class="lbl">Converter SP em XP</label>
-          <input v-model.number="treasureToConvert.sp" type="number" min="0" class="inp" />
-        </div>
-        <div>
-          <label class="lbl">Converter CP em XP</label>
-          <input v-model.number="treasureToConvert.cp" type="number" min="0" class="inp" />
-        </div>
-      </div>
+      <h3 class="text-lg font-bold text-gold mb-3">Tesouro, XP e manutenção</h3>
+      <p v-if="isRuleEnabled('enableTreasureToXp')" class="text-sm text-steel-light mb-3">Registre aqui as moedas e os itens encontrados. Ao retornar à civilização, use <strong class="text-gold">Fechar aventura</strong> para reunir tesouro e monstros e distribuir o XP entre os participantes.</p>
       <div class="flex flex-wrap items-center gap-2">
-        <button v-if="isRuleEnabled('enableTreasureToXp')" @click="convertTreasureToXp" class="text-sm px-3 py-1 bg-gold text-dark-bg font-bold rounded">Converter Tesouro -> XP</button>
-        <button v-if="isRuleEnabled('enableMonthlyMaintenance')" @click="recalculateMaintenance" class="text-sm px-3 py-1 bg-steel-dark text-gold rounded">Recalcular Manutencao Mensal</button>
+        <button v-if="isRuleEnabled('enableTreasureToXp')" type="button" @click="emit('open-adventure')" class="text-sm px-4 py-2 bg-gold text-dark-bg font-bold rounded-lg">Fechar aventura</button>
+        <button v-if="isRuleEnabled('enableMonthlyMaintenance')" type="button" @click="recalculateMaintenance" class="text-sm px-3 py-2 bg-steel-dark text-gold rounded-lg">Recalcular manutenção mensal</button>
       </div>
       <div class="mt-3 text-xs text-steel-light">
         XP de tesouro acumulado: <span class="text-gold font-bold">{{ character.xpFromTreasure || 0 }}</span>
-        | Upkeep mensal: <span class="text-gold font-bold">{{ character.monthlyUpkeepGp || 0 }} GP</span>
+        · Manutenção mensal: <span class="text-gold font-bold">{{ character.monthlyUpkeepGp || 0 }} GP</span>
       </div>
     </div>
   </div>
@@ -121,8 +105,8 @@ export default { name: 'InventoryTab' }
 </script>
 <script setup lang="ts">
 import api from '../../services/api'
+import { useCharacterRelations } from '../../composables/characterRelations'
 import { notifyError, notifySuccess } from '../../utils/toast'
-import { errorMessage } from '../../utils/catalog'
 import { computed, onMounted, ref } from 'vue'
 
 const props = defineProps<{
@@ -133,13 +117,13 @@ const props = defineProps<{
   beforeOperation?: () => Promise<boolean>
 }>()
 
-const emit = defineEmits(['save'])
+const emit = defineEmits(['save', 'open-adventure'])
+const relations = useCharacterRelations(() => props.character)
 const compendiumItems = ref<any[]>([])
 const shopItems = ref<any[]>([])
 const showShop = ref(false)
-const buying = ref(false), awarding = ref(false), awardId = ref('')
+const buying = ref(false)
 const availableGp = computed(() => Number(props.character.coinGP || 0) + Number(props.character.coinSP || 0) / 10 + Number(props.character.coinCP || 0) / 100)
-const treasureToConvert = ref({ gp: 0, sp: 0, cp: 0 })
 
 function isRuleEnabled(key: string) {
   return props.optionalRules?.[key] !== false
@@ -150,18 +134,18 @@ const showTreasureOrMaintenance = computed(() => {
 })
 
 const SLOTS = [
-  { key: 'backpack', label: 'Backpack (4 Stone max)', icon: '' },
-  { key: 'worn', label: 'Worn (misc.)', icon: '' },
-  { key: 'belt', label: 'Hanging from belt', icon: '' },
-  { key: 'pouch', label: 'Pouch (3 items max)', icon: '' },
-  { key: 'hand_right', label: 'Right hand', icon: '' },
-  { key: 'hand_left', label: 'Left hand', icon: '' },
-  { key: 'head', label: 'Head', icon: '' },
-  { key: 'sack', label: 'Sack', icon: '' },
-  { key: 'hidden', label: 'Hidden', icon: '' },
-  { key: 'mount', label: 'On Mount (No carry weight)', icon: '' },
-  { key: 'vehicle', label: 'In Vehicle (No carry weight)', icon: '' },
-  { key: 'stashed', label: 'Stashed (No carry weight)', icon: '' },
+  { key: 'backpack', label: 'Mochila (máx. 4 stone)', icon: '' },
+  { key: 'worn', label: 'Vestido / equipado', icon: '' },
+  { key: 'belt', label: 'Cinto', icon: '' },
+  { key: 'pouch', label: 'Bolsa (máx. 3 itens)', icon: '' },
+  { key: 'hand_right', label: 'Mão direita', icon: '' },
+  { key: 'hand_left', label: 'Mão esquerda', icon: '' },
+  { key: 'head', label: 'Cabeça', icon: '' },
+  { key: 'sack', label: 'Saco', icon: '' },
+  { key: 'hidden', label: 'Oculto', icon: '' },
+  { key: 'mount', label: 'Na montaria (sem carga pessoal)', icon: '' },
+  { key: 'vehicle', label: 'No veículo (sem carga pessoal)', icon: '' },
+  { key: 'stashed', label: 'Guardado (sem carga pessoal)', icon: '' },
 ]
 
 function getItemsBySlot(slot: string) {
@@ -189,14 +173,11 @@ async function buyItem(shopItem: any) {
   if (buying.value) return
   buying.value = true
   try {
-    if (props.beforeOperation && !(await props.beforeOperation())) return
-    const res = await api.post(`/api/characters/${props.character.id}/shop/purchase`, { entryId: shopItem.id })
-    for (const key of ['coinGP', 'coinSP', 'coinCP', 'version']) props.character[key] = res.data.character[key]
-    if (res.data.weapon) props.character.weapons.push(res.data.weapon)
-    if (res.data.item) props.character.items.push(res.data.item)
-    notifySuccess('Compra registrada.')
-  } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível confirmar a compra. Atualize a ficha antes de tentar novamente.'))
+    const data = await relations.run(`shop:${shopItem.id}:purchase`, (version) => api.post(`/api/characters/${props.character.id}/shop/purchase`, { entryId: shopItem.id, version }), (data) => {
+      if (data.weapon) props.character.weapons.push(data.weapon)
+      if (data.item) props.character.items.push(data.item)
+    })
+    if (data) notifySuccess('Compra registrada.')
   } finally { buying.value = false }
 }
 
@@ -213,62 +194,24 @@ function applyCompendiumItem(item: any) {
 }
 
 async function saveItem(item: any) {
-  try {
-    await api.put(`/api/characters/${props.character.id}/items/${item.id}`, {
-      name: item.name, quantity: item.quantity, weight: item.weight, slot: item.slot, notes: item.notes ?? '',
-    })
-  } catch(e) { notifyError(errorMessage(e, 'Não foi possível salvar o item. Tente novamente.')) }
+  await relations.update('items', item, {
+    name: item.name, quantity: item.quantity, weight: item.weight, slot: item.slot, notes: item.notes ?? '',
+  }, 'item')
 }
 
 // Items
 async function addItem() {
-  try {
-    const res = await api.post(`/api/characters/${props.character.id}/items`, { name: 'Novo Item', slot: 'backpack' })
-    props.character.items.push(res.data.item)
-  } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível adicionar o item. Tente novamente.'))
-  }
+  await relations.add('items', 'items', 'item', { name: 'Novo item', slot: 'backpack' })
 }
 
 async function removeItem(id: string) {
-  try {
-    await api.delete(`/api/characters/${props.character.id}/items/${id}`)
-    props.character.items = props.character.items.filter((i: any) => i.id !== id)
-  } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível remover o item. Atualize a ficha e tente novamente.'))
-  }
-}
-
-async function convertTreasureToXp() {
-  if (awarding.value) return
-  if (!awardId.value.trim()) { notifyError('Informe uma identificação para este tesouro.'); return }
-  awarding.value = true
-  try {
-    if (props.beforeOperation && !(await props.beforeOperation())) return
-    const res = await api.post(`/api/characters/${props.character.id}/treasure/convert-xp`, { ...treasureToConvert.value, awardId: awardId.value })
-    props.character.xp = res.data.character?.xp ?? props.character.xp
-    props.character.version = res.data.character?.version ?? props.character.version
-    props.character.xpFromTreasure = res.data.character?.xpFromTreasure ?? props.character.xpFromTreasure
-    props.character.coinGP = res.data.character?.coinGP ?? props.character.coinGP
-    props.character.coinSP = res.data.character?.coinSP ?? props.character.coinSP
-    props.character.coinCP = res.data.character?.coinCP ?? props.character.coinCP
-    treasureToConvert.value = { gp: 0, sp: 0, cp: 0 }
-    notifySuccess(`Recebeu ${res.data.xpGain} XP. Tesouro preservado.`)
-  } catch (e) {
-    notifyError(errorMessage(e, 'Falha ao registrar XP. Mantenha a identificação ao tentar novamente.'))
-  } finally { awarding.value = false }
+  await relations.remove('items', 'items', id)
 }
 
 async function recalculateMaintenance() {
-  try {
-    if (props.beforeOperation && !(await props.beforeOperation())) return
-    const res = await api.post(`/api/characters/${props.character.id}/maintenance/recalculate`, {})
-    props.character.version = res.data.character.version
-    props.character.monthlyUpkeepGp = res.data.monthlyUpkeepGp ?? props.character.monthlyUpkeepGp
-    emit('save')
-  } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível recalcular a manutenção mensal. Tente novamente.'))
-  }
+  await relations.run('maintenance:recalculate', (version) => api.post(`/api/characters/${props.character.id}/maintenance/recalculate`, { version }), (data) => {
+    props.character.monthlyUpkeepGp = data.monthlyUpkeepGp ?? props.character.monthlyUpkeepGp
+  })
 }
 </script>
 

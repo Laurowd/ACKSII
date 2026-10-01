@@ -1,0 +1,132 @@
+<template>
+  <section class="bg-dark-card border border-gold/20 rounded-xl p-4 sm:p-5 space-y-4" aria-labelledby="spellcasting-title">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 id="spellcasting-title" class="text-xl font-bold text-gold">Conjuração e descanso</h2>
+        <p class="text-sm text-steel-light mt-1">Usos calculados pela classe, nível e tradição do personagem.</p>
+      </div>
+      <button type="button" @click="load" :disabled="busy" class="text-sm text-gold underline disabled:opacity-50">Atualizar usos</button>
+    </div>
+    <p v-if="error" role="alert" class="text-red-400 text-sm">{{ error }}</p>
+    <p v-if="notice" role="status" class="text-green-400 text-sm">{{ notice }}</p>
+    <p v-if="loading" role="status" class="text-sm text-steel-light">Carregando o repertório...</p>
+    <template v-else-if="info.supported && info.magic?.length">
+      <div class="grid gap-4 lg:grid-cols-2">
+        <div v-for="pool in info.magic" :key="pool.tradition" class="rounded-lg border border-steel-dark bg-dark-bg/30 p-4">
+          <h3 class="font-bold text-gold">{{ traditionName(pool.tradition) }} · conjurador {{ pool.casterLevel }}</h3>
+          <p class="text-xs text-steel-light mt-1">Recuperação por {{ pool.studious ? 'estudo' : 'oração' }} · usos restantes / limite diário</p>
+          <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-3">
+            <div v-for="(slots, i) in pool.slots" :key="i" class="rounded-lg border border-steel-dark p-2 text-center">
+              <span class="block text-xs text-steel-light">Nível {{ Number(i) + 1 }}</span>
+              <strong class="block text-lg" :class="remaining(pool.tradition, Number(i) + 1) > 0 ? 'text-gold' : 'text-steel'">{{ remaining(pool.tradition, Number(i) + 1) }} <span class="text-xs font-normal text-steel-light">/ {{ slots }}</span></strong>
+              <span class="block text-[10px] text-steel-light">Repertório: {{ pool.repertoire[i] ?? 'ordem' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="space-y-2">
+        <h3 class="text-sm font-bold text-steel-light">Magias do repertório</h3>
+        <div v-for="spell in character.spells" :key="spell.id" class="flex flex-wrap gap-3 items-center justify-between rounded-lg bg-dark-bg/30 px-3 py-2">
+          <div class="min-w-0"><strong class="break-words text-gold-light">{{ spell.name || 'Magia sem nome' }}</strong><span class="block text-xs text-steel-light">{{ traditionName(spell.tradition || (info.magic.length === 1 ? info.magic[0].tradition : '')) }} · nível {{ spell.level }}</span></div>
+          <button type="button" @click="cast(spell.id)" :disabled="busy || !canCast(spell)" :aria-label="`Conjurar ${spell.name || 'magia'}`" class="px-3 py-2 rounded-lg text-sm font-bold bg-gold/15 text-gold hover:bg-gold/25 disabled:opacity-40 disabled:cursor-not-allowed">Conjurar</button>
+        </div>
+        <p v-if="!character.spells?.length" class="text-sm text-steel-light rounded-lg border border-dashed border-steel-dark p-4">O repertório ainda está vazio. Adicione as magias permitidas no editor abaixo.</p>
+        <p class="text-xs text-steel-light">Magias interrompidas também gastam um uso. Não há preparação prévia de magias.</p>
+      </div>
+      <details class="border border-steel-dark p-3 rounded-lg" @toggle="onEditorToggle">
+        <summary class="cursor-pointer font-bold text-gold">Editar repertório com validação</summary>
+        <div class="space-y-3 mt-3">
+          <div v-for="(spell, i) in repertoire" :key="i" class="grid grid-cols-[minmax(0,1fr)_4rem] sm:flex items-center gap-2">
+            <select v-model="spell.tradition" class="inp min-w-0 sm:w-32" :aria-label="`Tradição da magia ${i + 1}`"><option v-for="pool in info.magic" :key="pool.tradition" :value="pool.tradition">{{ traditionName(pool.tradition) }}</option></select>
+            <input v-model.number="spell.level" type="number" min="1" max="6" class="inp w-16" :aria-label="`Nível da magia ${i + 1}`" />
+            <input v-model="spell.name" :list="`spellcasting-list-${i}`" class="inp col-span-2 min-w-0 flex-1" :aria-label="`Nome da magia ${i + 1}`" placeholder="Nome da magia" />
+            <datalist :id="`spellcasting-list-${i}`"><option v-for="suggestion in metadata.spells?.filter((entry: any) => entry.level === spell.level && entry.tradition === spell.tradition)" :key="suggestion.name" :value="suggestion.name" /></datalist>
+            <button type="button" @click="repertoire.splice(i, 1)" :aria-label="`Remover ${spell.name || 'magia'} do repertório`" class="text-sm text-red-400 justify-self-start">Remover</button>
+          </div>
+          <button type="button" @click="repertoire.push({ name: '', level: 1, tradition: info.magic[0].tradition })" class="text-sm text-gold">+ Adicionar magia</button>
+          <label class="block text-sm"><input v-model="orderApproved" type="checkbox" /> Repertório religioso conferido com o mestre, quando aplicável.</label>
+          <p class="text-xs text-steel-light">Salvar substitui o repertório atual. Magias de campanha e outras exceções podem ser registradas pelo mestre no editor manual.</p>
+          <button type="button" @click="saveRepertoire" :disabled="busy" class="btn">Salvar repertório</button>
+        </div>
+      </details>
+      <div class="border-t border-steel-dark pt-4 space-y-3">
+        <h3 class="font-bold text-gold">Recuperar usos</h3>
+        <label class="block text-sm">Dia de jogo (contagem contínua)<input v-model.number="restDay" type="number" min="0" class="inp w-28 mt-1" /></label>
+        <label class="flex gap-2 items-start text-sm text-steel-light"><input v-model="restConfirmed" type="checkbox" class="mt-1" /><span>Foram cumpridas 8 horas de sono, 24 horas desde a recuperação anterior e os requisitos de estudo ou oração.</span></label>
+        <button type="button" @click="rest" :disabled="busy || !restConfirmed" class="btn">Registrar descanso</button>
+      </div>
+    </template>
+    <p v-else class="text-sm text-steel-light">{{ info.reason || 'Esta classe não possui usos de magia neste nível.' }}</p>
+  </section>
+</template>
+
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import api from '../../services/api'
+import { errorMessage } from '../../utils/catalog'
+import { useCharacterOperations } from '../../composables/characterOperations'
+import { remainingSpellUses, spellTradition } from '../../utils/spellcasting'
+
+const props = defineProps<{ character: any; prepare: () => Promise<boolean>; refresh: () => Promise<void> }>()
+const operations = useCharacterOperations()
+const info = ref<any>({}), metadata = ref<any>({}), busy = ref(false), loading = ref(true), error = ref(''), notice = ref('')
+const repertoire = ref<any[]>([]), orderApproved = ref(false), restDay = ref(1), restConfirmed = ref(false)
+const url = () => `/api/game-rules/characters/${props.character.id}`
+const traditionName = (tradition: string) => tradition === 'arcane' ? 'Arcana' : tradition === 'divine' ? 'Divina' : 'Tradição a definir'
+const remaining = (tradition: string, level: number) => remainingSpellUses(info.value, tradition, level)
+const canCast = (spell: any) => remaining(spellTradition(info.value, spell), spell.level) > 0
+
+async function load() {
+  if (busy.value) return
+  loading.value = true
+  error.value = ''
+  try {
+    if (!await props.prepare() || !await operations.retryPending()) throw new Error('Salve ou corrija as alterações pendentes da ficha antes de atualizar os usos.')
+    const [rules, catalog] = await Promise.all([api.get(url()), api.get('/api/game-rules/metadata')])
+    info.value = rules.data
+    metadata.value = catalog.data
+    restDay.value = Math.max(restDay.value, (rules.data.lastRestDay ?? -1) + 1)
+  } catch (caught) { error.value = errorMessage(caught, 'Não foi possível carregar os usos de magia.') }
+  finally { loading.value = false }
+}
+
+function onEditorToggle(event: Event) {
+  if (!(event.target as HTMLDetailsElement).open) return
+  repertoire.value = (props.character.spells || []).map((spell: any) => ({ name: spell.name, level: spell.level, tradition: spellTradition(info.value, spell) }))
+}
+
+async function change(key: string, path: string, input: any, message: string) {
+  if (busy.value) return
+  busy.value = true
+  error.value = notice.value = ''
+  try {
+    const data = await operations.run(key, (version) => api.post(`${url()}/${path}`, { ...input, version }), (data) => {
+      if (data.used) info.value.used = data.used
+      if (data.character?.rulesState !== undefined) {
+        let state: any = {}
+        try { state = JSON.parse(data.character.rulesState || '{}') } catch { /* Keep the confirmed write. */ }
+        info.value.used = state.used || {}
+        info.value.lastRestDay = state.lastRestDay
+        restDay.value = Math.max(restDay.value, (state.lastRestDay ?? -1) + 1)
+      }
+    })
+    if (!data) { error.value = errorMessage(operations.getLastError(), 'A operação não foi concluída. Confira os dados ou use Salvar para repetir uma falha de conexão.'); return }
+    notice.value = message
+  } finally { busy.value = false }
+}
+
+async function saveRepertoire() {
+  await change('magic:repertoire:update', 'magic/repertoire', { spells: JSON.parse(JSON.stringify(repertoire.value)), orderApproved: orderApproved.value }, 'Repertório registrado.')
+}
+async function cast(spellId: string) { await change(`magic:${spellId}:cast`, 'magic/cast', { spellId }, 'Uso de magia registrado.') }
+async function rest() {
+  await change('magic:rest', 'magic/rest', { day: restDay.value, hours: 8, requirementsMet: true }, 'Usos de magia recuperados.')
+  restConfirmed.value = false
+}
+onMounted(load)
+</script>
+
+<style scoped>
+.btn { padding: .6rem 1rem; background: #c6a052; color: #171717; border-radius: .5rem; font-weight: 700; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+</style>

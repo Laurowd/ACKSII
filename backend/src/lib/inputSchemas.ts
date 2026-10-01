@@ -22,7 +22,7 @@ export function scalarBody(modelName: string) {
     properties[field.name] = field.isRequired ? schema : { anyOf: [schema, { type: 'null' }] }
   }
   if (modelName === 'Character') {
-    for (const key of ['spellbook', 'learnedSpells', 'researchQueue']) properties[key] = { anyOf: [properties[key], { type: 'array', maxItems: 1000, items: key === 'researchQueue' ? { type: 'object' } : { type: 'string', maxLength: 1000 } }] }
+    for (const key of ['spellbook', 'learnedSpells', 'researchQueue']) properties[key] = { anyOf: [properties[key], { type: 'array', maxItems: 1000, items: key === 'researchQueue' ? { anyOf: [{ type: 'string', maxLength: 1000 }, { type: 'object' }] } : { type: 'string', maxLength: 1000 } }] }
   }
   if (modelName === 'CharacterActivity') properties.status = { type: 'string', enum: ['QUEUED', 'ACTIVE', 'COMPLETED', 'CANCELLED'] }
   if (modelName === 'MercantileVenture') properties.status = { type: 'string', enum: ['IN_TRANSIT', 'SOLD'] }

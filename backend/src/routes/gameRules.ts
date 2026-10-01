@@ -24,10 +24,11 @@ export async function accessibleCharacter(id: string, user: any, db: any = prism
   return c
 }
 export async function updateVersion(tx: any, c: any, expected: number, data: any = {}) {
-  if (expected !== c.version) throw operationError('A ficha mudou. Atualize a prévia antes de confirmar.',409)
+  if (expected !== c.version) throw Object.assign(operationError('A ficha mudou. Atualize a prévia antes de confirmar.',409), { code: 'CHARACTER_CONFLICT' })
   const changed = await tx.character.updateMany({where:{id:c.id,version:expected},data:{...data,version:{increment:1}}})
-  if (!changed.count) throw operationError('A ficha mudou. Atualize a prévia antes de confirmar.',409)
+  if (!changed.count) throw Object.assign(operationError('A ficha mudou. Atualize a prévia antes de confirmar.',409), { code: 'CHARACTER_CONFLICT' })
 }
+const mutationCharacter = (tx: any, id: string) => tx.character.findUniqueOrThrow({ where: { id }, include: { spells: true, proficiencies: true, weapons: true } })
 const overview = (c: any, klass: any) => {
   const rules = rulesFor(klass)
   if (!rules) return { supported:false, version:c.version, reason:'Classe livre: configure a construção por pontos ou use os campos manuais.' }
@@ -70,7 +71,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       await tx.weapon.updateMany({where:{characterId:c.id},data:{attackThrow:preview.attack}})
       if(additions.length)await tx.proficiency.createMany({data:additions.map((p:any)=>({...p,characterId:c.id}))})
       await tx.auditLog.create({data:{characterId:c.id,userId:(req.user as any).id,action:'LEVEL_ADVANCEMENT',details:JSON.stringify({dice:input.dice,preview})}})
-      return preview
+      return {...preview, character: await mutationCharacter(tx,c.id)}
     }, {isolationLevel:'Serializable'})
   })
 
@@ -84,7 +85,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       if(issues.length)throw operationError(issues.join(' '))
       await updateVersion(tx,c,input.version)
       await tx.proficiency.createMany({data:input.choices.map((p:any)=>({...p,characterId:c.id}))})
-      return {ok:true}
+      return {ok:true, character: await mutationCharacter(tx, c.id), proficiencies: await tx.proficiency.findMany({ where: { characterId: c.id } })}
     }, {isolationLevel:'Serializable'})
   })
 
@@ -101,7 +102,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       await tx.spell.deleteMany({where:{characterId:c.id}})
       await tx.spell.createMany({data:input.spells.map((s:any)=>({...s,characterId:c.id}))})
       await tx.auditLog.create({data:{characterId:c.id,userId:(req.user as any).id,action:'REPERTOIRE_REPLACED',details:JSON.stringify({before:c.spells,after:input.spells})}})
-      return {ok:true}
+      return {ok:true, character: await mutationCharacter(tx, c.id), spells: await tx.spell.findMany({ where: { characterId: c.id } })}
     }, {isolationLevel:'Serializable'})
   })
   app.post('/characters/:id/magic/cast',{schema:{body:body({version,spellId:text},['version','spellId'])}},async req=>{
@@ -121,7 +122,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       state.used[key]=(state.used[key]||0)+1
       await updateVersion(tx,c,input.version,{rulesState:JSON.stringify(state)})
       await tx.auditLog.create({data:{characterId:c.id,userId:(req.user as any).id,action:'SPELL_CAST',details:JSON.stringify({name:spell.name,key})}})
-      return {used:state.used}
+      return {used:state.used, character: await mutationCharacter(tx, c.id)}
     }, {isolationLevel:'Serializable'})
   })
   app.post('/characters/:id/magic/rest',{schema:{body:body({version,day:integer(),hours:{type:'number',minimum:8,maximum:24},requirementsMet:{const:true}},['version','day','hours','requirementsMet'])}},async req=>{
@@ -132,8 +133,23 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       state.used={};state.lastRestDay=input.day
       await updateVersion(tx,c,input.version,{rulesState:JSON.stringify(state)})
       await tx.auditLog.create({data:{characterId:c.id,userId:(req.user as any).id,action:'SPELL_REST',details:JSON.stringify(input)}})
-      return {ok:true}
+      return {ok:true, character: await mutationCharacter(tx, c.id)}
     }, {isolationLevel:'Serializable'})
+  })
+
+  app.post('/characters/:id/xp/adjust', { schema: { body: body({ version, delta: { type: 'integer', minimum: -2147483647, maximum: 2147483647 }, reason: { type: 'string', minLength: 3, maxLength: 1000 } }, ['version', 'delta', 'reason']) } }, async request => {
+    const user = request.user as any, input = request.body as any
+    if (user.role !== 'MASTER') throw operationError('Somente o mestre pode ajustar XP.', 403)
+    if (input.reason.trim().length < 3 || input.delta === 0) throw operationError('Informe um ajuste diferente de zero e a justificativa.')
+    return prisma.$transaction(async tx => {
+      const character = await accessibleCharacter((request.params as any).id, user, tx)
+      if (character.campaignId && (await tx.campaign.findUnique({ where: { id: character.campaignId } }))?.masterId !== user.id) throw operationError('Somente o mestre responsável pela campanha pode ajustar XP.', 403)
+      const xp = character.xp + input.delta
+      if (xp < 0 || xp > 2147483647) throw operationError('O XP resultante precisa estar entre zero e 2147483647.')
+      await updateVersion(tx, character, input.version, { xp })
+      await tx.auditLog.create({ data: { characterId: character.id, campaignId: character.campaignId, userId: user.id, action: 'XP_ADJUSTMENT', details: JSON.stringify({ reason: input.reason.trim(), delta: input.delta, before: character.xp, after: xp }) } })
+      return { character: await mutationCharacter(tx, character.id) }
+    }, { isolationLevel: 'Serializable' })
   })
 
   const adventureBody=body({awardId:text,campaignId:{type:'string',maxLength:100},treasureGp:{type:'number',minimum:0,maximum:1e9},
@@ -141,6 +157,9 @@ export async function gameRulesRoutes(app: FastifyInstance) {
     participants:{type:'array',minItems:1,maxItems:100,items:body({id:text,version,share:{type:'number',enum:[0.5,1]}},['id','version','share'])}},['awardId','treasureGp','participants'])
   for(const action of ['preview','apply'])app.post(`/adventures/${action}`,{schema:{body:adventureBody}},async req=>{
     const input=req.body as any,user=req.user as any
+    if (!input.awardId.trim()) throw operationError('Informe o identificador da aventura.')
+    if (new Set(input.participants.map((p: any) => p.id)).size !== input.participants.length) throw operationError('Cada participante deve aparecer uma única vez.')
+    if (user.role !== 'MASTER') throw operationError('Somente o mestre pode fechar uma aventura.', 403)
     return prisma.$transaction(async tx=>{
       const chars:any[]=[]
       if(input.campaignId){const campaign=await tx.campaign.findUnique({where:{id:input.campaignId}});if(!campaign||campaign.masterId!==user.id)throw operationError('Somente o mestre pode fechar a aventura da campanha.',403)}
@@ -156,7 +175,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       if(await tx.auditLog.findUnique({where:{id}}))throw operationError('Esta aventura já foi registrada.',409)
       for(const a of awards){const c=chars.find(c=>c.id===a.id)!;await updateVersion(tx,c,c.version,{xp:a.xp})}
       await tx.auditLog.create({data:{id,userId:user.id,campaignId:input.campaignId||null,action:'ADVENTURE_SETTLEMENT',details:JSON.stringify({awardId:input.awardId,preview})}})
-      return preview
+      return {...preview, characters: await tx.character.findMany({where:{id:{in:chars.map(c=>c.id)}},select:{id:true,version:true,xp:true}})}
     }, {isolationLevel:'Serializable'})
   })
 }

@@ -13,6 +13,7 @@ const text={type:'string',minLength:1,maxLength:200}
 const body=(properties:any,required=Object.keys(properties))=>({type:'object',additionalProperties:false,properties,required})
 const signature=(value:any)=>createHash('sha256').update(JSON.stringify(value)).digest('hex')
 const serial={isolationLevel:'Serializable' as const}
+const mutationCharacter = (tx: any, id: string) => tx.character.findUniqueOrThrow({where:{id},include:{items:true,domain:true,magicItemResearch:true}})
 
 export async function campaignRuleRoutes(app:FastifyInstance){
   app.addHook('preHandler',authGuard)
@@ -28,7 +29,7 @@ export async function campaignRuleRoutes(app:FastifyInstance){
       const details={...readState(item.magicDetails),...input.details,magicItem:true}
       await tx.item.update({where:{id:item.id},data:{magicDetails:JSON.stringify(details)}})
       await tx.auditLog.create({data:{characterId:c.id,campaignId:c.campaignId,userId:(req.user as any).id,action:'MAGIC_ITEM_RECORDED',details:JSON.stringify({itemId:item.id,before:readState(item.magicDetails),after:details})}})
-      return details
+      return {...details, character: await mutationCharacter(tx,c.id)}
     },serial)
   })
   app.post('/characters/:id/items/:itemId/charge',{schema:{body:body({version:int(),charges:int(1,1000000)})}},async req=>{
@@ -43,7 +44,7 @@ export async function campaignRuleRoutes(app:FastifyInstance){
       details.charges-=input.charges
       await tx.item.update({where:{id:item.id},data:{magicDetails:JSON.stringify(details)}})
       await tx.auditLog.create({data:{characterId:c.id,campaignId:c.campaignId,userId:(req.user as any).id,action:'MAGIC_ITEM_USED',details:JSON.stringify({itemId:item.id,spent:input.charges,remaining:details.charges})}})
-      return details
+      return {...details, character: await mutationCharacter(tx,c.id)}
     },serial)
   })
   const domainBody=body({version:int(),year:int(1,99999),month:int(1,12),baseMorale:int(-4,4),moraleDice:{type:'array',minItems:2,maxItems:2,items:int(1,6)},
@@ -66,7 +67,7 @@ export async function campaignRuleRoutes(app:FastifyInstance){
       await updateVersion(tx,c,input.version)
       await tx.domain.update({where:{id:c.domain.id},data:{peasantFamilies:result.population,peasantMorale:result.morale,treasury:result.treasury,consolidatedBalance:result.balance}})
       await tx.auditLog.create({data:{id,userId:user.id,characterId:c.id,campaignId:c.campaignId,action:'DOMAIN_MONTH_SETTLED',details:JSON.stringify({input,result})}})
-      return result
+      return {...result, character: await mutationCharacter(tx,c.id)}
     },serial)
   })
   const assistant=body({name:text,casterLevel:int(0,14),rateBonusPercent:number(0,100),dedication:{type:'string',enum:['dedicated','ancillary']}})
@@ -94,7 +95,7 @@ export async function campaignRuleRoutes(app:FastifyInstance){
       await updateVersion(tx,c,input.version,{coinGP:{decrement:plan.materialsPaidGp},rulesState:JSON.stringify(state)})
       await tx.magicItemResearch.update({where:{id:project.id},data:{status:'IN_PROGRESS',casterLevel:input.casterLevel,researchRateGp:plan.researchRateGp,remainingDays:plan.daysRequired,weeksRequired:plan.weeksRequired}})
       await tx.auditLog.create({data:{characterId:c.id,userId:user.id,action:'RESEARCH_STARTED',details:JSON.stringify({projectId:project.id,plan,input})}})
-      return plan
+      return {...plan, character: await mutationCharacter(tx,c.id)}
     },serial)
   })
   app.post('/characters/:id/research/:projectId/work',{schema:{body:body({version:int(),days:int(1,365),period:text})}},async req=>{
@@ -109,7 +110,7 @@ export async function campaignRuleRoutes(app:FastifyInstance){
       await updateVersion(tx,c,input.version)
       await tx.magicItemResearch.update({where:{id:project.id},data:{remainingDays,status:remainingDays?'IN_PROGRESS':'READY'}})
       await tx.auditLog.create({data:{id,characterId:c.id,userId:user.id,action:'RESEARCH_WORK',details:JSON.stringify(input)}})
-      return {remainingDays}
+      return {remainingDays, character: await mutationCharacter(tx,c.id)}
     },serial)
   })
   const component=body({itemId:text,quantity:int(1,1000000),valueGp:number(0.01),appropriate:{type:'boolean'}})
@@ -122,7 +123,7 @@ export async function campaignRuleRoutes(app:FastifyInstance){
       await updateVersion(tx,c,input.version)
       await tx.magicItemResearch.update({where:{id:project.id},data:{status:'CANCELLED'}})
       await tx.auditLog.create({data:{characterId:c.id,userId:(req.user as any).id,action:'RESEARCH_CANCELLED',details:JSON.stringify({projectId:project.id,materialsRefunded:false})}})
-      return {cancelled:true}
+      return {cancelled:true, character: await mutationCharacter(tx,c.id)}
     },serial)
   })
   const finishBody=body({version:int(),components:{type:'array',minItems:1,maxItems:100,items:component},roll:int(0,20),engineeringRank:int(0,10),otherBonus:int(-30,30),itemWeight:number(0,100000),fingerprint:{type:'string',maxLength:64}},['version','components','roll','engineeringRank','otherBonus','itemWeight'])
@@ -146,7 +147,7 @@ export async function campaignRuleRoutes(app:FastifyInstance){
       await tx.magicItemResearch.update({where:{id:project.id},data:{status:result.success?'COMPLETED':'FAILED'}})
       if(result.success)await tx.item.create({data:{characterId:c.id,name:project.itemName,quantity:1,weight:input.itemWeight,magicDetails:JSON.stringify({magicItem:true,identified:true,effectType:project.effectType,spellLevel:project.spellLevel,charges:project.effectType==='CHARGED'?project.effectCount:null,researchId:project.id})}})
       await tx.auditLog.create({data:{characterId:c.id,userId:user.id,action:'RESEARCH_FINISHED',details:JSON.stringify({projectId:project.id,result,input})}})
-      return result
+      return {...result, character: await mutationCharacter(tx,c.id)}
     },serial)
   })
 }

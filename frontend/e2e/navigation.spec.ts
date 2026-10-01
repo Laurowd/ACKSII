@@ -126,6 +126,7 @@ test('rules search ignores late responses and reports failures', async ({ page }
     return route.fulfill({ json: [{ chapter: 'Test', heading: `Result ${query}`, content: 'Test rule content' }] })
   })
   await page.goto('/dashboard/judge')
+  await page.getByRole('button', { name: 'Consultar regras', exact: true }).click()
   const input = page.getByRole('textbox', { name: 'Pesquisar regras' })
   const olderRequest = page.waitForRequest(r => r.url().includes('q=older'))
   await input.fill('older')
@@ -196,6 +197,95 @@ test('guided creation explains free classes and prevents overspending before sub
   expect(stored.items.some((i: any) => i.name === 'Horse, Riding')).toBe(true)
   expect(stored.weapons.some((w: any) => w.catalogId === 'w-crossbow')).toBe(true)
   expect(JSON.parse(stored.rulesState).creationMode).toBe('manual')
+})
+
+test('session overview shares derived values, filters the group and retains data after a refresh failure', async ({ page }, testInfo) => {
+  await signIn(page)
+  let requests = 0
+  let unavailable = false
+  const base = { level: 1, str: 10, int: 10, dex: 16, armorAcBonus: 2, hpCurr: 4, hpMax: 10,
+    className: 'Mage', isSpellcaster: true, user: { username: 'Jogador da sessão' },
+    saveDeath: 14, saveImplements: 16, saveParalysis: 13, saveBlast: 15, saveSpells: 17,
+    items: [{ name: 'Equipamento', quantity: 1, weight: 6 }], weapons: [], proficiencies: [],
+  }
+  await page.route('**/api/session', route => {
+    requests++
+    return unavailable ? route.fulfill({ status: 503, json: { error: 'Sessão temporariamente indisponível.' } }) : route.fulfill({ json: {
+      campaigns: [{ id: 'session-campaign', name: 'Sessão de teste' }],
+      characters: [
+        { ...base, id: 'session-mage', campaignId: 'session-campaign', characterName: 'Mage da sessão', magic: {
+          supported: true, pools: [{ tradition: 'arcane', casterLevel: 1, slots: [2, 0, 0, 0, 0, 0] }], used: { 'arcane:1': 1 },
+        } },
+        { ...base, id: 'session-manual', campaignId: null, characterName: 'Mago avulso', magic: { supported: false, pools: [], used: {} } },
+      ],
+    } })
+  })
+  await page.goto('/dashboard/judge')
+  const row = page.getByRole('row').filter({ has: page.getByRole('link', { name: 'Mage da sessão', exact: true }) })
+  await expect(row).toBeVisible()
+  await expect(row.locator('[data-label="CA"]')).toContainText('4')
+  await expect(row.locator('[data-label="CA"]')).toContainText('5 c/ escudo')
+  await expect(row.locator('[data-label="Movimento"]')).toContainText('30′')
+  await expect(row.locator('[data-label="Magia restante / dia"]')).toContainText('Arcana 1: 1/2')
+  await expect(page.getByText('Controle manual na ficha')).toBeVisible()
+  await page.getByRole('combobox', { name: /^Campanha/ }).selectOption('session-campaign')
+  await expect(page.getByRole('link', { name: 'Mago avulso', exact: true })).toHaveCount(0)
+  expect(requests).toBe(1)
+  unavailable = true
+  await page.getByRole('button', { name: 'Atualizar grupo', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('última atualização bem-sucedida')
+  await expect(row).toBeVisible()
+  unavailable = false
+  await page.getByRole('button', { name: 'Tentar novamente', exact: true }).click()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  await page.screenshot({ path: testInfo.outputPath('session-mobile.png'), fullPage: true })
+  await page.getByRole('button', { name: 'Usar tema pergaminho', exact: true }).click()
+  await expect(page.locator('body')).toHaveClass(/theme-parchment/)
+  await page.screenshot({ path: testInfo.outputPath('session-parchment-mobile.png'), fullPage: true })
+})
+
+test('campaign editors recover from failed loading and prevent duplicate calendar advances', async ({ page }) => {
+  const { headers } = await signIn(page)
+  const created = await page.request.post('/api/campaigns', { headers, data: { name: 'Reliable calendar campaign' } })
+  expect(created.status()).toBe(201)
+  const campaign = await created.json()
+  const settingsPath = `/api/campaigns/${campaign.id}/settings`
+  const changed = await page.request.put(settingsPath, { headers, data: { currentYear: 3, currentMonth: 8, currentWeek: 2 } })
+  expect(changed.status()).toBe(200)
+  await page.route(`**${settingsPath}`, route => route.fulfill({ status: 503, json: { error: 'Configurações temporariamente indisponíveis.' } }))
+  await page.goto(`/campaigns/${campaign.id}/manage`)
+  await expect(page.getByRole('alert')).toContainText('Configurações temporariamente indisponíveis.')
+  await expect(page.getByRole('button', { name: 'Salvar Configurações', exact: true })).toHaveCount(0)
+  await page.unroute(`**${settingsPath}`)
+  await page.getByRole('button', { name: 'Tentar carregar configurações novamente', exact: true }).click()
+  const settings = page.locator('fieldset').filter({ has: page.getByRole('heading', { name: 'Regras Opcionais e Calendário', exact: true }) })
+  await expect(settings.getByRole('spinbutton').nth(0)).toHaveValue('3')
+  await expect(settings.getByRole('spinbutton').nth(1)).toHaveValue('8')
+  await expect(settings.getByRole('spinbutton').nth(2)).toHaveValue('2')
+  let advances = 0
+  let release!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  await page.route(`**/api/campaigns/${campaign.id}/calendar/advance`, async route => {
+    advances++
+    await gate
+    await route.continue()
+  })
+  const week = page.getByRole('button', { name: 'Avançar Semana', exact: true })
+  await expect(week).toBeEnabled()
+  await week.click()
+  await expect(week).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Avançar Mês', exact: true })).toBeDisabled()
+  expect(advances).toBe(1)
+  release()
+  await expect(settings.getByRole('spinbutton').nth(2)).toHaveValue('3')
+  await expect(week).toBeEnabled()
+  expect(advances).toBe(1)
+  await page.route(`**/api/campaigns/${campaign.id}/economy`, route => route.fulfill({ status: 503, json: { error: 'Resumo econômico indisponível.' } }))
+  await page.getByRole('button', { name: 'Recalcular', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('Resumo econômico indisponível.')
+  await expect(page.getByText('Economia recalculada.', { exact: true })).toHaveCount(0)
 })
 
 test('book creation requests starting proficiencies during identity', async ({ page }) => {

@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-6xl mx-auto p-6 animate-fade-in">
+  <div class="max-w-6xl mx-auto p-4 sm:p-6 animate-fade-in">
     <!-- Header -->
     <div class="flex flex-wrap gap-4 items-center justify-between mb-8">
       <div>
@@ -23,6 +23,7 @@
             <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
 
+          <button @click="showImport = true" class="rounded-lg border border-gold/30 px-4 py-2 text-gold hover:bg-gold/10">Importar JSON</button>
           <button @click="createCharacter"
             class="px-5 py-2.5 bg-linear-to-r from-gold-dark to-gold text-dark-bg font-bold rounded-lg
                    hover:from-gold hover:to-gold-light transform hover:scale-105 transition-all duration-200 flex items-center gap-2">
@@ -35,6 +36,7 @@
       </div>
     </div>
 
+    <CharacterImportDialog v-if="showImport" :campaigns="campaigns" :initial-campaign-id="globalCampaignFilter === 'ALL' ? '' : globalCampaignFilter" @close="showImport = false" @imported="onImported" />
     <!-- Loading -->
     <div v-if="loading" role="status" aria-label="Carregando personagens" class="flex justify-center py-20">
       <div class="animate-spin h-12 w-12 border-4 border-gold border-t-transparent rounded-full"></div>
@@ -113,7 +115,7 @@
 
             <!-- Footer -->
             <div class="flex items-center justify-between text-xs text-steel">
-              <span>HP: {{ char.hpCurr }}/{{ char.hpMax }}</span>
+              <span>PV: {{ char.hpCurr }}/{{ char.hpMax }}</span>
               <span>XP: {{ (char.xp ?? 0).toLocaleString() }}</span>
             </div>
           </div>
@@ -169,10 +171,17 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import api from '../services/api'
 import { errorMessage } from '../utils/catalog'
-import { notifyError } from '../utils/toast'
+import { notifyError, notifySuccess } from '../utils/toast'
+import CharacterImportDialog from '../components/CharacterImportDialog.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const showImport = ref(false)
+async function onImported(id: string, warnings: string[]) {
+  showImport.value = false
+  notifySuccess('Ficha importada. ' + warnings.join(' '))
+  await router.push('/character/' + id)
+}
 const characters = ref<any[]>([])
 const campaigns = ref<any[]>([])
 const globalCampaignFilter = ref<string | 'ALL'>('ALL')

@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
+import { mutateCharacter, mutationResponse, relationFields, versionedBody } from '../lib/characterMutation';
 import { scalarBody, characterUpdateBody, characterCreateBody } from '../lib/inputSchemas';
 import { FastifyInstance } from 'fastify';
-import { createHash } from 'node:crypto';
 import prisma from '../lib/prisma';
 import { authGuard } from '../middleware/auth';
 import { rateLimitByIp } from '../lib/rateLimit';
@@ -145,21 +145,22 @@ export async function characterRoutes(app: FastifyInstance) {
     character: { userId: string; campaignId: string | null },
     userId: string,
     role: string,
+    db: Prisma.TransactionClient = prisma,
   ) {
     if (character.userId === userId) return true;
     if (role !== 'MASTER' || !character.campaignId) return false;
 
-    const campaign = await prisma.campaign.findUnique({
+    const campaign = await db.campaign.findUnique({
       where: { id: character.campaignId },
       select: { masterId: true },
     });
     return campaign?.masterId === userId;
   }
 
-  async function ensureCharacterAccess(characterId: string, userId: string, role: string) {
-    const character = await prisma.character.findUnique({ where: { id: characterId } })
+  async function ensureCharacterAccess(characterId: string, userId: string, role: string, db: Prisma.TransactionClient = prisma) {
+    const character = await db.character.findUnique({ where: { id: characterId } })
     if (!character) return { error: 'not_found' as const, character: null }
-    if (!(await canAccessCharacter(character, userId, role))) {
+    if (!(await canAccessCharacter(character, userId, role, db))) {
       return { error: 'forbidden' as const, character: null }
     }
     return { error: null, character }
@@ -439,6 +440,16 @@ export async function characterRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: 'Forbidden' });
     }
 
+    const changesXp = ['xp', 'xpFromTreasure'].some(key => data[key] !== undefined && data[key] !== (existing as any)[key]);
+    if (changesXp) {
+      const campaign = existing.campaignId
+        ? await prisma.campaign.findUnique({ where: { id: existing.campaignId }, select: { masterId: true } })
+        : null;
+      if (role !== 'MASTER' || (existing.campaignId && campaign?.masterId !== id)) {
+        return reply.code(403).send({ code: 'MASTER_XP_REQUIRED', error: 'Somente o mestre responsável pode ajustar XP. Use Fechar aventura para distribuir a experiência.' });
+      }
+    }
+
     // Whitelist allowed character fields to avoid invalid data
     const ALLOWED_KEYS = [
       'characterName', 'birthplace', 'className', 'classKey', 'subclass', 'title', 'alignment', 'age', 'size', 'gender',
@@ -506,9 +517,9 @@ export async function characterRoutes(app: FastifyInstance) {
           data: allowed as Record<string, unknown>,
           include: { user: { select: { username: true } }, weapons: true, proficiencies: true, items: true, spells: true, rituals: true, magicFormulae: true, henchmen: true, domain: true, scars: true, activities: true, magicItemResearch: true, mercantileVentures: true }
         });
-        if (allowed.level !== undefined || allowed.className !== undefined || allowed.classKey !== undefined) {
+        if (['level', 'className', 'classKey'].some(key => allowed[key] !== undefined && allowed[key] !== (existing as any)[key])) {
           const progressed = await applyClassProgression(characterId, tx);
-          if (progressed) updated = { ...updated, ...progressed };
+          if (progressed) updated = { ...updated, ...progressed, weapons: await tx.weapon.findMany({ where: { characterId } }) };
         }
         return updated;
       });
@@ -577,100 +588,40 @@ export async function characterRoutes(app: FastifyInstance) {
     return reply.send({ character });
   });
 
-  // Award XP for eligible treasure brought back from an adventure. The treasure
-  // remains in the character's possession; awardId makes retries idempotent.
+  // Retained for older clients: adventure settlement is the only treasure XP workflow.
   app.post('/:characterId/treasure/convert-xp', {
     preHandler: [authGuard],
     schema: { body: treasureConversionBodySchema },
-  }, async (request, reply) => {
-    const { characterId } = request.params as any;
-    const { id, role } = request.user as any;
-    const { awardId, source = '', gp = 0, sp = 0, cp = 0 } = request.body as {
-      awardId: string; source?: string; gp?: number; sp?: number; cp?: number;
-    };
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error === 'not_found') return reply.status(404).send({ error: 'Character not found' });
-    if (access.error === 'forbidden') return reply.status(403).send({ error: 'Forbidden' });
-    const requestedGp = Number(gp);
-    const requestedSp = Number(sp);
-    const requestedCp = Number(cp);
-    if (requestedGp + requestedSp + requestedCp === 0) {
-      return reply.status(400).send({ error: 'At least one coin amount must be greater than zero' });
-    }
-
-    const xpGain = Math.floor(requestedGp + requestedSp / 10 + requestedCp / 100);
-    if (xpGain < 1) {
-      return reply.status(400).send({ error: 'Treasure must be worth at least 1 gp' });
-    }
-    if (xpGain > 2147483647) {
-      return reply.status(400).send({ error: 'Treasure award is too large' });
-    }
-
-    const normalizedAwardId = awardId.trim().toLocaleLowerCase('en-US');
-    if (!normalizedAwardId) return reply.code(400).send({ error: 'Informe uma identificação para o tesouro.' });
-    const logId = `treasure-xp:${createHash('sha256')
-      .update(`${characterId}\0${normalizedAwardId}`)
-      .digest('hex')}`;
-
-    try {
-      const updated = await prisma.$transaction(async (tx) => {
-        await tx.auditLog.create({
-          data: {
-            id: logId,
-            characterId,
-            campaignId: access.character!.campaignId,
-            userId: id,
-            action: 'XP_TESOURO',
-            details: JSON.stringify({
-              awardId: awardId.trim(), source: source.trim(),
-              eligibleTreasure: { gp: requestedGp, sp: requestedSp, cp: requestedCp },
-              xpGain,
-            }),
-          },
-        });
-        return tx.character.update({
-          where: { id: characterId },
-          data: {
-            xp: { increment: xpGain },
-            xpFromTreasure: { increment: xpGain },
-          },
-        });
-      });
-
-      return reply.send({ xpGain, awardId: awardId.trim(), character: updated });
-    } catch (error: any) {
-      if (error?.code === 'P2002') {
-        return reply.status(409).send({ error: 'This treasure award has already been applied' });
-      }
-      throw error;
-    }
-  });
+  }, async (_request, reply) => reply.code(409).send({
+    code: 'USE_ADVENTURE_SETTLEMENT',
+    error: 'Use Fechar aventura para distribuir XP e evitar registrar o mesmo tesouro duas vezes.',
+  }));
 
   // Recalculate monthly maintenance from domain + retainers
-  app.post('/:characterId/maintenance/recalculate', { preHandler: [authGuard] }, async (request, reply) => {
+  app.post('/:characterId/maintenance/recalculate', { preHandler: [authGuard], schema: { body: versionedBody() } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error === 'not_found') return reply.status(404).send({ error: 'Character not found' });
-    if (access.error === 'forbidden') return reply.status(403).send({ error: 'Forbidden' });
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error === 'not_found') return mutationResponse(404, { error: 'Character not found' });
+    if (access.error === 'forbidden') return mutationResponse(403, { error: 'Forbidden' });
 
-    const character = await prisma.character.findUnique({
+    const character = await tx.character.findUnique({
       where: { id: characterId },
       include: { henchmen: true, domain: true }
     });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
 
     const retainers = character.henchmen.reduce((sum, h) => sum + Number(h.wage || 0), 0);
     const domainMaintenance = Number(character.domain?.maintenanceCost || 0) + Number(character.domain?.garrisonCost || 0);
     const monthlyUpkeepGp = Math.round(retainers + domainMaintenance);
 
-    const updated = await prisma.character.update({
+    const updated = await tx.character.update({
       where: { id: characterId },
       data: { monthlyUpkeepGp }
     });
 
-    return reply.send({ monthlyUpkeepGp, character: updated });
-  });
+    return mutationResponse(200, { monthlyUpkeepGp, character: updated });
+  }));
 
   // Delete character
   app.delete('/:characterId', { preHandler: [authGuard] }, async (request, reply) => {
@@ -688,36 +639,36 @@ export async function characterRoutes(app: FastifyInstance) {
   });
 
   // ====== WEAPONS ======
-  app.post('/:characterId/weapons', { preHandler: [authGuard], schema: { body: scalarBody('Weapon') } }, async (request, reply) => {
+  app.post('/:characterId/weapons', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('Weapon')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;
-    const data = request.body as any;
+    const data = relationFields(request.body) as any;
 
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
 
-    const weapon = await prisma.weapon.create({
+    const weapon = await tx.weapon.create({
       data: { characterId, name: data.name || '', style: data.style || '', initBonus: data.initBonus || 0, attackThrow: data.attackThrow || 10, attackBonus: data.attackBonus || 0, damage: data.damage || '1d6', rangeShort: data.rangeShort || 0, rangeMed: data.rangeMed || 0, rangeLong: data.rangeLong || 0, encumbrance: data.encumbrance || 0 }
     });
-    return reply.status(201).send({ weapon });
-  });
+    return mutationResponse(201, { weapon });
+  }));
 
-  app.put('/:characterId/weapons/:weaponId', { preHandler: [authGuard], schema: { body: scalarBody('Weapon') } }, async (request, reply) => {
+  app.put('/:characterId/weapons/:weaponId', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('Weapon')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, weaponId } = request.params as any;
     const { id, role } = request.user as any;
-    const data = request.body as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
-    const existing = await prisma.weapon.findFirst({ where: { id: weaponId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Weapon not found' });
+    const data = relationFields(request.body) as any;
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
+    const existing = await tx.weapon.findFirst({ where: { id: weaponId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Weapon not found' });
     let catalogDamage: string | undefined;
     if (data.automaticDamage ?? existing.automaticDamage) {
       try { catalogDamage = weaponCatalogValues(data.catalogId ?? existing.catalogId, data.style ?? existing.style).damage; }
-      catch { return reply.code(400).send({ error: 'Selecione uma arma válida do catálogo.' }); }
+      catch { return mutationResponse(400, { error: 'Selecione uma arma válida do catálogo.' }); }
     }
-    const weapon = await prisma.weapon.update({
+    const weapon = await tx.weapon.update({
       where: { id: weaponId },
       data: {
         ...(data.name !== undefined && { name: String(data.name) }),
@@ -735,32 +686,32 @@ export async function characterRoutes(app: FastifyInstance) {
         ...(data.encumbrance !== undefined && { encumbrance: Number(data.encumbrance) }),
       },
     });
-    return reply.send({ weapon });
-  });
+    return mutationResponse(200, { weapon });
+  }));
 
-  app.delete('/:characterId/weapons/:weaponId', { preHandler: [authGuard] }, async (request, reply) => {
+  app.delete('/:characterId/weapons/:weaponId', { preHandler: [authGuard], schema: { body: versionedBody() } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, weaponId } = request.params as any;
     const { id, role } = request.user as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
-    const weapon = await prisma.weapon.findFirst({ where: { id: weaponId, characterId } });
-    if (!weapon) return reply.status(404).send({ error: 'Weapon not found' });
-    await prisma.weapon.delete({ where: { id: weaponId } });
-    return reply.send({ message: 'Weapon deleted' });
-  });
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
+    const weapon = await tx.weapon.findFirst({ where: { id: weaponId, characterId } });
+    if (!weapon) return mutationResponse(404, { error: 'Weapon not found' });
+    await tx.weapon.delete({ where: { id: weaponId } });
+    return mutationResponse(200, { message: 'Weapon deleted' });
+  }));
 
-  app.post('/:characterId/shop/purchase', { preHandler: [authGuard], schema: { body: purchaseBodySchema } }, async (request, reply) => {
+  app.post('/:characterId/shop/purchase', { preHandler: [authGuard], schema: { body: versionedBody(purchaseBodySchema) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as { characterId: string };
     const { id, role } = request.user as any;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error) return reply.code(access.error === 'not_found' ? 404 : 403).send({ error: access.error });
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error) return mutationResponse(access.error === 'not_found' ? 404 : 403, { error: access.error });
     const entry = findCompendiumEntry((request.body as { entryId: string }).entryId);
     if (!entry || !['item', 'weapon'].includes(entry.type) || !Number.isFinite(entry.costGp) || entry.costGp! <= 0) {
-      return reply.code(400).send({ error: 'Item indisponível para compra.' });
+      return mutationResponse(400, { error: 'Item indisponível para compra.' });
     }
     try {
-      const result = await prisma.$transaction(async tx => {
+      const result = await (async () => {
         const current = await tx.character.findUniqueOrThrow({ where: { id: characterId } });
         // Compare-and-swap prevents concurrent purchases spending the same coins.
         const copper = current.coinGP * 100 + current.coinSP * 10 + current.coinCP - Math.round(entry.costGp! * 100);
@@ -783,64 +734,64 @@ export async function characterRoutes(app: FastifyInstance) {
         const item = await tx.item.create({ data: { characterId, name: entry.name, quantity: 1,
           slot, weight: entry.encumbrance ?? 0, notes: entry.notes ?? '' } });
         return { character: await tx.character.findUniqueOrThrow({ where: { id: characterId } }), item };
-      });
-      return reply.code(201).send(result);
+      })();
+      return mutationResponse(201, result);
     } catch (error) {
       if (error instanceof Error && ['INSUFFICIENT_COINS', 'PURCHASE_CONFLICT'].includes(error.message)) {
-        return reply.code(409).send({ error: error.message === 'INSUFFICIENT_COINS' ? 'Saldo insuficiente em GP/SP/CP.' : 'O saldo mudou durante a compra. Atualize e tente novamente.' });
+        return mutationResponse(409, { error: error.message === 'INSUFFICIENT_COINS' ? 'Saldo insuficiente em GP/SP/CP.' : 'O saldo mudou durante a compra. Atualize e tente novamente.' });
       }
       throw error;
     }
-  });
+  }));
 
   // ====== PROFICIENCIES ======
-  app.put('/:characterId/proficiencies/:profId', { preHandler: [authGuard], schema: { body: proficiencyUpdateBodySchema } }, async (request, reply) => {
+  app.put('/:characterId/proficiencies/:profId', { preHandler: [authGuard], schema: { body: versionedBody(proficiencyUpdateBodySchema) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, profId } = request.params as { characterId: string; profId: string };
     const { id, role } = request.user as any;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error) return reply.code(access.error === 'not_found' ? 404 : 403).send({ error: access.error });
-    const existing = await prisma.proficiency.findFirst({ where: { id: profId, characterId } });
-    if (!existing) return reply.code(404).send({ error: 'Proficiency not found' });
-    const data = request.body as { name?: string; category?: string; throwTarget?: number };
-    if (data.name !== undefined && !data.name.trim()) return reply.code(400).send({ error: 'Informe o nome da proficiência.' });
-    return { proficiency: await prisma.proficiency.update({ where: { id: profId }, data }) };
-  });
-  app.post('/:characterId/proficiencies', { preHandler: [authGuard], schema: { body: scalarBody('Proficiency') } }, async (request, reply) => {
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error) return mutationResponse(access.error === 'not_found' ? 404 : 403, { error: access.error });
+    const existing = await tx.proficiency.findFirst({ where: { id: profId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Proficiency not found' });
+    const data = relationFields(request.body) as { name?: string; category?: string; throwTarget?: number };
+    if (data.name !== undefined && !data.name.trim()) return mutationResponse(400, { error: 'Informe o nome da proficiência.' });
+    return { proficiency: await tx.proficiency.update({ where: { id: profId }, data }) };
+  }));
+  app.post('/:characterId/proficiencies', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('Proficiency')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;
-    const data = request.body as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
-    const proficiency = await prisma.proficiency.create({
+    const data = relationFields(request.body) as any;
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
+    const proficiency = await tx.proficiency.create({
       data: { characterId, name: data.name || '', throwTarget: data.throwTarget || 11, category: data.category || 'general' }
     });
-    return reply.status(201).send({ proficiency });
-  });
+    return mutationResponse(201, { proficiency });
+  }));
 
-  app.delete('/:characterId/proficiencies/:profId', { preHandler: [authGuard] }, async (request, reply) => {
+  app.delete('/:characterId/proficiencies/:profId', { preHandler: [authGuard], schema: { body: versionedBody() } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, profId } = request.params as any;
     const { id, role } = request.user as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
-    const proficiency = await prisma.proficiency.findFirst({ where: { id: profId, characterId } });
-    if (!proficiency) return reply.status(404).send({ error: 'Proficiency not found' });
-    await prisma.proficiency.delete({ where: { id: profId } });
-    return reply.send({ message: 'Proficiency deleted' });
-  });
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
+    const proficiency = await tx.proficiency.findFirst({ where: { id: profId, characterId } });
+    if (!proficiency) return mutationResponse(404, { error: 'Proficiency not found' });
+    await tx.proficiency.delete({ where: { id: profId } });
+    return mutationResponse(200, { message: 'Proficiency deleted' });
+  }));
 
   // ====== ITEMS ======
-  app.post('/:characterId/items', { preHandler: [authGuard], schema: { body: itemCreateBodySchema } }, async (request, reply) => {
+  app.post('/:characterId/items', { preHandler: [authGuard], schema: { body: versionedBody(itemCreateBodySchema) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;
-    const data = request.body as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
+    const data = relationFields(request.body) as any;
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
     const name = String(data.name).trim();
-    if (!name) return reply.status(400).send({ error: 'Item name cannot be blank' });
-    const item = await prisma.item.create({
+    if (!name) return mutationResponse(400, { error: 'Item name cannot be blank' });
+    const item = await tx.item.create({
       data: {
         characterId,
         name,
@@ -850,24 +801,24 @@ export async function characterRoutes(app: FastifyInstance) {
         notes: data.notes ?? '',
       }
     });
-    return reply.status(201).send({ item });
-  });
+    return mutationResponse(201, { item });
+  }));
 
-  app.put('/:characterId/items/:itemId', { preHandler: [authGuard], schema: { body: itemUpdateBodySchema } }, async (request, reply) => {
+  app.put('/:characterId/items/:itemId', { preHandler: [authGuard], schema: { body: versionedBody(itemUpdateBodySchema) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, itemId } = request.params as any;
     const { id, role } = request.user as any;
-    const data = request.body as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
-    const existing = await prisma.item.findFirst({ where: { id: itemId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Item not found' });
+    const data = relationFields(request.body) as any;
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
+    const existing = await tx.item.findFirst({ where: { id: itemId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Item not found' });
     const { name, quantity, weight, slot, notes } = data;
     const normalizedName = name === undefined ? undefined : String(name).trim();
     if (normalizedName !== undefined && !normalizedName) {
-      return reply.status(400).send({ error: 'Item name cannot be blank' });
+      return mutationResponse(400, { error: 'Item name cannot be blank' });
     }
-    const item = await prisma.item.update({
+    const item = await tx.item.update({
       where: { id: itemId },
       data: {
         ...(normalizedName !== undefined && { name: normalizedName }),
@@ -877,208 +828,208 @@ export async function characterRoutes(app: FastifyInstance) {
         ...(notes !== undefined && { notes }),
       },
     });
-    return reply.send({ item });
-  });
+    return mutationResponse(200, { item });
+  }));
 
-  app.delete('/:characterId/items/:itemId', { preHandler: [authGuard] }, async (request, reply) => {
+  app.delete('/:characterId/items/:itemId', { preHandler: [authGuard], schema: { body: versionedBody() } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, itemId } = request.params as any;
     const { id, role } = request.user as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
-    const item = await prisma.item.findFirst({ where: { id: itemId, characterId } });
-    if (!item) return reply.status(404).send({ error: 'Item not found' });
-    await prisma.item.delete({ where: { id: itemId } });
-    return reply.send({ message: 'Item deleted' });
-  });
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
+    const item = await tx.item.findFirst({ where: { id: itemId, characterId } });
+    if (!item) return mutationResponse(404, { error: 'Item not found' });
+    await tx.item.delete({ where: { id: itemId } });
+    return mutationResponse(200, { message: 'Item deleted' });
+  }));
 
   // ====== SPELLS (spellcasters only) ======
-  app.post('/:characterId/spells', { preHandler: [authGuard], schema: { body: scalarBody('Spell') } }, async (request, reply) => {
+  app.post('/:characterId/spells', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('Spell')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;
-    const data = request.body as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
+    const data = relationFields(request.body) as any;
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
     const level = Math.min(6, Math.max(1, Number(data.level) || 1));
-    const spell = await prisma.spell.create({
+    const spell = await tx.spell.create({
       data: { characterId, level, name: data.name || '' }
     });
-    return reply.status(201).send({ spell });
-  });
+    return mutationResponse(201, { spell });
+  }));
 
-  app.put('/:characterId/spells/:spellId', { preHandler: [authGuard], schema: { body: scalarBody('Spell') } }, async (request, reply) => {
+  app.put('/:characterId/spells/:spellId', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('Spell')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, spellId } = request.params as any;
     const { id, role } = request.user as any;
-    const data = request.body as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
-    const existing = await prisma.spell.findFirst({ where: { id: spellId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Spell not found' });
-    const spell = await prisma.spell.update({
+    const data = relationFields(request.body) as any;
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
+    const existing = await tx.spell.findFirst({ where: { id: spellId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Spell not found' });
+    const spell = await tx.spell.update({
       where: { id: spellId },
       data: { name: data.name !== undefined ? String(data.name) : undefined },
     });
-    return reply.send({ spell });
-  });
+    return mutationResponse(200, { spell });
+  }));
 
-  app.delete('/:characterId/spells/:spellId', { preHandler: [authGuard] }, async (request, reply) => {
+  app.delete('/:characterId/spells/:spellId', { preHandler: [authGuard], schema: { body: versionedBody() } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, spellId } = request.params as any;
     const { id, role } = request.user as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
-    const spell = await prisma.spell.findFirst({ where: { id: spellId, characterId } });
-    if (!spell) return reply.status(404).send({ error: 'Spell not found' });
-    await prisma.spell.delete({ where: { id: spellId } });
-    return reply.send({ message: 'Spell deleted' });
-  });
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
+    const spell = await tx.spell.findFirst({ where: { id: spellId, characterId } });
+    if (!spell) return mutationResponse(404, { error: 'Spell not found' });
+    await tx.spell.delete({ where: { id: spellId } });
+    return mutationResponse(200, { message: 'Spell deleted' });
+  }));
 
   // ====== RITUALS ======
-  app.post('/:characterId/rituals', { preHandler: [authGuard], schema: { body: scalarBody('Ritual') } }, async (request, reply) => {
+  app.post('/:characterId/rituals', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('Ritual')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;
-    const data = request.body as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
-    const ritual = await prisma.ritual.create({
+    const data = relationFields(request.body) as any;
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
+    const ritual = await tx.ritual.create({
       data: { characterId, name: data.name || '' }
     });
-    return reply.status(201).send({ ritual });
-  });
+    return mutationResponse(201, { ritual });
+  }));
 
-  app.put('/:characterId/rituals/:ritualId', { preHandler: [authGuard], schema: { body: scalarBody('Ritual') } }, async (request, reply) => {
+  app.put('/:characterId/rituals/:ritualId', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('Ritual')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, ritualId } = request.params as any;
     const { id, role } = request.user as any;
-    const data = request.body as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
-    const existing = await prisma.ritual.findFirst({ where: { id: ritualId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Ritual not found' });
-    const ritual = await prisma.ritual.update({
+    const data = relationFields(request.body) as any;
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
+    const existing = await tx.ritual.findFirst({ where: { id: ritualId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Ritual not found' });
+    const ritual = await tx.ritual.update({
       where: { id: ritualId },
       data: { name: data.name !== undefined ? String(data.name) : undefined },
     });
-    return reply.send({ ritual });
-  });
+    return mutationResponse(200, { ritual });
+  }));
 
-  app.delete('/:characterId/rituals/:ritualId', { preHandler: [authGuard] }, async (request, reply) => {
+  app.delete('/:characterId/rituals/:ritualId', { preHandler: [authGuard], schema: { body: versionedBody() } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, ritualId } = request.params as any;
     const { id, role } = request.user as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
-    const ritual = await prisma.ritual.findFirst({ where: { id: ritualId, characterId } });
-    if (!ritual) return reply.status(404).send({ error: 'Ritual not found' });
-    await prisma.ritual.delete({ where: { id: ritualId } });
-    return reply.send({ message: 'Ritual deleted' });
-  });
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
+    const ritual = await tx.ritual.findFirst({ where: { id: ritualId, characterId } });
+    if (!ritual) return mutationResponse(404, { error: 'Ritual not found' });
+    await tx.ritual.delete({ where: { id: ritualId } });
+    return mutationResponse(200, { message: 'Ritual deleted' });
+  }));
 
   // ====== MAGIC FORMULAE ======
-  app.post('/:characterId/magic-formulae', { preHandler: [authGuard], schema: { body: scalarBody('MagicFormula') } }, async (request, reply) => {
+  app.post('/:characterId/magic-formulae', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('MagicFormula')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;
-    const data = request.body as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
-    const formula = await prisma.magicFormula.create({
+    const data = relationFields(request.body) as any;
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
+    const formula = await tx.magicFormula.create({
       data: { characterId, name: data.name || '' }
     });
-    return reply.status(201).send({ formula });
-  });
+    return mutationResponse(201, { formula });
+  }));
 
-  app.put('/:characterId/magic-formulae/:formulaId', { preHandler: [authGuard], schema: { body: scalarBody('MagicFormula') } }, async (request, reply) => {
+  app.put('/:characterId/magic-formulae/:formulaId', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('MagicFormula')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, formulaId } = request.params as any;
     const { id, role } = request.user as any;
-    const data = request.body as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
-    const existing = await prisma.magicFormula.findFirst({ where: { id: formulaId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Magic formula not found' });
-    const formula = await prisma.magicFormula.update({
+    const data = relationFields(request.body) as any;
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
+    const existing = await tx.magicFormula.findFirst({ where: { id: formulaId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Magic formula not found' });
+    const formula = await tx.magicFormula.update({
       where: { id: formulaId },
       data: { name: data.name !== undefined ? String(data.name) : undefined },
     });
-    return reply.send({ formula });
-  });
+    return mutationResponse(200, { formula });
+  }));
 
-  app.delete('/:characterId/magic-formulae/:formulaId', { preHandler: [authGuard] }, async (request, reply) => {
+  app.delete('/:characterId/magic-formulae/:formulaId', { preHandler: [authGuard], schema: { body: versionedBody() } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, formulaId } = request.params as any;
     const { id, role } = request.user as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
-    const formula = await prisma.magicFormula.findFirst({ where: { id: formulaId, characterId } });
-    if (!formula) return reply.status(404).send({ error: 'Magic formula not found' });
-    await prisma.magicFormula.delete({ where: { id: formulaId } });
-    return reply.send({ message: 'Magic formula deleted' });
-  });
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
+    const formula = await tx.magicFormula.findFirst({ where: { id: formulaId, characterId } });
+    if (!formula) return mutationResponse(404, { error: 'Magic formula not found' });
+    await tx.magicFormula.delete({ where: { id: formulaId } });
+    return mutationResponse(200, { message: 'Magic formula deleted' });
+  }));
 
   // ====== MAGIC ITEM RESEARCH ======
-  app.post('/:characterId/magic-research', { preHandler: [authGuard], schema: { body: scalarBody('MagicItemResearch') } }, async (request, reply) => {
+  app.post('/:characterId/magic-research', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('MagicItemResearch')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;
-    const data = request.body as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
+    const data = relationFields(request.body) as any;
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
     
     let values;
     try { values = researchData(data, character); }
-    catch (e) { return reply.code(400).send({ error: (e as Error).message }); }
-    const research = await prisma.magicItemResearch.create({ data: { ...values, characterId } });
-    return reply.status(201).send({ research });
-  });
+    catch (e) { return mutationResponse(400, { error: (e as Error).message }); }
+    const research = await tx.magicItemResearch.create({ data: { ...values, characterId } });
+    return mutationResponse(201, { research });
+  }));
 
-  app.put('/:characterId/magic-research/:researchId', { preHandler: [authGuard], schema: { body: scalarBody('MagicItemResearch') } }, async (request, reply) => {
+  app.put('/:characterId/magic-research/:researchId', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('MagicItemResearch')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, researchId } = request.params as any;
     const { id, role } = request.user as any;
-    const data = request.body as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
+    const data = relationFields(request.body) as any;
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
     
-    const existing = await prisma.magicItemResearch.findFirst({ where: { id: researchId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Magic research not found' });
+    const existing = await tx.magicItemResearch.findFirst({ where: { id: researchId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Magic research not found' });
     
     let values;
-    if (readState(character.rulesState).research?.[researchId]) return reply.code(409).send({error:'Este projeto é acompanhado em Evolução & Regras. Use esse fluxo para registrar trabalho ou cancelamento.'});
+    if (readState(character.rulesState).research?.[researchId]) return mutationResponse(409, {error:'Este projeto é acompanhado em Evolução & Regras. Use esse fluxo para registrar trabalho ou cancelamento.'});
     try { values = researchData(data, character, existing); }
-    catch (e) { return reply.code(400).send({ error: (e as Error).message }); }
-    const research = await prisma.magicItemResearch.update({ where: { id: researchId }, data: values });
-    return reply.send({ research });
-  });
+    catch (e) { return mutationResponse(400, { error: (e as Error).message }); }
+    const research = await tx.magicItemResearch.update({ where: { id: researchId }, data: values });
+    return mutationResponse(200, { research });
+  }));
 
-  app.delete('/:characterId/magic-research/:researchId', { preHandler: [authGuard] }, async (request, reply) => {
+  app.delete('/:characterId/magic-research/:researchId', { preHandler: [authGuard], schema: { body: versionedBody() } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, researchId } = request.params as any;
     const { id, role } = request.user as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
     
-    const existing = await prisma.magicItemResearch.findFirst({ where: { id: researchId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Magic research not found' });
+    const existing = await tx.magicItemResearch.findFirst({ where: { id: researchId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Magic research not found' });
     
-    if (readState(character.rulesState).research?.[researchId]) return reply.code(409).send({error:'Cancele o projeto em Evolução & Regras para preservar o histórico.'});
-    await prisma.magicItemResearch.delete({ where: { id: researchId } });
-    return reply.send({ message: 'Magic research deleted' });
-  });
+    if (readState(character.rulesState).research?.[researchId]) return mutationResponse(409, {error:'Cancele o projeto em Evolução & Regras para preservar o histórico.'});
+    await tx.magicItemResearch.delete({ where: { id: researchId } });
+    return mutationResponse(200, { message: 'Magic research deleted' });
+  }));
 
   // ====== MERCANTILE VENTURES ======
-  app.post('/:characterId/mercantile', { preHandler: [authGuard], schema: { body: scalarBody('MercantileVenture') } }, async (request, reply) => {
+  app.post('/:characterId/mercantile', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('MercantileVenture')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;
-    const data = request.body as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
+    const data = relationFields(request.body) as any;
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
     
-    const venture = await prisma.mercantileVenture.create({
+    const venture = await tx.mercantileVenture.create({
       data: { 
         characterId, 
         cargoName: data.cargoName || 'Cargo',
@@ -1090,21 +1041,21 @@ export async function characterRoutes(app: FastifyInstance) {
         profitGp: Number(data.profitGp) || 0
       }
     });
-    return reply.status(201).send({ venture });
-  });
+    return mutationResponse(201, { venture });
+  }));
 
-  app.put('/:characterId/mercantile/:ventureId', { preHandler: [authGuard], schema: { body: scalarBody('MercantileVenture') } }, async (request, reply) => {
+  app.put('/:characterId/mercantile/:ventureId', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('MercantileVenture')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, ventureId } = request.params as any;
     const { id, role } = request.user as any;
-    const data = request.body as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
+    const data = relationFields(request.body) as any;
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
     
-    const existing = await prisma.mercantileVenture.findFirst({ where: { id: ventureId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Mercantile venture not found' });
+    const existing = await tx.mercantileVenture.findFirst({ where: { id: ventureId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Mercantile venture not found' });
     
-    const venture = await prisma.mercantileVenture.update({
+    const venture = await tx.mercantileVenture.update({
       where: { id: ventureId },
       data: {
         ...(data.cargoName !== undefined && { cargoName: String(data.cargoName) }),
@@ -1116,84 +1067,84 @@ export async function characterRoutes(app: FastifyInstance) {
         ...(data.profitGp !== undefined && { profitGp: Number(data.profitGp) })
       },
     });
-    return reply.send({ venture });
-  });
+    return mutationResponse(200, { venture });
+  }));
 
   // Settlement and the coin credit must succeed together, including retries.
   app.post('/:characterId/mercantile/:ventureId/sell', {
     preHandler: [authGuard],
-    schema: { body: { type: 'object', additionalProperties: false, required: ['version'], properties: { version: { type: 'integer', minimum: 0 } } } },
-  }, async (request, reply) => {
+    schema: { body: versionedBody() },
+  }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, ventureId } = request.params as { characterId: string; ventureId: string };
     const { version } = request.body as { version: number };
     const { id, role } = request.user;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error) return reply.code(access.error === 'not_found' ? 404 : 403).send({ error: access.error });
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error) return mutationResponse(access.error === 'not_found' ? 404 : 403, { error: access.error });
     const logId = `mercantile-sale:${ventureId}`;
     try {
-      return await prisma.$transaction(async tx => {
+      return await (async () => {
         const venture = await tx.mercantileVenture.findFirst({ where: { id: ventureId, characterId } });
         if (!venture) throw new Error('VENTURE_NOT_FOUND');
         if (venture.status === 'SOLD' || await tx.auditLog.findUnique({ where: { id: logId } })) throw new Error('VENTURE_SOLD');
         // Existing simplified market model: equal markets have no modifier.
         const modifier = (venture.originMarketClass - venture.destMarketClass) * 10;
         const proceeds = Math.floor(venture.baseValueGp * (1 + modifier / 100));
-        const changed = await tx.character.updateMany({ where: { id: characterId, version }, data: { coinGP: { increment: proceeds }, version: { increment: 1 } } });
+        const changed = await tx.character.updateMany({ where: { id: characterId, version }, data: { coinGP: { increment: proceeds } } });
         if (changed.count !== 1) throw new Error('SALE_CONFLICT');
         const sold = await tx.mercantileVenture.update({ where: { id: ventureId }, data: { status: 'SOLD', profitGp: proceeds - venture.baseValueGp } });
         await tx.auditLog.create({ data: { id: logId, characterId, campaignId: access.character!.campaignId, userId: id, action: 'MERCANTILE_SALE', details: JSON.stringify({ ventureId, proceeds, modifier }) } });
         const character = await tx.character.findUniqueOrThrow({ where: { id: characterId }, select: { coinGP: true, version: true } });
         return { venture: sold, character };
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      })();
     } catch (error) {
       const message = (error as Error).message;
-      if (message === 'VENTURE_NOT_FOUND') return reply.code(404).send({ error: 'Carga não encontrada.' });
-      if (message === 'VENTURE_SOLD') return reply.code(409).send({ error: 'Esta carga já foi vendida.' });
-      if (message === 'SALE_CONFLICT') return reply.code(409).send({ error: 'A ficha mudou. Atualize antes de vender a carga.' });
+      if (message === 'VENTURE_NOT_FOUND') return mutationResponse(404, { error: 'Carga não encontrada.' });
+      if (message === 'VENTURE_SOLD') return mutationResponse(409, { error: 'Esta carga já foi vendida.' });
+      if (message === 'SALE_CONFLICT') return mutationResponse(409, { code: 'CHARACTER_CONFLICT', error: 'A ficha mudou. Atualize antes de vender a carga.' });
       throw error;
     }
-  });
+  }));
 
-  app.delete('/:characterId/mercantile/:ventureId', { preHandler: [authGuard] }, async (request, reply) => {
+  app.delete('/:characterId/mercantile/:ventureId', { preHandler: [authGuard], schema: { body: versionedBody() } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, ventureId } = request.params as any;
     const { id, role } = request.user as any;
-    const character = await prisma.character.findUnique({ where: { id: characterId } });
-    if (!character) return reply.status(404).send({ error: 'Character not found' });
-    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Forbidden' });
+    const character = await tx.character.findUnique({ where: { id: characterId } });
+    if (!character) return mutationResponse(404, { error: 'Character not found' });
+    if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
     
-    const existing = await prisma.mercantileVenture.findFirst({ where: { id: ventureId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Mercantile venture not found' });
+    const existing = await tx.mercantileVenture.findFirst({ where: { id: ventureId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Mercantile venture not found' });
     
-    await prisma.mercantileVenture.delete({ where: { id: ventureId } });
-    return reply.send({ message: 'Mercantile venture deleted' });
-  });
+    await tx.mercantileVenture.delete({ where: { id: ventureId } });
+    return mutationResponse(200, { message: 'Mercantile venture deleted' });
+  }));
 
   // --- SCARS ---
-  app.post('/:characterId/scars', { preHandler: [authGuard], schema: { body: scalarBody('Scar') } }, async (request, reply) => {
+  app.post('/:characterId/scars', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('Scar')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error === 'not_found') return reply.status(404).send({ error: 'Character not found' });
-    if (access.error === 'forbidden') return reply.status(403).send({ error: 'Forbidden' });
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error === 'not_found') return mutationResponse(404, { error: 'Character not found' });
+    if (access.error === 'forbidden') return mutationResponse(403, { error: 'Forbidden' });
 
-    const scar = await prisma.scar.create({
+    const scar = await tx.scar.create({
       data: { characterId, description: '', daysToRest: 0, debuff: '' }
     });
-    return reply.send({ scar });
-  });
+    return mutationResponse(200, { scar });
+  }));
 
-  app.put('/:characterId/scars/:scarId', { preHandler: [authGuard], schema: { body: scalarBody('Scar') } }, async (request, reply) => {
+  app.put('/:characterId/scars/:scarId', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('Scar')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, scarId } = request.params as any;
     const { id, role } = request.user as any;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error === 'not_found') return reply.status(404).send({ error: 'Character not found' });
-    if (access.error === 'forbidden') return reply.status(403).send({ error: 'Forbidden' });
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error === 'not_found') return mutationResponse(404, { error: 'Character not found' });
+    if (access.error === 'forbidden') return mutationResponse(403, { error: 'Forbidden' });
 
-    const existing = await prisma.scar.findFirst({ where: { id: scarId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Scar not found' });
+    const existing = await tx.scar.findFirst({ where: { id: scarId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Scar not found' });
 
-    const data = request.body as any;
-    const scar = await prisma.scar.update({
+    const data = relationFields(request.body) as any;
+    const scar = await tx.scar.update({
       where: { id: scarId },
       data: {
         description: data.description,
@@ -1201,49 +1152,49 @@ export async function characterRoutes(app: FastifyInstance) {
         debuff: data.debuff
       }
     });
-    return reply.send({ scar });
-  });
+    return mutationResponse(200, { scar });
+  }));
 
-  app.delete('/:characterId/scars/:scarId', { preHandler: [authGuard] }, async (request, reply) => {
+  app.delete('/:characterId/scars/:scarId', { preHandler: [authGuard], schema: { body: versionedBody() } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, scarId } = request.params as any;
     const { id, role } = request.user as any;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error === 'not_found') return reply.status(404).send({ error: 'Character not found' });
-    if (access.error === 'forbidden') return reply.status(403).send({ error: 'Forbidden' });
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error === 'not_found') return mutationResponse(404, { error: 'Character not found' });
+    if (access.error === 'forbidden') return mutationResponse(403, { error: 'Forbidden' });
 
-    const existing = await prisma.scar.findFirst({ where: { id: scarId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Scar not found' });
+    const existing = await tx.scar.findFirst({ where: { id: scarId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Scar not found' });
 
-    await prisma.scar.delete({ where: { id: scarId } });
-    return reply.send({ message: 'Scar deleted' });
-  });
+    await tx.scar.delete({ where: { id: scarId } });
+    return mutationResponse(200, { message: 'Scar deleted' });
+  }));
 
   // --- HENCHMEN ---
-  app.post('/:characterId/henchmen', { preHandler: [authGuard], schema: { body: scalarBody('Henchman') } }, async (request, reply) => {
+  app.post('/:characterId/henchmen', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('Henchman')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error === 'not_found') return reply.status(404).send({ error: 'Character not found' });
-    if (access.error === 'forbidden') return reply.status(403).send({ error: 'Forbidden' });
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error === 'not_found') return mutationResponse(404, { error: 'Character not found' });
+    if (access.error === 'forbidden') return mutationResponse(403, { error: 'Forbidden' });
 
-    const henchman = await prisma.henchman.create({
+    const henchman = await tx.henchman.create({
       data: { characterId, name: '', className: '', level: 1, wage: 0, morale: 0, loyalty: 0, treasureShare: 0, notes: '' }
     });
-    return reply.send({ henchman });
-  });
+    return mutationResponse(200, { henchman });
+  }));
 
-  app.put('/:characterId/henchmen/:henchmanId', { preHandler: [authGuard], schema: { body: scalarBody('Henchman') } }, async (request, reply) => {
+  app.put('/:characterId/henchmen/:henchmanId', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('Henchman')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, henchmanId } = request.params as any;
     const { id, role } = request.user as any;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error === 'not_found') return reply.status(404).send({ error: 'Character not found' });
-    if (access.error === 'forbidden') return reply.status(403).send({ error: 'Forbidden' });
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error === 'not_found') return mutationResponse(404, { error: 'Character not found' });
+    if (access.error === 'forbidden') return mutationResponse(403, { error: 'Forbidden' });
 
-    const existing = await prisma.henchman.findFirst({ where: { id: henchmanId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Henchman not found' });
+    const existing = await tx.henchman.findFirst({ where: { id: henchmanId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Henchman not found' });
 
-    const data = request.body as any;
-    const henchman = await prisma.henchman.update({
+    const data = relationFields(request.body) as any;
+    const henchman = await tx.henchman.update({
       where: { id: henchmanId },
       data: {
         name: data.name,
@@ -1261,35 +1212,35 @@ export async function characterRoutes(app: FastifyInstance) {
         notes: data.notes
       }
     });
-    return reply.send({ henchman });
-  });
+    return mutationResponse(200, { henchman });
+  }));
 
-  app.delete('/:characterId/henchmen/:henchmanId', { preHandler: [authGuard] }, async (request, reply) => {
+  app.delete('/:characterId/henchmen/:henchmanId', { preHandler: [authGuard], schema: { body: versionedBody() } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, henchmanId } = request.params as any;
     const { id, role } = request.user as any;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error === 'not_found') return reply.status(404).send({ error: 'Character not found' });
-    if (access.error === 'forbidden') return reply.status(403).send({ error: 'Forbidden' });
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error === 'not_found') return mutationResponse(404, { error: 'Character not found' });
+    if (access.error === 'forbidden') return mutationResponse(403, { error: 'Forbidden' });
 
-    const existing = await prisma.henchman.findFirst({ where: { id: henchmanId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Henchman not found' });
+    const existing = await tx.henchman.findFirst({ where: { id: henchmanId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Henchman not found' });
 
-    await prisma.henchman.delete({ where: { id: henchmanId } });
-    return reply.send({ message: 'Henchman deleted' });
-  });
+    await tx.henchman.delete({ where: { id: henchmanId } });
+    return mutationResponse(200, { message: 'Henchman deleted' });
+  }));
 
   // --- DOMAIN ---
-  app.put('/:characterId/domain', { preHandler: [authGuard], schema: { body: domainBodySchema } }, async (request, reply) => {
+  app.put('/:characterId/domain', { preHandler: [authGuard], schema: { body: versionedBody(domainBodySchema) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error === 'not_found') return reply.status(404).send({ error: 'Character not found' });
-    if (access.error === 'forbidden') return reply.status(403).send({ error: 'Forbidden' });
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error === 'not_found') return mutationResponse(404, { error: 'Character not found' });
+    if (access.error === 'forbidden') return mutationResponse(403, { error: 'Forbidden' });
 
-    const data = request.body as any;
-    const previous = await prisma.domain.findUnique({ where: { characterId } });
+    const data = relationFields(request.body) as any;
+    const previous = await tx.domain.findUnique({ where: { characterId } });
     data.landRevenue = domainEconomy({ ...previous, ...data }).land;
-    const domain = await prisma.domain.upsert({
+    const domain = await tx.domain.upsert({
       where: { characterId },
       update: {
         peasantFamilies: data.peasantFamilies,
@@ -1343,19 +1294,19 @@ export async function characterRoutes(app: FastifyInstance) {
         mercantileVentures: data.mercantileVentures || ''
       }
     });
-    return reply.send({ domain });
-  });
+    return mutationResponse(200, { domain });
+  }));
 
   // --- ACTIVITIES ---
-  app.post('/:characterId/activities', { preHandler: [authGuard], schema: { body: scalarBody('CharacterActivity') } }, async (request, reply) => {
+  app.post('/:characterId/activities', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('CharacterActivity')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error === 'not_found') return reply.status(404).send({ error: 'Character not found' });
-    if (access.error === 'forbidden') return reply.status(403).send({ error: 'Forbidden' });
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error === 'not_found') return mutationResponse(404, { error: 'Character not found' });
+    if (access.error === 'forbidden') return mutationResponse(403, { error: 'Forbidden' });
 
-    const data = request.body as any;
-    const activity = await prisma.characterActivity.create({
+    const data = relationFields(request.body) as any;
+    const activity = await tx.characterActivity.create({
       data: {
         characterId,
         type: data.type || 'downtime',
@@ -1367,21 +1318,21 @@ export async function characterRoutes(app: FastifyInstance) {
         status: data.status || 'QUEUED'
       }
     });
-    return reply.status(201).send({ activity });
-  });
+    return mutationResponse(201, { activity });
+  }));
 
-  app.put('/:characterId/activities/:activityId', { preHandler: [authGuard], schema: { body: scalarBody('CharacterActivity') } }, async (request, reply) => {
+  app.put('/:characterId/activities/:activityId', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('CharacterActivity')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, activityId } = request.params as any;
     const { id, role } = request.user as any;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error === 'not_found') return reply.status(404).send({ error: 'Character not found' });
-    if (access.error === 'forbidden') return reply.status(403).send({ error: 'Forbidden' });
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error === 'not_found') return mutationResponse(404, { error: 'Character not found' });
+    if (access.error === 'forbidden') return mutationResponse(403, { error: 'Forbidden' });
 
-    const existing = await prisma.characterActivity.findFirst({ where: { id: activityId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Activity not found' });
+    const existing = await tx.characterActivity.findFirst({ where: { id: activityId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Activity not found' });
 
-    const data = request.body as any;
-    const activity = await prisma.characterActivity.update({
+    const data = relationFields(request.body) as any;
+    const activity = await tx.characterActivity.update({
       where: { id: activityId },
       data: {
         type: data.type !== undefined ? String(data.type) : undefined,
@@ -1393,33 +1344,33 @@ export async function characterRoutes(app: FastifyInstance) {
         status: data.status !== undefined ? String(data.status) : undefined
       }
     });
-    return reply.send({ activity });
-  });
+    return mutationResponse(200, { activity });
+  }));
 
-  app.delete('/:characterId/activities/:activityId', { preHandler: [authGuard] }, async (request, reply) => {
+  app.delete('/:characterId/activities/:activityId', { preHandler: [authGuard], schema: { body: versionedBody() } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, activityId } = request.params as any;
     const { id, role } = request.user as any;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error === 'not_found') return reply.status(404).send({ error: 'Character not found' });
-    if (access.error === 'forbidden') return reply.status(403).send({ error: 'Forbidden' });
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error === 'not_found') return mutationResponse(404, { error: 'Character not found' });
+    if (access.error === 'forbidden') return mutationResponse(403, { error: 'Forbidden' });
 
-    const existing = await prisma.characterActivity.findFirst({ where: { id: activityId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Activity not found' });
+    const existing = await tx.characterActivity.findFirst({ where: { id: activityId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Activity not found' });
 
-    await prisma.characterActivity.delete({ where: { id: activityId } });
-    return reply.send({ message: 'Activity deleted' });
-  });
+    await tx.characterActivity.delete({ where: { id: activityId } });
+    return mutationResponse(200, { message: 'Activity deleted' });
+  }));
 
   // --- ARMY UNITS ---
-  app.post('/:characterId/armyUnits', { preHandler: [authGuard], schema: { body: scalarBody('ArmyUnit') } }, async (request, reply) => {
+  app.post('/:characterId/armyUnits', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('ArmyUnit')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error === 'not_found') return reply.status(404).send({ error: 'Character not found' });
-    if (access.error === 'forbidden') return reply.status(403).send({ error: 'Forbidden' });
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error === 'not_found') return mutationResponse(404, { error: 'Character not found' });
+    if (access.error === 'forbidden') return mutationResponse(403, { error: 'Forbidden' });
 
-    const data = request.body as any;
-    const unit = await prisma.armyUnit.create({
+    const data = relationFields(request.body) as any;
+    const unit = await tx.armyUnit.create({
       data: {
         characterId,
         name: data.name || '',
@@ -1434,21 +1385,21 @@ export async function characterRoutes(app: FastifyInstance) {
         notes: data.notes || ''
       }
     });
-    return reply.status(201).send({ unit });
-  });
+    return mutationResponse(201, { unit });
+  }));
 
-  app.put('/:characterId/armyUnits/:unitId', { preHandler: [authGuard], schema: { body: scalarBody('ArmyUnit') } }, async (request, reply) => {
+  app.put('/:characterId/armyUnits/:unitId', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('ArmyUnit')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, unitId } = request.params as any;
     const { id, role } = request.user as any;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error === 'not_found') return reply.status(404).send({ error: 'Character not found' });
-    if (access.error === 'forbidden') return reply.status(403).send({ error: 'Forbidden' });
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error === 'not_found') return mutationResponse(404, { error: 'Character not found' });
+    if (access.error === 'forbidden') return mutationResponse(403, { error: 'Forbidden' });
 
-    const existing = await prisma.armyUnit.findFirst({ where: { id: unitId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Army Unit not found' });
+    const existing = await tx.armyUnit.findFirst({ where: { id: unitId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Army Unit not found' });
 
-    const data = request.body as any;
-    const unit = await prisma.armyUnit.update({
+    const data = relationFields(request.body) as any;
+    const unit = await tx.armyUnit.update({
       where: { id: unitId },
       data: {
         name: data.name !== undefined ? String(data.name) : undefined,
@@ -1463,21 +1414,21 @@ export async function characterRoutes(app: FastifyInstance) {
         notes: data.notes !== undefined ? String(data.notes) : undefined
       }
     });
-    return reply.send({ unit });
-  });
+    return mutationResponse(200, { unit });
+  }));
 
-  app.delete('/:characterId/armyUnits/:unitId', { preHandler: [authGuard] }, async (request, reply) => {
+  app.delete('/:characterId/armyUnits/:unitId', { preHandler: [authGuard], schema: { body: versionedBody() } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, unitId } = request.params as any;
     const { id, role } = request.user as any;
-    const access = await ensureCharacterAccess(characterId, id, role);
-    if (access.error === 'not_found') return reply.status(404).send({ error: 'Character not found' });
-    if (access.error === 'forbidden') return reply.status(403).send({ error: 'Forbidden' });
+    const access = await ensureCharacterAccess(characterId, id, role, tx);
+    if (access.error === 'not_found') return mutationResponse(404, { error: 'Character not found' });
+    if (access.error === 'forbidden') return mutationResponse(403, { error: 'Forbidden' });
 
-    const existing = await prisma.armyUnit.findFirst({ where: { id: unitId, characterId } });
-    if (!existing) return reply.status(404).send({ error: 'Army Unit not found' });
+    const existing = await tx.armyUnit.findFirst({ where: { id: unitId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Army Unit not found' });
 
-    await prisma.armyUnit.delete({ where: { id: unitId } });
-    return reply.send({ message: 'Army Unit deleted' });
-  });
+    await tx.armyUnit.delete({ where: { id: unitId } });
+    return mutationResponse(200, { message: 'Army Unit deleted' });
+  }));
 }
 

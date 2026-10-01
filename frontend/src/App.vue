@@ -1,25 +1,27 @@
 <template>
   <div class="min-h-screen bg-dark-bg">
     <a href="#main-content" class="skip-link">Ir para o conteúdo</a>
-    <nav v-if="authStore.isLoggedIn" class="bg-dark-card border-b border-gold/20 px-4 sm:px-6 py-3 flex flex-wrap gap-3 items-center justify-between">
-      <div class="flex flex-wrap items-center gap-3 sm:gap-6">
-        <router-link to="/dashboard" class="flex items-center gap-3 text-gold font-bold text-xl tracking-wider hover:text-gold-light transition-colors">
-          <span class="font-[Cinzel]">ACKS II</span>
-        </router-link>
-        <router-link to="/campaigns" class="text-steel-light hover:text-white transition-colors text-sm font-medium">
+    <nav v-if="authStore.isLoggedIn" aria-label="Navegação principal" class="app-nav bg-dark-card border-b border-gold/20">
+      <router-link to="/dashboard" class="app-brand text-gold font-bold text-xl tracking-wider hover:text-gold-light transition-colors" aria-label="ACKS II — início">
+        <span class="font-[Cinzel]">ACKS II</span>
+      </router-link>
+      <div class="app-nav-pages">
+        <router-link to="/dashboard" class="app-nav-link">Personagens</router-link>
+        <router-link to="/campaigns" class="app-nav-link">
           Campanhas
         </router-link>
-        <router-link to="/classes" class="text-steel-light hover:text-white text-sm">Classes</router-link>
-        <router-link v-if="authStore.user?.role === 'MASTER'" to="/dashboard/judge" class="text-gold/80 hover:text-gold transition-colors text-sm font-medium flex items-center gap-1">
+        <router-link to="/classes" class="app-nav-link">Classes</router-link>
+        <router-link v-if="authStore.user?.role === 'MASTER'" to="/dashboard/judge" class="app-nav-link app-nav-judge" aria-label="Painel do Mestre">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
-          Painel do Mestre
+          <span class="hidden sm:inline">Painel do Mestre</span><span class="sm:hidden" aria-hidden="true">Mestre</span>
         </router-link>
       </div>
-      <div class="flex min-w-0 max-w-full items-center gap-3">
+      <div class="app-nav-account">
         <!-- Theme Toggle -->
         <button @click="toggleTheme" 
-          class="flex shrink-0 items-center justify-center w-8 h-8 rounded-full border border-steel-dark text-gold hover:text-gold-light hover:border-gold transition-all"
-          :title="isParchmentMode ? 'Mudar para Dark Mode' : 'Mudar para Modo Pergaminho (Claro)'">
+          class="app-theme-button flex shrink-0 items-center justify-center rounded-full border border-steel-dark text-gold hover:text-gold-light hover:border-gold transition-all"
+          :aria-label="isParchmentMode ? 'Usar tema escuro' : 'Usar tema pergaminho'"
+          :title="isParchmentMode ? 'Usar tema escuro' : 'Usar tema pergaminho'">
           <svg v-if="!isParchmentMode" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="5"></circle>
             <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -36,14 +38,14 @@
           </svg>
         </button>
 
-        <span class="min-w-0 break-words text-sm text-steel-light">
-          {{ authStore.user?.username }}
-          <span class="ml-1 px-2 py-0.5 rounded text-xs font-semibold"
+        <span class="app-user text-sm text-steel-light">
+          <span class="app-user-name" :title="authStore.user?.username">{{ authStore.user?.username }}</span>
+          <span class="px-2 py-0.5 rounded text-xs font-semibold"
             :class="authStore.user?.role === 'MASTER' ? 'bg-crimson/30 text-crimson-light' : 'bg-dark-surface text-gold'">
-            {{ authStore.user?.role }}
+            {{ authStore.user?.role === 'MASTER' ? 'Mestre' : 'Jogador' }}
           </span>
         </span>
-        <button @click="handleLogout"
+        <button @click="handleLogout" :disabled="loggingOut"
           class="px-3 py-1.5 bg-crimson/20 text-crimson-light rounded hover:bg-crimson/40 transition-colors text-sm">
           Sair
         </button>
@@ -55,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useAuthStore } from './stores/auth'
 import { useRouter } from 'vue-router'
 import AppToastStack from './components/AppToastStack.vue'
@@ -64,30 +66,36 @@ import { notifyError } from './utils/toast'
 const authStore = useAuthStore()
 const router = useRouter()
 const isParchmentMode = ref(false)
+const loggingOut = ref(false)
+
+function applyTheme(value: string | null) {
+  isParchmentMode.value = value === 'parchment'
+  document.body.classList.toggle('theme-parchment', isParchmentMode.value)
+}
+
+function synchronizeTheme(event: StorageEvent) {
+  if (event.key === 'theme') applyTheme(event.newValue)
+}
 
 onMounted(() => {
-  const savedTheme = localStorage.getItem('theme')
-  if (savedTheme === 'parchment') {
-    isParchmentMode.value = true
-    document.body.classList.add('theme-parchment')
-  }
+  try { applyTheme(localStorage.getItem('theme')) } catch { applyTheme(null) }
+  window.addEventListener('storage', synchronizeTheme)
 })
+onBeforeUnmount(() => window.removeEventListener('storage', synchronizeTheme))
 
 function toggleTheme() {
-  isParchmentMode.value = !isParchmentMode.value
-  if (isParchmentMode.value) {
-    document.body.classList.add('theme-parchment')
-    localStorage.setItem('theme', 'parchment')
-  } else {
-    document.body.classList.remove('theme-parchment')
-    localStorage.setItem('theme', 'dark')
-  }
+  const nextTheme = isParchmentMode.value ? 'dark' : 'parchment'
+  applyTheme(nextTheme)
+  try { localStorage.setItem('theme', nextTheme) } catch { /* Theme remains usable when storage is unavailable. */ }
 }
 
 async function handleLogout() {
+  if (loggingOut.value) return
+  loggingOut.value = true
   try {
     await authStore.logout()
     router.push('/login')
   } catch { notifyError('Não foi possível encerrar a sessão no servidor. Tente novamente.') }
+  finally { loggingOut.value = false }
 }
 </script>

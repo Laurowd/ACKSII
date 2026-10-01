@@ -1,3 +1,4 @@
+import { mutateCharacter } from '../support/characterMutations'
 // Complemento de API: valida persistência e autorização de cada recurso da ficha.
 const resources = [
   ['weapons', 'weapon', 'weapons', { name: 'Axe', damage: '1d6' }, { name: 'Updated axe' }, 201],
@@ -21,14 +22,14 @@ describe('Recursos da ficha e permissões (API)', () => {
   for (const [route, key, relation, create, update, status] of resources) {
     it(`cria, edita, lê e exclui ${route}; impede edição por outro jogador`, function () {
       const base = `/characters/${this.character.id}/${route}`
-      cy.api(this.account, 'POST', base, create, status).then(body => {
+      mutateCharacter(this.account, 'POST', base, create, status).then(body => {
         const path = `${base}/${body[key].id}`
-        cy.api(this.stranger, 'PUT', path, update, 403)
-        cy.api(this.stranger, 'DELETE', path, undefined, 403)
-        cy.api(this.account, 'PUT', path, update).its(key).should('include', update)
+        cy.api(this.stranger, 'PUT', path, {...update,version:0}, 403)
+        cy.api(this.stranger, 'DELETE', path, {version:0}, 403)
+        mutateCharacter(this.account, 'PUT', path, update).its(key).should('include', update)
         cy.api(this.account, 'GET', `/characters/${this.character.id}`).its(`character.${relation}`)
           .should('have.length.greaterThan', 0).then(rows => expect(rows.find(row => row.id === body[key].id)).to.include(update))
-        cy.api(this.account, 'DELETE', path)
+        mutateCharacter(this.account, 'DELETE', path)
         cy.api(this.account, 'GET', `/characters/${this.character.id}`).its(`character.${relation}`)
           .then(rows => expect(rows.some(row => row.id === body[key].id)).to.eq(false))
       })
@@ -42,7 +43,7 @@ describe('Recursos da ficha e permissões (API)', () => {
   })
   it('rejeita compra sem dinheiro e mantém inventário e moedas', function () {
     cy.api(this.account, 'PUT', `/characters/${this.character.id}`, { version: 0, coinGP: 0 })
-    cy.api(this.account, 'POST', `/characters/${this.character.id}/shop/purchase`, { entryId: 'i-horse-riding' }, 409)
+    mutateCharacter(this.account, 'POST', `/characters/${this.character.id}/shop/purchase`, { entryId: 'i-horse-riding' }, 409)
     cy.api(this.account, 'GET', `/characters/${this.character.id}`).its('character').then(c => {
       expect(c.coinGP).to.eq(0)
       expect(c.items).to.have.length(0)

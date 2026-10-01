@@ -27,7 +27,7 @@ const routes = [
     path: '/dashboard/judge',
     name: 'JudgeDashboard',
     component: () => import('../pages/JudgeDashboardPage.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresMaster: true },
   },
   {
     path: '/campaigns',
@@ -80,6 +80,8 @@ router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore()
   if (to.meta.requiresAuth && !authStore.isLoggedIn) {
     next('/login')
+  } else if (to.meta.requiresMaster && !authStore.isMaster) {
+    next('/dashboard')
   } else if ((to.name === 'Login' || to.name === 'Register') && authStore.isLoggedIn) {
     next('/dashboard')
   } else {

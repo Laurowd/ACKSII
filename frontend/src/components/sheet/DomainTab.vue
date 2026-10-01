@@ -247,15 +247,16 @@ export default { name: 'DomainTab' }
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import api from '../../services/api'
+import { useCharacterRelations } from '../../composables/characterRelations'
+import { mergeUnchangedDraft } from '../../composables/characterOperations'
 import HelpTooltip from '../HelpTooltip.vue'
-import { notifyError } from '../../utils/toast'
-import { errorMessage } from '../../utils/catalog'
 
 const props = defineProps<{
   character: any
 }>()
 
 const emit = defineEmits(['save'])
+const relations = useCharacterRelations(() => props.character)
 
 const domain = ref<any>({
   strongholdName: '',
@@ -314,67 +315,48 @@ const netProfit = computed(() => {
 })
 
 async function saveDomain() {
-  domain.value.landRevenue = calculatedLandRevenue.value // Save the calculated value to DB for legacy/API
-  try {
-    const res = await api.put(`/api/characters/${props.character.id}/domain`, domain.value)
-    props.character.domain = res.data.domain
-  } catch(e) {
-    notifyError(errorMessage(e, 'Não foi possível salvar o domínio. Tente novamente.'))
-  }
+  domain.value.landRevenue = calculatedLandRevenue.value
+  const { id, characterId, createdAt, updatedAt, ...editable } = domain.value
+  const sent = JSON.parse(JSON.stringify(editable))
+  // Keep the local domain draft in the sheet too, including after changing tabs.
+  props.character.domain = { ...domain.value }
+  await relations.run('domain:update', (version) => api.put(`/api/characters/${props.character.id}/domain`, { ...sent, version }), (data) => {
+    mergeUnchangedDraft(domain.value, sent, data.domain)
+    mergeUnchangedDraft(props.character.domain, sent, data.domain)
+  }, { retainDraft: true })
 }
 
 async function addHenchman() {
-  try {
-    const res = await api.post(`/api/characters/${props.character.id}/henchmen`, {})
-    if(!props.character.henchmen) props.character.henchmen = []
-    props.character.henchmen.push(res.data.henchman)
-  } catch(e) {
-    notifyError(errorMessage(e, 'Não foi possível adicionar o seguidor.'))
-  }
+  await relations.add('henchmen', 'henchmen', 'henchman')
 }
 
 async function saveHenchman(h: any) {
-  try {
-    await api.put(`/api/characters/${props.character.id}/henchmen/${h.id}`, h)
-  } catch(e) {
-    notifyError(errorMessage(e, 'Não foi possível salvar o seguidor. Tente novamente.'))
-  }
+  await relations.update('henchmen', h, {
+    name: h.name, className: h.className, subclass: h.subclass, roleType: h.roleType,
+    level: h.level, morale: h.morale, loyalty: h.loyalty, wage: h.wage,
+    capacity: h.capacity, explorationImpact: h.explorationImpact, warImpact: h.warImpact,
+    domainImpact: h.domainImpact, treasureShare: h.treasureShare, notes: h.notes,
+  }, 'henchman')
 }
 
 async function removeHenchman(id: string) {
-  try {
-    await api.delete(`/api/characters/${props.character.id}/henchmen/${id}`)
-    props.character.henchmen = props.character.henchmen.filter((h: any) => h.id !== id)
-  } catch(e) {
-    notifyError(errorMessage(e, 'Não foi possível remover o seguidor.'))
-  }
+  await relations.remove('henchmen', 'henchmen', id)
 }
 
 async function addArmyUnit() {
-  try {
-    const res = await api.post(`/api/characters/${props.character.id}/armyUnits`, {})
-    if(!props.character.armyUnits) props.character.armyUnits = []
-    props.character.armyUnits.push(res.data.unit)
-  } catch(e) {
-    notifyError(errorMessage(e, 'Não foi possível adicionar a unidade militar.'))
-  }
+  await relations.add('armyUnits', 'armyUnits', 'unit')
 }
 
 async function saveArmyUnit(u: any) {
-  try {
-    await api.put(`/api/characters/${props.character.id}/armyUnits/${u.id}`, u)
-  } catch(e) {
-    notifyError(errorMessage(e, 'Não foi possível salvar a unidade militar. Tente novamente.'))
-  }
+  await relations.update('armyUnits', u, {
+    name: u.name, troopType: u.troopType, ac: u.ac, damage: u.damage,
+    movement: u.movement, morale: u.morale, hp: u.hp,
+    monthlyCostGp: u.monthlyCostGp, equipment: u.equipment, notes: u.notes,
+  }, 'unit')
 }
 
 async function removeArmyUnit(id: string) {
-  try {
-    await api.delete(`/api/characters/${props.character.id}/armyUnits/${id}`)
-    props.character.armyUnits = props.character.armyUnits.filter((u: any) => u.id !== id)
-  } catch(e) {
-    notifyError(errorMessage(e, 'Não foi possível remover a unidade militar.'))
-  }
+  await relations.remove('armyUnits', 'armyUnits', id)
 }
 
 </script>

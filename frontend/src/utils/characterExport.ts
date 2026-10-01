@@ -1,15 +1,23 @@
 import type { CatalogClass } from './catalog'
+import { calculateCharacterMetrics } from './characterMetrics'
 
-const privateFields = new Set(['id', 'userId', 'campaignId', 'characterId', 'createdAt', 'updatedAt', 'user', 'auditLogs'])
+const privateFields = new Set(['id', 'userId', 'campaignId', 'characterId', 'createdAt', 'updatedAt', 'user', 'auditLogs', 'version'])
 function portable(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(portable)
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).filter(([key]) => !privateFields.has(key)).map(([key, child]) => [key, portable(child)]))
   return value
 }
 
-export function characterExport(character: Record<string, unknown>, definition?: CatalogClass) {
+export function characterExport(character: Record<string, unknown>, definition?: CatalogClass, automaticProgression = true) {
+  const metrics = calculateCharacterMetrics(character, definition)
+  if (!automaticProgression) metrics.xpNext = Number(character.xpNext) || 0
+  const { armorClass: ac, encumbrance: movement } = metrics
+  const current = { ...character, xpNext: automaticProgression ? metrics.xpNext : character.xpNext,
+    acNoArmor: ac.noArmor, acNoShield: ac.noShield, acWithShield: ac.withShield,
+    initiative: metrics.initiative, moveExploration: movement.moveExploration, moveCombat: movement.moveCombat,
+    moveCharge: movement.moveCharge, moveExpedition: movement.moveExpedition, moveStealth: movement.moveStealth }
   return { format: 'acks-ii-character', version: 1, exportedAt: new Date().toISOString(),
-    classDefinition: definition ? portable(definition) : null, character: portable(character) }
+    classDefinition: definition ? portable(definition) : null, character: portable(current), computed: metrics }
 }
 
 const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
@@ -26,13 +34,16 @@ const labels: Record<string, string> = {
   acNoArmor: 'CA sem armadura', acNoShield: 'CA sem escudo', acWithShield: 'CA com escudo', armorName: 'Armadura', armorWeight: 'Peso da armadura', armorAcBonus: 'Bônus da armadura',
   saveDeath: 'Morte', saveParalysis: 'Paralisia', saveBlast: 'Explosão', saveImplements: 'Implementos', saveSpells: 'Magias',
   initiative: 'Iniciativa', healingRate: 'Recuperação', mortalWounds: 'Ferimentos mortais', cleaves: 'Trespasses',
+  moveExploration: 'Exploração (pés/turno)', moveCombat: 'Combate (pés/rodada)', moveCharge: 'Carga (pés/rodada)', moveExpedition: 'Expedição (milhas/dia)', moveStealth: 'Furtividade (pés/rodada)',
   coinPP: 'Platina', coinGP: 'Ouro', coinEP: 'Electro', coinSP: 'Prata', coinCP: 'Cobre', gemsJewelry: 'Gemas e joias',
   isSpellcaster: 'Usa magia', spellbook: 'Grimório', learnedSpells: 'Magias aprendidas', researchQueue: 'Fila de pesquisa',
   attackThrow: 'Jogada de ataque', damage: 'Dano', range: 'Alcance', throwTarget: 'Valor alvo',
 }
 
-export function characterPrintHtml(character: Record<string, unknown>, definition?: CatalogClass) {
-  const clean = portable(character) as Record<string, unknown>
+export function characterPrintHtml(character: Record<string, unknown>, definition?: CatalogClass, automaticProgression = true) {
+  const exported = characterExport(character, definition, automaticProgression)
+  const clean = exported.character as Record<string, unknown>
+  clean.healingRate = exported.computed.healingRate
   delete clean.classKey
   const display = (value: unknown): string => {
     if (typeof value === 'boolean') return value ? 'Sim' : 'Não'
@@ -46,6 +57,7 @@ export function characterPrintHtml(character: Record<string, unknown>, definitio
     ['Atributos', ['str', 'int', 'dex', 'wil', 'con', 'cha']],
     ['Combate e experiência', ['hpCurr', 'hpMax', 'hitDice', 'xp', 'xpNext', 'acNoArmor', 'acNoShield', 'acWithShield', 'armorName', 'armorAcBonus', 'armorWeight', 'initiative', 'healingRate', 'cleaves']],
     ['Salvamentos', ['saveDeath', 'saveParalysis', 'saveBlast', 'saveImplements', 'saveSpells']],
+    ['Movimento', ['moveExploration', 'moveCombat', 'moveCharge', 'moveExpedition', 'moveStealth']],
     ['Tesouro', ['coinPP', 'coinGP', 'coinEP', 'coinSP', 'coinCP', 'gemsJewelry']],
   ]
   const grouped = new Set(groups.flatMap(([, keys]) => keys))

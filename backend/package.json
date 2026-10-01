@@ -10,7 +10,7 @@
     "test": "vitest run",
     "prisma:migrate": "npx prisma migrate dev",
     "prisma:generate": "npx prisma generate",
-    "test:integration": "node --test tests/integration.cjs"
+    "test:integration": "node --test --test-concurrency=1 tests/integration.cjs tests/relations-concurrency.cjs tests/import-session.cjs tests/session-xp.cjs"
   },
   "keywords": [],
   "author": "",

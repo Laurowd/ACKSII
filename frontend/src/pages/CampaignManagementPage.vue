@@ -9,11 +9,16 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
       <div class="bg-dark-card border border-gold/20 p-6 rounded-xl md:col-span-2">
+        <p v-if="loadingSettings" role="status" class="text-sm text-steel py-2">Carregando configurações da campanha…</p>
+        <div v-if="settingsError" role="alert" class="text-sm text-red-400 mb-3">
+          <p>{{ settingsError }}</p><button @click="loadSettings" :disabled="loadingSettings" class="underline mt-2">Tentar carregar configurações novamente</button>
+        </div>
+        <fieldset v-if="settingsLoaded" :disabled="!!settingsError || loadingSettings || savingSettings || advancingCalendar" class="min-w-0" :aria-busy="savingSettings || advancingCalendar">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-4 border-b border-steel-dark pb-2">
           <h2 class="text-xl font-bold text-gold">Regras Opcionais e Calendário</h2>
           <button @click="saveSettings" class="text-sm px-3 py-1 bg-gold text-dark-bg font-bold rounded w-full sm:w-auto">Salvar Configurações</button>
         </div>
-        <div v-if="settingsStatus" class="text-xs text-steel-light mb-3">
+        <div v-if="settingsStatus" role="status" class="text-xs text-steel-light mb-3">
           {{ settingsStatus }}
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -41,14 +46,20 @@
               </div>
             </div>
             <div class="flex flex-col sm:flex-row gap-2">
-              <button @click="advanceCalendar('week')" class="px-3 py-1 bg-steel-dark text-gold rounded text-sm hover:bg-steel-dark/70 w-full sm:w-auto">Avançar Semana</button>
-              <button @click="advanceCalendar('month')" class="px-3 py-1 bg-steel-dark text-gold rounded text-sm hover:bg-steel-dark/70 w-full sm:w-auto">Avançar Mês</button>
+              <button @click="advanceCalendar('week')" :disabled="loadingEconomy || savingEconomy || loadingActivities || addingActivity || !!resolvingActivity" class="px-3 py-1 bg-steel-dark text-gold rounded text-sm hover:bg-steel-dark/70 w-full sm:w-auto">Avançar Semana</button>
+              <button @click="advanceCalendar('month')" :disabled="loadingEconomy || savingEconomy || loadingActivities || addingActivity || !!resolvingActivity" class="px-3 py-1 bg-steel-dark text-gold rounded text-sm hover:bg-steel-dark/70 w-full sm:w-auto">Avançar Mês</button>
             </div>
           </div>
         </div>
+        </fieldset>
       </div>
 
       <div v-if="isRuleEnabled('enableDomainEconomy')" class="bg-dark-card border border-gold/20 p-6 rounded-xl md:col-span-2">
+        <p v-if="loadingEconomy" role="status" class="text-sm text-steel py-2">Carregando economia da campanha…</p>
+        <div v-if="economyError" role="alert" class="text-sm text-red-400 mb-3">
+          <p>{{ economyError }}</p><button @click="loadEconomy" :disabled="loadingEconomy || savingEconomy || advancingCalendar" class="underline mt-2">Tentar carregar economia novamente</button>
+        </div>
+        <fieldset v-if="economyLoaded" :disabled="!!economyError || loadingEconomy || savingEconomy || advancingCalendar" class="min-w-0" :aria-busy="loadingEconomy || savingEconomy">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-4 border-b border-steel-dark pb-2">
           <h2 class="text-xl font-bold text-gold">Ciclo Econômico Consolidado</h2>
           <button @click="refreshEconomy" class="text-sm px-3 py-1 bg-gold text-dark-bg font-bold rounded w-full sm:w-auto">Recalcular</button>
@@ -90,6 +101,7 @@
         <div class="mt-3 flex justify-end">
           <button @click="saveEconomy" class="text-sm px-3 py-1 bg-gold text-dark-bg font-bold rounded w-full sm:w-auto">Salvar Economia</button>
         </div>
+        </fieldset>
       </div>
 
       <div v-else class="bg-dark-card border border-gold/20 p-6 rounded-xl md:col-span-2">
@@ -100,13 +112,14 @@
       <!-- Membros Atuais -->
       <div class="bg-dark-card border border-gold/20 p-6 rounded-xl">
         <h2 class="text-xl font-bold text-gold mb-4 border-b border-steel-dark pb-2">Membros da Campanha</h2>
-        <div v-if="loadingMembers" class="text-steel text-sm py-2">Carregando membros...</div>
+        <div v-if="loadingMembers" role="status" class="text-steel text-sm py-2">Carregando membros...</div>
+        <div v-else-if="membersError" role="alert" class="text-red-400 text-sm py-2"><p>{{ membersError }}</p><button @click="loadMembers" class="underline mt-2">Tentar carregar membros novamente</button></div>
         <div v-else-if="members.length === 0" class="text-steel text-sm py-2">Nenhum membro ativo.</div>
         <div v-else class="space-y-3">
           <div v-for="m in members" :key="m.id" class="flex items-center justify-between bg-dark-bg p-3 rounded border border-steel-dark/50">
             <span class="text-steel-light font-medium">{{ m.user.username }} <span v-if="m.userId === authStore.user?.id" class="text-[10px] text-gold ml-1">(Você)</span></span>
             <div class="flex gap-2">
-              <button v-if="m.userId !== authStore.user?.id" @click="kickMember(m.userId)" class="px-3 py-1 bg-red-900/30 text-red-500 border border-red-800 rounded hover:bg-red-900/50 text-sm">
+              <button v-if="m.userId !== authStore.user?.id" @click="kickMember(m.userId)" :disabled="!!kickingMember" class="px-3 py-1 bg-red-900/30 text-red-500 border border-red-800 rounded hover:bg-red-900/50 text-sm">
                 Expulsar
               </button>
             </div>
@@ -117,16 +130,17 @@
       <!-- Convites Pendentes -->
       <div class="bg-dark-card border border-gold/20 p-6 rounded-xl">
         <h2 class="text-xl font-bold text-gold mb-4 border-b border-steel-dark pb-2">Convites Pendentes</h2>
-        <div v-if="loadingInvites" class="text-steel text-sm py-2">Carregando convites...</div>
+        <div v-if="loadingInvites" role="status" class="text-steel text-sm py-2">Carregando convites...</div>
+        <div v-else-if="invitesError" role="alert" class="text-red-400 text-sm py-2"><p>{{ invitesError }}</p><button @click="loadInvites" class="underline mt-2">Tentar carregar convites novamente</button></div>
         <div v-else-if="invites.length === 0" class="text-steel text-sm py-2">Nenhum convite pendente.</div>
         <div v-else class="space-y-3">
           <div v-for="inv in invites" :key="inv.id" class="flex items-center justify-between bg-dark-bg p-3 rounded border border-steel-dark/50">
             <span class="text-steel-light font-medium">{{ inv.user.username }}</span>
             <div class="flex gap-2">
-              <button @click="resolveInvite(inv.userId, 'ACCEPTED')" class="px-3 py-1 bg-green-900/30 text-green-400 border border-green-800 rounded hover:bg-green-900/50 text-sm">
+              <button @click="resolveInvite(inv.userId, 'ACCEPTED')" :disabled="!!resolvingInvite" class="px-3 py-1 bg-green-900/30 text-green-400 border border-green-800 rounded hover:bg-green-900/50 text-sm">
                 Aceitar
               </button>
-              <button @click="resolveInvite(inv.userId, 'REJECTED')" class="px-3 py-1 bg-red-900/30 text-red-500 border border-red-800 rounded hover:bg-red-900/50 text-sm">
+              <button @click="resolveInvite(inv.userId, 'REJECTED')" :disabled="!!resolvingInvite" class="px-3 py-1 bg-red-900/30 text-red-500 border border-red-800 rounded hover:bg-red-900/50 text-sm">
                 Recusar
               </button>
             </div>
@@ -135,6 +149,11 @@
       </div>
 
       <div v-if="isRuleEnabled('enableActivityQueue')" class="bg-dark-card border border-gold/20 p-6 rounded-xl md:col-span-2">
+        <p v-if="loadingActivities" role="status" class="text-sm text-steel py-2">Carregando atividades da campanha…</p>
+        <div v-if="activitiesError" role="alert" class="text-sm text-red-400 mb-3">
+          <p>{{ activitiesError }}</p><button @click="loadActivities" :disabled="loadingActivities || addingActivity || !!resolvingActivity || advancingCalendar" class="underline mt-2">Tentar carregar atividades novamente</button>
+        </div>
+        <fieldset v-if="activitiesLoaded" :disabled="!!activitiesError || loadingActivities || addingActivity || !!resolvingActivity || advancingCalendar" class="min-w-0" :aria-busy="addingActivity || !!resolvingActivity">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-4 border-b border-steel-dark pb-2">
           <h2 class="text-xl font-bold text-gold">Encargos e Fila de Atividades</h2>
           <button @click="addActivity" class="text-sm px-3 py-1 bg-gold text-dark-bg font-bold rounded w-full sm:w-auto">+ Atividade</button>
@@ -162,10 +181,11 @@
               <div class="text-xs text-steel">{{ act.details }}</div>
             </div>
             <div class="flex gap-2">
-              <button @click="resolveActivity(act.id)" class="px-3 py-1 bg-steel-dark text-gold rounded text-sm hover:bg-steel-dark/70">Resolver Semana</button>
+              <button v-if="act.status !== 'COMPLETED'" @click="resolveActivity(act.id)" class="px-3 py-1 bg-steel-dark text-gold rounded text-sm hover:bg-steel-dark/70">Resolver Semana</button>
             </div>
           </div>
         </div>
+        </fieldset>
       </div>
 
       <div v-else class="bg-dark-card border border-gold/20 p-6 rounded-xl md:col-span-2">
@@ -289,6 +309,7 @@
 
       <!-- Class List -->
       <div v-if="loadingClasses" class="text-steel py-2">Carregando classes...</div>
+      <div v-else-if="classesLoadError" role="alert" class="text-red-400 text-sm py-2"><p>{{ classesLoadError }}</p><button @click="loadClasses" class="underline mt-2">Tentar carregar classes novamente</button></div>
       <div v-else-if="customClasses.length === 0" class="text-steel py-2">Nenhuma classe homebrew criada.</div>
       <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div v-for="c in customClasses" :key="c.id" class="border border-steel-dark/50 rounded-lg p-4 bg-dark-bg relative group flex justify-between items-start">
@@ -322,12 +343,17 @@ const authStore = useAuthStore()
 
 const invites = ref<any[]>([])
 const loadingInvites = ref(true)
+const invitesError = ref('')
+const resolvingInvite = ref<string | null>(null)
 
 const members = ref<any[]>([])
 const loadingMembers = ref(true)
+const membersError = ref('')
+const kickingMember = ref<string | null>(null)
 
 const customClasses = ref<any[]>([])
 const loadingClasses = ref(true)
+const classesLoadError = ref('')
 const catalogClasses = ref<CatalogClass[]>([])
 const baseToCopy = ref('')
 const classError = ref('')
@@ -342,6 +368,11 @@ const settings = ref({
   optionalRules: {} as Record<string, boolean>
 })
 const settingsStatus = ref('')
+const settingsLoaded = ref(false), loadingSettings = ref(false), settingsError = ref('')
+const savingSettings = ref(false), advancingCalendar = ref(false)
+const economyLoaded = ref(false), loadingEconomy = ref(false), economyError = ref(''), savingEconomy = ref(false)
+const activitiesLoaded = ref(false), loadingActivities = ref(false), activitiesError = ref('')
+const addingActivity = ref(false), resolvingActivity = ref<string | null>(null)
 
 const optionalRuleOptions = [
   { key: 'enableDomainEconomy', label: 'Ciclo econômico de domínio/fortaleza' },
@@ -501,6 +532,9 @@ function isRuleEnabled(key: string) {
 }
 
 async function loadSettings() {
+  if (loadingSettings.value) return false
+  loadingSettings.value = true
+  settingsError.value = ''
   try {
     const res = await api.get(`/api/campaigns/${campaignId}/settings`)
     settings.value = {
@@ -512,24 +546,32 @@ async function loadSettings() {
         ...(res.data.optionalRules || {})
       }
     }
+    settingsLoaded.value = true
+    return true
   } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível carregar as configurações da campanha.'))
-  }
+    settingsError.value = errorMessage(e, 'Não foi possível carregar as configurações da campanha.')
+    return false
+  } finally { loadingSettings.value = false }
 }
 
 async function saveSettings() {
+  if (!settingsLoaded.value || settingsError.value || loadingSettings.value || savingSettings.value || advancingCalendar.value) return false
+  savingSettings.value = true
+  settingsStatus.value = ''
   try {
     await api.put(`/api/campaigns/${campaignId}/settings`, settings.value)
-    settingsStatus.value = 'Configuracoes salvas.'
-    notifySuccess('Configuracoes atualizadas com sucesso.')
+    settingsStatus.value = 'Configurações salvas.'
+    notifySuccess('Configurações atualizadas com sucesso.')
     setTimeout(() => {
       settingsStatus.value = ''
     }, 2000)
+    return true
   } catch (e) {
     const message = errorMessage(e, 'Não foi possível salvar as configurações.')
     settingsStatus.value = message
     notifyError(message)
-  }
+    return false
+  } finally { savingSettings.value = false }
 }
 
 async function onRuleToggle() {
@@ -537,20 +579,24 @@ async function onRuleToggle() {
 }
 
 async function advanceCalendar(mode: 'week' | 'month') {
+  if (!settingsLoaded.value || settingsError.value || loadingSettings.value || savingSettings.value || advancingCalendar.value || loadingEconomy.value || savingEconomy.value || loadingActivities.value || addingActivity.value || resolvingActivity.value) return
+  advancingCalendar.value = true
   try {
     const res = await api.post(`/api/campaigns/${campaignId}/calendar/advance`, { mode })
     settings.value.currentYear = res.data.currentYear
     settings.value.currentMonth = res.data.currentMonth
     settings.value.currentWeek = res.data.currentWeek
-    await loadActivities()
-    await loadEconomy()
-    notifyInfo(`Calendario avancado (${mode === 'week' ? 'semana' : 'mes'}).`)
+    await Promise.all([loadActivities(), loadEconomy()])
+    notifyInfo(`Calendário avançado (${mode === 'week' ? 'semana' : 'mês'}).`)
   } catch (e) {
     notifyError(errorMessage(e, 'Não foi possível avançar o calendário.'))
-  }
+  } finally { advancingCalendar.value = false }
 }
 
 async function loadEconomy() {
+  if (loadingEconomy.value) return false
+  loadingEconomy.value = true
+  economyError.value = ''
   try {
     const res = await api.get(`/api/campaigns/${campaignId}/economy`)
     economy.value = {
@@ -562,40 +608,54 @@ async function loadEconomy() {
       consolidatedBalance: res.data.consolidatedBalance || 0,
       notes: res.data.notes || ''
     }
+    economyLoaded.value = true
+    return true
   } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível carregar a economia da campanha.'))
-  }
+    economyError.value = errorMessage(e, 'Não foi possível carregar a economia da campanha.')
+    return false
+  } finally { loadingEconomy.value = false }
 }
 
 async function refreshEconomy() {
-  await loadEconomy()
-  notifyInfo('Economia recalculada.')
+  if (savingEconomy.value || advancingCalendar.value) return
+  if (await loadEconomy()) notifyInfo('Economia recalculada.')
 }
 
 async function saveEconomy() {
+  if (!economyLoaded.value || economyError.value || loadingEconomy.value || savingEconomy.value || advancingCalendar.value) return
+  savingEconomy.value = true
   try {
-    await api.put(`/api/campaigns/${campaignId}/economy`, economy.value)
-    await loadEconomy()
-    notifySuccess('Economia salva com sucesso.')
+    const { monthlyEvent, notes, stability, loyalty } = economy.value
+    await api.put(`/api/campaigns/${campaignId}/economy`, { monthlyEvent, notes, stability, loyalty })
+    if (await loadEconomy()) notifySuccess('Economia salva com sucesso.')
+    else notifyInfo('Dados econômicos salvos. Atualize o resumo para consultar os valores atuais.')
   } catch (e) {
     notifyError(errorMessage(e, 'Não foi possível salvar a economia.'))
-  }
+  } finally { savingEconomy.value = false }
 }
 
 async function loadActivities() {
+  if (loadingActivities.value) return false
+  loadingActivities.value = true
+  activitiesError.value = ''
   try {
     const res = await api.get(`/api/campaigns/${campaignId}/activities`)
     activities.value = res.data
+    activitiesLoaded.value = true
+    return true
   } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível carregar as atividades.'))
-  }
+    activitiesError.value = errorMessage(e, 'Não foi possível carregar as atividades.')
+    return false
+  } finally { loadingActivities.value = false }
 }
 
 async function addActivity() {
+  if (!activitiesLoaded.value || activitiesError.value || loadingActivities.value || addingActivity.value || advancingCalendar.value || resolvingActivity.value) return
   if (!newActivity.value.title.trim()) {
     notifyError('Informe um titulo para a atividade.')
     return
   }
+  addingActivity.value = true
   try {
     await api.post(`/api/campaigns/${campaignId}/activities`, newActivity.value)
     newActivity.value = {
@@ -605,59 +665,67 @@ async function addActivity() {
       durationWeeks: 1,
       costGp: 0
     }
-    await loadActivities()
-    notifySuccess('Atividade adicionada na fila.')
+    if (await loadActivities()) notifySuccess('Atividade adicionada na fila.')
+    else notifyInfo('Atividade criada. Atualize a lista para acompanhar a fila.')
   } catch (e) {
     notifyError(errorMessage(e, 'Não foi possível adicionar a atividade.'))
-  }
+  } finally { addingActivity.value = false }
 }
 
 async function resolveActivity(activityId: string) {
+  if (!activitiesLoaded.value || activitiesError.value || loadingActivities.value || resolvingActivity.value || addingActivity.value || advancingCalendar.value) return
+  resolvingActivity.value = activityId
   try {
     await api.post(`/api/campaigns/${campaignId}/activities/${activityId}/resolve`, {})
-    await loadActivities()
-    notifyInfo('Atividade avancada em 1 semana.')
+    if (await loadActivities()) notifyInfo('Atividade avançada em 1 semana.')
+    else notifyInfo('Semana registrada. Atualize a lista para consultar o progresso.')
   } catch (e) {
     notifyError(errorMessage(e, 'Não foi possível avançar a atividade.'))
-  }
+  } finally { resolvingActivity.value = null }
 }
 
 async function loadMembers() {
   loadingMembers.value = true
+  membersError.value = ''
   try {
     const res = await api.get(`/api/campaigns/${campaignId}/members`)
     members.value = res.data
   } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível carregar os membros.'))
+    membersError.value = errorMessage(e, 'Não foi possível carregar os membros.')
   } finally {
     loadingMembers.value = false
   }
 }
 
 async function kickMember(userId: string) {
+  if (kickingMember.value || loadingMembers.value) return
   if (!confirm('Tem certeza que deseja expulsar este jogador?')) return
+  kickingMember.value = userId
   try {
     await api.delete(`/api/campaigns/${campaignId}/members/${userId}`)
     await loadMembers()
     notifySuccess('Membro removido da campanha.')
   } catch (e) {
     notifyError(errorMessage(e, 'Não foi possível remover o membro.'))
-  }
+  } finally { kickingMember.value = null }
 }
 
 async function loadInvites() {
   loadingInvites.value = true
+  invitesError.value = ''
   try {
     const res = await api.get(`/api/campaigns/${campaignId}/invites`)
     invites.value = res.data
   } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível carregar os convites.'))
+    invitesError.value = errorMessage(e, 'Não foi possível carregar os convites.')
   } finally {
     loadingInvites.value = false
   }
 }
 
 async function resolveInvite(userId: string, status: 'ACCEPTED'|'REJECTED') {
+  if (resolvingInvite.value || loadingInvites.value) return
+  resolvingInvite.value = userId
   try {
     await api.put(`/api/campaigns/${campaignId}/invites/${userId}`, { status })
     await loadInvites()
@@ -665,11 +733,12 @@ async function resolveInvite(userId: string, status: 'ACCEPTED'|'REJECTED') {
     notifySuccess(status === 'ACCEPTED' ? 'Convite aceito.' : 'Convite recusado.')
   } catch (e) {
     notifyError(errorMessage(e, 'Não foi possível processar o convite.'))
-  }
+  } finally { resolvingInvite.value = null }
 }
 
 async function loadClasses() {
   loadingClasses.value = true
+  classesLoadError.value = ''
   try {
     const res = await api.get(`/api/classes/${campaignId}`)
     customClasses.value = res.data
@@ -680,7 +749,7 @@ async function loadClasses() {
       copyBaseClass()
     }
   } catch(e) {
-    notifyError(errorMessage(e, 'Não foi possível carregar as classes da campanha.'))
+    classesLoadError.value = errorMessage(e, 'Não foi possível carregar as classes da campanha.')
   } finally {
     loadingClasses.value = false
   }
