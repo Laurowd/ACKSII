@@ -36,7 +36,7 @@ const overview = (c: any, klass: any) => {
   return {supported:true,version:c.version, rules, budget:proficiencyBudget(rules,c.level,c.int),
     issues:[...proficiencyIssues(rules,c,c.proficiencies),...spellIssues(rules,c,c.spells)],
     magic:magicPools(rules,c), used:state.used || {}, lastRestDay:state.lastRestDay ?? null,
-    next:rules.levels[c.level] || null, standardAdventuring:initialAdventuring(c.str,klass.name) }
+    next:rules.levels[c.level] || null, standardAdventuring:initialAdventuring(c.str,klass.id.startsWith('catalog:')?klass.name:'',readState((klass as any).creationRules).ruleProfile) }
 }
 
 export async function gameRulesRoutes(app: FastifyInstance) {

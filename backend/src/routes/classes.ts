@@ -3,6 +3,7 @@ import prisma from '../lib/prisma'
 import { authGuard } from '../middleware/auth'
 import { CLASS_CATALOG, canReadCampaign } from '../lib/classCatalog'
 import { readState } from '../lib/gameRules'
+import { legacyBaseName } from '../lib/legacyClasses'
 
 const integer = { type: 'integer', minimum: -30, maximum: 100 }
 const attributes = ['str', 'int', 'dex', 'wil', 'con', 'cha']
@@ -20,7 +21,7 @@ const bodySchema = {
       minimumAttributes: { type: 'object', additionalProperties: false,
         properties: Object.fromEntries(attributes.map(k => [k, { type: 'integer', minimum: 3, maximum: 18 }])) },
     } },
-    hitDie: { type: 'string', pattern: '^1d(4|6|8|10|12)$' }, conBonus: { type: 'boolean' },
+    hitDie: { type: 'string', pattern: '^1d(2|4|6|8|10|12)$' }, conBonus: { type: 'boolean' },
     xpPerLevel: { type: 'array', minItems: 1, maxItems: 14, items: { type: 'integer', minimum: 0, maximum: 2147483647 } },
     titles: { type: 'array', minItems: 1, maxItems: 14, items: { type: 'string', maxLength: 120 } },
     attackThrows: { type: 'array', minItems: 1, maxItems: 14, items: integer },
@@ -42,13 +43,15 @@ export async function customClassesRoutes(app: FastifyInstance) {
     const { id } = request.user as { id: string }
     if (campaignId && !(await canReadCampaign(campaignId, id))) return reply.code(403).send({ message: 'Sem acesso à campanha.' })
     const custom = campaignId ? await prisma.customClass.findMany({ where: { campaignId }, orderBy: { name: 'asc' } }) : []
-    return [...CLASS_CATALOG, ...custom.map(c => ({ ...c, ...readState(c.creationRules), source: 'campaign' }))]
+    return [...CLASS_CATALOG.map(c => ({ ...c, legacyIds: custom.filter(old => legacyBaseName(old) === c.name).map(old => old.id) })),
+      ...custom.filter(c => !legacyBaseName(c)).map(c => ({ ...c, ...readState(c.creationRules), source: 'campaign' }))]
   })
 
   app.get('/:campaignId', async (request, reply) => {
     const { campaignId } = request.params as { campaignId: string }
     if (!(await canReadCampaign(campaignId, (request.user as { id: string }).id))) return reply.code(403).send({ message: 'Sem acesso à campanha.' })
-    return prisma.customClass.findMany({ where: { campaignId }, orderBy: { name: 'asc' } })
+    const classes = await prisma.customClass.findMany({ where: { campaignId }, orderBy: { name: 'asc' } })
+    return classes.filter(c => !legacyBaseName(c))
   })
 
   for (const method of ['POST', 'PUT'] as const) {

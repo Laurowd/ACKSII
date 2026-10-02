@@ -95,3 +95,13 @@ Rótulos e botões de Domínio/Atividades foram padronizados em português, os c
 As reproduções viraram cenários permanentes em `frontend/e2e/consistency.spec.ts`, `frontend/e2e/interface.spec.ts` e nos testes de integração do backend. Os testes usam banco local descartável; não há migração nova nem alteração de dados no Neon nesta correção.
 
 Validação local: builds de backend/frontend, 69 testes unitários do backend, 74 do frontend, 43 testes de integração e 48 cenários Playwright passaram. O módulo compartilhado também foi carregado pelo servidor de desenvolvimento do Vite. O build Docker do frontend passou a usar o contexto da raiz, com uma lista restrita em `.dockerignore`, para incluir somente o frontend e a tabela de fatores necessária.
+
+## Revisão do catálogo e criação de classes
+
+A revisão seguinte conferiu o capítulo de classes personalizadas do Judge’s Journal, pp. 289–306, e as tabelas relacionadas do Revised Rulebook. O catálogo reconhece as cópias antigas das classes base sem apagar registros e mantém variantes reais. Os IDs antigos continuam utilizáveis nas fichas; classes raciais usam o limite oficial da entrada base.
+
+O botão **Criar classe** voltou ao catálogo. O construtor foi ampliado com trocas de poderes encadeadas, aquisição por nível, magia adiada, código de conduta e repertório religioso, habilidades de ladrão e halflings. Classes personalizadas com o mesmo nome de uma classe oficial não herdam seus poderes por engano. Poderes da classe são compartilhados com a ficha e a impressão; a descrição aparece pela interrogação na interface.
+
+Detalhes, referências e decisões que permanecem com o mestre: [Criação de classes](CRIACAO_CLASSES.md). Não há migração nova nem alteração de dados no Neon.
+
+Validação desta revisão: builds de backend/frontend, 79 testes unitários do backend, 81 do frontend, 46 testes de integração, 51 cenários Playwright e 54 Cypress passaram. Os novos cenários verificam duplicações, referências antigas, criação pela interface, poderes futuros, falhas de carregamento, invalidação de prévias e layout móvel. A cobertura não certifica o equilíbrio dos poderes inventados pelo mestre.

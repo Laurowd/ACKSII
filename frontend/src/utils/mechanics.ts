@@ -58,7 +58,7 @@ export function getMaximumEncumbrance(strengthModifier: number = 0): number {
   return Math.max(0, 20 + modifier);
 }
 
-export function getEncumbranceMovement(totalStone: number, maxCapacity: number = 20): EncumbranceResult {
+export function getEncumbranceMovement(totalStone: number, maxCapacity: number = 20, race = ''): EncumbranceResult {
   const safeTotal = Math.max(0, Number.isFinite(totalStone) ? totalStone : 0);
   const safeCapacity = Math.max(0, Number.isFinite(maxCapacity) ? maxCapacity : 20);
   const shared = {
@@ -73,6 +73,12 @@ export function getEncumbranceMovement(totalStone: number, maxCapacity: number =
       ...shared, category: 'Acima da capacidade',
       moveExploration: 0, moveCombat: 0, moveCharge: 0, moveExpedition: 0, moveStealth: 0, moveClimb: 0,
     };
+  }
+
+  if(race==='halfling') {
+    const index=safeTotal<=3?0:safeTotal<=4.5?1:safeTotal<=6?2:3
+    const speed=[90,60,45,30][index]!
+    return {...shared,category:['Leve','Médio','Pesado','Muito Pesado'][index]!,moveExploration:speed,moveCombat:speed/3,moveCharge:speed,moveExpedition:speed/5,moveStealth:speed/3,moveClimb:speed/3}
   }
 
   // ACKS II encumbrance thresholds (in stone): 0+, >5, >7, >10

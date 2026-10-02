@@ -149,7 +149,7 @@ const purchasesSummary = computed(() => purchaseSummary(startingGold.value, draf
 const budgetRemaining = computed(() => purchasesSummary.value.remainingGp)
 function rollDie(sides:number) { const values=new Uint32Array(1), ceiling=Math.floor(4294967296/sides)*sides; do {crypto.getRandomValues(values)} while(values[0]!>=ceiling);return values[0]!%sides+1 }
 const campaigns = ref<{ id: string; name: string }[]>([]), classes = ref<CatalogClass[]>([])
-const klass = computed(() => classes.value.find(c => c.id === draft.value.classKey))
+const klass = computed(() => classes.value.find(c => c.id === draft.value.classKey || c.legacyIds?.includes(draft.value.classKey)))
 const priorities = ref(['str', 'dex', 'con'])
 const chosenRules = computed(() => creationSettings(klass.value))
 const choicesReviewed = ref(false)
@@ -157,7 +157,7 @@ const magic = computed(() => choiceMagicPools(chosenRules.value.rules, draft.val
 const availableMagic = computed(() => magic.value.filter(pool => pool.slots[0]))
 const proficiencyCheck = computed(() => draft.value.rulesMode === 'standard' && chosenRules.value.rules ? proficiencyValidation(chosenRules.value.rules, draft.value.int, draft.value.proficiencies, metadata.value.generalProficiencies) : { rows: [] as string[], issues: [] as string[], limits: { class: 0, general: 0 } })
 const spellCheck = computed(() => draft.value.rulesMode === 'standard' ? spellValidation(magic.value, draft.value.spells, metadata.value.spells || []) : { rows: [] as string[], issues: [] as string[] })
-function initialSpellOptions(tradition: string): { name: string; level: number; tradition: string }[] { return (metadata.value.spells || []).filter((spell: any) => spell.level === 1 && spell.tradition === tradition) }
+function initialSpellOptions(tradition: string): { name: string; level: number; tradition: string }[] { return (magic.value.find(p=>p.tradition===tradition)?.spellList || metadata.value.spells || []).filter((spell: any) => spell.level === 1 && spell.tradition === tradition) }
 const supportsStandard = computed(() => !!chosenRules.value.rules)
 const catalogAlternative = computed(() => classes.value.find(c => c.source === 'catalog' && c.name === klass.value?.name))
 const requirementErrors = computed(() => {
@@ -165,7 +165,7 @@ const requirementErrors = computed(() => {
   for (const key of chosenRules.value?.keyAttributes ?? []) minimums[key] = Math.max(9, minimums[key] ?? 3)
   return Object.entries(minimums).filter(([k,v]) => Number((draft.value as any)[k]) < v).map(([k,v]) => `${k.toUpperCase()} ≥ ${v}`)
 })
-const subclasses = computed(() => getClassFeats(klass.value?.name || '', 1).availableSubclasses || [])
+const subclasses = computed(() => {const base=klass.value?.source==='catalog'?klass.value:classes.value.find(c=>c.source==='catalog'&&c.id===klass.value?.baseClassKey);return base ? getClassFeats(base.name,1).availableSubclasses || [] : []})
 let loaded = false, dirty = false, created = false, sequence = 0
 watch(draft, () => { if (loaded) dirty = true }, { deep: true })
 watch(() => draft.value.campaignId, () => { draft.value.classKey = ''; void loadClasses() })
@@ -225,7 +225,7 @@ async function next() {
     if (issues.length) { error.value = issues.join(' '); step.value = 2; return }
     const con = klass.value!.conBonus ? getModifier(draft.value.con) : 0
     const racial = Number(chosenRules.value.rules?.levels[0]?.hitDice.match(/\+(\d+)/)?.[1] || 0)
-    const min = Math.max(1, 4 + con) + racial, max = Number(klass.value!.hitDie.slice(2)) + con + racial
+    const min = Math.max(1, 4 + con) + racial, max = Math.max(4, Number(klass.value!.hitDie.slice(2))) + con + racial
     if (draft.value.hpMax < min || draft.value.hpMax > max) { error.value = `PV iniciais devem estar entre ${min} e ${max} para esta classe.`; step.value = 2; return }
   }
   if (step.value >= 2 && (!draft.value.characterName.trim() || draft.value.proficiencies.some(p => !p.name.trim()) || draft.value.spells.some(s => !s.name.trim()))) { error.value = 'Preencha os nomes do personagem e das escolhas adicionadas.'; step.value = 2; return }

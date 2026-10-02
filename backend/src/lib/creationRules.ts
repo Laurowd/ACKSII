@@ -21,10 +21,10 @@ export function creationRules(name: string) {
   return { keyAttributes, minimumAttributes, spellcaster }
 }
 
-export function initialAdventuring(str: number, className = '') {
-  const perceptive = className === 'Explorer' || /^(Dwarven|Elven) /.test(className)
+export function initialAdventuring(str: number, className = '', profile?: {perceptive?:boolean;race?:string}) {
+  const perceptive = profile?.perceptive ?? (className === 'Explorer' || /^(Dwarven|Elven) /.test(className))
   return [
-    { name: 'Dungeonbashing', throwTarget: 18 - 4 * abilityModifier(str) },
+    { name: 'Dungeonbashing', throwTarget: 18 - 4 * abilityModifier(str) + (profile?.race==='halfling'?4:0) },
     { name: 'Climbing', throwTarget: 8 }, { name: 'Searching', throwTarget: perceptive ? 14 : 18 },
     { name: 'Trapbreaking', throwTarget: 18 }, { name: 'Listening', throwTarget: perceptive ? 14 : 18 },
   ].map(p => ({ ...p, category: 'adventuring' }))

@@ -47,9 +47,9 @@ Fontes: Revised Rulebook pp. 340–351 e 388–393. Componentes integram invent�
 
 ## Classes por pontos
 
-**Campanhas → Gerenciar → Construir classe por pontos** calcula cinco categorias, custos/trocas iniciais, XP, salvamentos, ataque, PV, magia, limite racial, orçamento de proficiências e fortaleza elegível. Inclui humanos, anões, elfos, nobiranos e zaharanos. Fontes: Judge’s Journal pp. 289–306; tabelas de magia em `customMagic.json`.
+**Classes → Criar classe**, ou **Campanhas → Gerenciar → Construir classe por pontos**, calcula categorias, custos/trocas, XP, salvamentos, ataque, PV, magia, limite racial, orçamento de proficiências e fortaleza elegível. Inclui humanos, anões, elfos, halflings, nobiranos e zaharanos, magia arcana adiada, troca de afastamento, repertório religioso e poderes adquiridos em níveis futuros. Fontes: Judge’s Journal pp. 289–306; tabelas de magia em `customMagic.json`.
 
-O mestre descreve poderes e define seleções específicas de armas/estilos e benefícios raciais/condicionais. Trocas por níveis futuros, novas raças, variantes de conjuração e poderes de fortaleza não são calculados integralmente. Classes calculadas preservam a definição; **Editar** abre uma cópia manual, que não conserva as automações da construção. O editor livre permanece disponível.
+O mestre descreve poderes e define as armas específicas e benefícios condicionais. As trocas publicadas por níveis futuros podem ser encadeadas; opções não previstas usam o editor livre. Classes calculadas preservam a definição e não permitem sobrescrever suas tabelas pelo editor manual. Consulte [criação de classes](CRIACAO_CLASSES.md) para os cálculos automáticos, decisões do mestre e compatibilidade com cópias antigas.
 
 ## Persistência e atualização
 

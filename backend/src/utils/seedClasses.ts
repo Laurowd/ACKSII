@@ -1,4 +1,4 @@
-const RAW_DEFAULT_CLASSES = [
+export const RAW_DEFAULT_CLASSES = [
   {
     "name": "Fighter",
     "hitDie": "1d8",

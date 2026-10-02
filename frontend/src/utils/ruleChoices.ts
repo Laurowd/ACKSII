@@ -2,7 +2,7 @@ import { getModifier } from './mechanics'
 
 export interface ProficiencyChoice { name: string; category: string }
 export interface SpellChoice { name: string; level: number; tradition: string }
-export interface MagicChoicePool { tradition: string; studious: boolean; slots: number[]; repertoire: (number | null)[] }
+export interface MagicChoicePool { tradition: string; studious: boolean; slots: number[]; repertoire: (number | null)[]; spellList?:SpellChoice[] }
 const normalized = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '')
 export const categoryName = (category: string) => category === 'class' ? 'de classe' : 'geral'
 export const traditionName = (tradition: string) => tradition === 'divine' ? 'divina' : 'arcana'
@@ -43,7 +43,7 @@ export function choiceMagicPools(rules: any, intellect: number, level = 1): Magi
   return kinds.map((tradition, index) => {
     const slots = Array.from({ length: 6 }, (_, i) => row.spellSlots[index * 6 + i] || 0)
     const studious = tradition === 'arcane' || rules.magic === 'studious-divine'
-    return { tradition, studious, slots, repertoire: slots.map(n => !n ? 0 : studious ? n + Math.max(0, getModifier(intellect)) : null) }
+    return { tradition, studious, slots, repertoire: slots.map(n => !n ? 0 : studious ? n + Math.max(0, getModifier(intellect)) : null),...(tradition==='divine'&&rules.divineSpellList?{spellList:rules.divineSpellList}:{}) }
   })
 }
 
@@ -57,6 +57,7 @@ export function spellValidation(pools: MagicChoicePool[], choices: SpellChoice[]
     if (seen.has(key)) return `${spell.name}: repetida no repertório ${traditionName(pool.tradition)}.`
     seen.add(key)
     if (!spells.some(s => normalized(s.name) === normalized(spell.name) && s.level === spell.level && s.tradition === pool.tradition)) return `${spell.name}: escolha uma magia ${traditionName(pool.tradition)} de nível ${spell.level} da lista, ou registre a exceção no modo manual.`
+    if(pool.spellList&&!pool.spellList.some(s=>normalized(s.name)===normalized(spell.name)&&s.level===spell.level))return `${spell.name}: não pertence ao repertório religioso desta classe.`
     return ''
   })
   const issues = rows.filter(Boolean)

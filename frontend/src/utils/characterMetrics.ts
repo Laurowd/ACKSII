@@ -21,7 +21,7 @@ export function calculateCharacterMetrics(character: any = {}, definition?: Cata
     armorClass: { noArmor: base.noArmor + adjustment, noShield: base.noShield + adjustment, withShield: base.withShield + adjustment },
     initiative: classEffects({ ...character, dex }, definition?.ruleProfile).initiative,
     healingRate: calculateHealingRate(),
-    encumbrance: getEncumbranceMovement(weight, getMaximumEncumbrance(getModifier(number(character.str ?? 10, 10)))),
+    encumbrance: getEncumbranceMovement(weight, getMaximumEncumbrance(getModifier(number(character.str ?? 10, 10))) - (definition?.ruleProfile?.race==='halfling'?8:0), definition?.ruleProfile?.race),
     xpNext,
   }
 }

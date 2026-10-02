@@ -58,3 +58,17 @@ test('session custom class profiles match the catalog representation used by the
   const row = response.json().characters.find(c => c.id === added.id);
   assert.equal(row.classDefinition.source, 'campaign'); assert.equal(row.classDefinition.ruleProfile.initiative, 2);
 });
+
+test('session resolves old racial class references to the same canonical rules as the sheet',async()=>{
+  const {RAW_DEFAULT_CLASSES}=require('../dist/utils/seedClasses');
+  const base=RAW_DEFAULT_CLASSES.find(c=>c.name==='Elven Spellsword');
+  const old=await db.customClass.create({data:{campaignId:campaign.id,name:base.name,hitDie:base.hitDie,conBonus:base.conBonus,...Object.fromEntries(['xpPerLevel','titles','attackThrows','savingThrows'].map(key=>[key,JSON.stringify(base[key])]))}});
+  const added=await db.character.create({data:{userId:player.user.id,campaignId:campaign.id,characterName:'Legacy elven caster',className:old.name,classKey:old.id,level:1}});
+  const response=await request(master,'GET','/api/session');assert.equal(response.statusCode,200,response.body);
+  const row=response.json().characters.find(c=>c.id===added.id);
+  assert.equal(row.classDefinition.id,'catalog:elven-spellsword');
+  assert.equal(row.classDefinition.maxLevel,10);
+  assert.equal(row.magic.supported,true);
+  assert.equal(row.magic.pools[0].casterLevel,1);
+  assert.ok(await db.customClass.findUnique({where:{id:old.id}}));
+});

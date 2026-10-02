@@ -199,9 +199,9 @@
     <div class="bg-dark-card border border-gold/20 p-6 rounded-xl">
       <div class="flex items-center justify-between mb-4 border-b border-steel-dark pb-2">
         <h2 class="text-xl font-bold text-gold">Classes da Campanha</h2>
-        <button @click="startBlankClass" class="text-sm px-3 py-1 bg-gold text-dark-bg font-bold rounded">
+        <div class="flex flex-wrap items-center gap-3"><router-link :to="{path:'/classes',query:{campaignId}}" class="text-sm px-3 py-1 bg-gold text-dark-bg font-bold rounded">Criar classe por pontos</router-link><button @click="startBlankClass" class="text-sm text-gold underline">
           + Nova Classe
-        </button>
+        </button></div>
       </div>
 
       <p class="text-sm text-steel-light mb-3">As classes base estão sempre no catálogo. Crie uma classe própria ou copie uma base para personalizar sua progressão. Classes antigas desta campanha foram preservadas.</p>
@@ -993,7 +993,7 @@ const classStep = ref(0), useThiefSkills = ref(false), useRebukingUndead = ref(f
 let templateOpened = false
 function nextClassStep() {
   classError.value = ''
-  if (classStep.value === 0 && (!newClass.value.name.trim() || !/^1d(4|6|8|10|12)$/.test(newClass.value.hitDie))) {
+  if (classStep.value === 0 && (!newClass.value.name.trim() || !/^1d(2|4|6|8|10|12)$/.test(newClass.value.hitDie))) {
     classError.value = 'Preencha o nome e um dado de vida válido (1d4 a 1d12).'; return
   }
   if (classStep.value === 1 && (newClass.value.levels[0]?.xp !== 0 || newClass.value.levels.some((l, i, all) => !Number.isInteger(l.xp) || (i > 0 && l.xp <= all[i - 1]!.xp)))) {

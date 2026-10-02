@@ -304,7 +304,7 @@
       <!-- Classic Powers list -->
       <details v-if="levelFeats.futurePowers?.length" class="p-4 border border-steel-dark rounded">
         <summary class="text-gold cursor-pointer">Poderes de níveis futuros</summary>
-        <p v-for="power in levelFeats.futurePowers" :key="power.name" class="text-sm mt-2">{{ power.name }}</p>
+        <div v-for="(power,i) in levelFeats.futurePowers" :key="i" class="text-sm mt-2 flex items-center gap-2"><HelpTooltip :label="power.name">{{ power.description }}</HelpTooltip><span>{{ power.name }}<span v-if="power.minimumLevel" class="text-steel-light"> · nível {{ power.minimumLevel }}</span></span></div>
       </details>
       <template v-if="levelFeats?.powers?.length > 0">
         <div class="bg-dark-card border border-gold/20 rounded-xl p-5 col-span-1 lg:col-span-2">
@@ -465,9 +465,9 @@ import HelpTooltip from '../HelpTooltip.vue'
 import { classEffects } from '../../utils/classEffects'
 import { getModifier, formatMod, calculateAttackThrow, getWeaponAbilityModifier } from '../../utils/mechanics'
 import { notifyError } from '../../utils/toast'
-import { errorMessage } from '../../utils/catalog'
+import { errorMessage, selectedClass } from '../../utils/catalog'
 import { computed, onMounted, ref } from 'vue'
-import { getClassFeats } from '../../utils/classFeats'
+import { classDefinitionFeats } from '../../utils/classDefinitionFeats'
 const props = defineProps<{
   character: any,
   campaigns: any[],
@@ -550,13 +550,7 @@ async function saveProficiency(p: any) {
 
 
 
-const selectedCustomClass = computed(() => {
-  if (props.character?.classKey) return props.customClasses.find((c: any) => c.id === props.character.classKey) || null
-  const className = String(props.character?.className || '').trim()
-  if (!className) return null
-  const normalized = className.toLowerCase()
-  return props.customClasses.find((c: any) => String(c?.name || '').trim().toLowerCase() === normalized) || null
-})
+const selectedCustomClass = computed(() => selectedClass(props.customClasses, props.character) || null)
 
 
 
@@ -572,8 +566,8 @@ const levelFeats = computed(() => {
 
   const className = props.character.className || ''
   const level = props.character.level || 1
-  const baseFeats = getClassFeats(className, level, props.character.subclass)
   const customClass = selectedCustomClass.value
+  const baseFeats = classDefinitionFeats(customClass || undefined,className,level,props.character.subclass,props.customClasses)
 
   if (customClass) {
     let thiefSkillsData = customClass.thiefSkills
@@ -583,7 +577,7 @@ const levelFeats = computed(() => {
     if (Array.isArray(thiefSkillsData) && thiefSkillsData.length > 0) {
       const row = pickLevelData(thiefSkillsData, level - 1)
       if (row && !Array.isArray(row) && typeof row === 'object') {
-        const fields: Record<string, string> = { openLocks: 'Open Locks', findRemoveTraps: 'Find/Remove Traps', pickPockets: 'Pick Pockets', moveSilently: 'Move Silently', climbWalls: 'Climb Walls', hideInShadows: 'Hide in Shadows', hearNoise: 'Hear Noise' }
+        const fields: Record<string, string> = { openLocks: 'Open Locks', findRemoveTraps: 'Find/Remove Traps', pickPockets: 'Pick Pockets', moveSilently: 'Move Silently', climbWalls: 'Climb Walls', hideInShadows: 'Hide in Shadows', hearNoise: 'Hear Noise', ...Object.fromEntries(['Climbing','Hiding','Listening','Lockpicking','Pickpocketing','Searching','Sneaking','Trapbreaking'].map(name=>[name,name])) }
         baseFeats.levelStats = baseFeats.levelStats.filter(s => s.sectionTitle !== 'Thief Skills')
         baseFeats.levelStats.push({ sectionTitle: 'Habilidades personalizadas', stats: Object.entries(fields).filter(([key]) => row[key] !== undefined).map(([key, label]) => ({ label, value: String(row[key]) })) })
       }
@@ -613,7 +607,7 @@ const levelFeats = computed(() => {
     if (Array.isArray(rebukingUndeadData) && rebukingUndeadData.length > 0) {
       const row = pickLevelData(rebukingUndeadData, level - 1)
       if (row && !Array.isArray(row) && typeof row === 'object') {
-        const fields: Record<string, string> = { skeleton: 'Skeleton', zombie: 'Zombie', ghoul: 'Ghoul', wight: 'Wight', wraith: 'Wraith', mummy: 'Mummy', spectre: 'Spectre', vampire: 'Vampire' }
+        const fields: Record<string, string> = { skeleton: 'Skeleton', zombie: 'Zombie', ghoul: 'Ghoul', wight: 'Wight', wraith: 'Wraith', mummy: 'Mummy', spectre: 'Spectre', vampire: 'Vampire', incarnation:'Incarnation' }
         baseFeats.levelStats = baseFeats.levelStats.filter(s => s.sectionTitle !== 'Rebuking Undead')
         baseFeats.levelStats.push({ sectionTitle: 'Rebuking Undead', stats: Object.entries(fields).filter(([key]) => row[key] !== undefined).map(([key, label]) => ({ label, value: String(row[key]) })) })
       }

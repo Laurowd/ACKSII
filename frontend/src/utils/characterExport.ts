@@ -1,5 +1,6 @@
 import type { CatalogClass } from './catalog'
 import { calculateCharacterMetrics } from './characterMetrics'
+import {classDefinitionFeats} from './classDefinitionFeats'
 
 const privateFields = new Set(['id', 'userId', 'campaignId', 'characterId', 'createdAt', 'updatedAt', 'user', 'auditLogs', 'version'])
 function portable(value: unknown): unknown {
@@ -42,6 +43,7 @@ const labels: Record<string, string> = {
 
 export function characterPrintHtml(character: Record<string, unknown>, definition?: CatalogClass, automaticProgression = true) {
   const exported = characterExport(character, definition, automaticProgression)
+  const powers=definition ? classDefinitionFeats(definition,String(character.className||''),Number(character.level)||1,String(character.subclass||'')).powers : []
   const clean = exported.character as Record<string, unknown>
   clean.healingRate = exported.computed.healingRate
   delete clean.classKey
@@ -72,7 +74,7 @@ export function characterPrintHtml(character: Record<string, unknown>, definitio
   body{font:14px system-ui,sans-serif;color:#222;max-width:960px;margin:24px auto;padding:0 20px}h1,h2{font-family:Georgia,serif}h1{border-bottom:3px solid #9b7b31;padding-bottom:12px}section{margin:14px 0}.core{break-inside:avoid}h2{font-size:16px;margin-bottom:6px;color:#614b1d;break-after:avoid}dl{display:grid;grid-template-columns:minmax(120px,1fr) 3fr;gap:5px 15px}dt{font-weight:bold}dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}li{margin-bottom:8px}button{padding:10px 16px;cursor:pointer}p{white-space:pre-wrap}@media print{button,.hint{display:none}body{margin:0;max-width:none}h2{color:#222}@page{margin:15mm}}
   </style></head><body><button onclick="window.print()">Imprimir / salvar em PDF</button><p class="hint">Use a opção Salvar como PDF na janela de impressão.</p><h1>${escapeHtml(character.characterName || 'Personagem')} — ACKS II</h1>
   ${definition ? `<p>Classe: ${escapeHtml(definition.name)} · ${definition.source === 'catalog' ? 'Catálogo base' : 'Campanha'}</p>` : ''}
-  ${core}${Object.keys(otherScalars).length ? `<section><h2>Outros valores</h2>${display(otherScalars)}</section>` : ''}${details}
+  ${core}${powers.length?`<section><h2>Poderes da classe</h2><ul>${powers.map(p=>`<li><strong>${escapeHtml(p.name)}</strong><p>${escapeHtml(p.description)}</p></li>`).join('')}</ul></section>`:''}${definition?.classFeatures&&definition.classFeatures!==character.classFeatures?`<section><h2>Características e restrições da classe</h2><p>${escapeHtml(definition.classFeatures)}</p></section>`:''}${Object.keys(otherScalars).length ? `<section><h2>Outros valores</h2>${display(otherScalars)}</section>` : ''}${details}
   </body></html>`
 }
 

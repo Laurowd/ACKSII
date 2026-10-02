@@ -65,7 +65,7 @@ export async function characterCreationRoutes(app: FastifyInstance) {
     if (official || rulesFor(klass)) {
       const con = klass.conBonus ? abilityModifier(data.con) : 0
       const racial = Number(rulesFor(klass)?.levels[0]?.hitDice.match(/\+(\d+)/)?.[1] || 0)
-      const max = Number(klass.hitDie.slice(2)) + con + racial
+      const max = Math.max(4, Number(klass.hitDie.slice(2))) + con + racial
       if (data.rulesMode !== 'manual' && (data.hpMax < Math.max(1, 4 + con) + racial || data.hpMax > max)) return reply.code(400).send({ message: `PV iniciais devem estar entre ${Math.max(1, 4 + con) + racial} e ${max} para esta classe (regra padrão).` })
     }
     if (!data.characterName.trim() || data.items?.some(i => !i.name.trim()) || data.proficiencies?.some(p => !p.name.trim())) return reply.code(400).send({ message: 'Preencha os nomes do personagem e das escolhas adicionadas.' })
@@ -99,13 +99,13 @@ export async function characterCreationRoutes(app: FastifyInstance) {
     const character = await prisma.character.create({ data: {
       ...fields, ...coins, userId, campaignId, characterName: data.characterName.trim(),
       rulesState: JSON.stringify({creationMode:rulesMode||'legacy',exceptionReason:exceptionReason||''}),
-      classKey: klass.id, className: klass.name, classFeatures: klass.classFeatures,
+      classKey: klass.id, className: klass.name, classFeatures: rules.build ? '' : klass.classFeatures,
       isSpellcaster: rules.spellcaster ?? data.isSpellcaster ?? false,
       level: 1, xp: 0, hpCurr: data.hpMax, ...progressionFields(klass, 1, data.wil),
       ...(ruleData ? Object.fromEntries(Array.from({length:6},(_,i)=>[`spellSlotsLevel${i+1}`,magicPools(ruleData,data).reduce((sum,p)=>sum+p.slots[i]!,0)])) : {}),
       items: { create: [...(items ?? []).map(i => ({ name: i.name.trim(), quantity: i.quantity, weight: i.weight })),...purchasedItems] },
       weapons:{create:purchasedWeapons}, spells:{create:(spells||[]).map(spell => ({ ...spell, name: spell.name.trim() }))},
-      proficiencies: { create: [...initialAdventuring(data.str, official ? klass.name : ''), ...(proficiencies ?? []).filter(p => p.category !== 'adventuring').map(p => ({ name: p.name.trim(), category: p.category }))] },
+      proficiencies: { create: [...initialAdventuring(data.str, official ? klass.name : '', rules.ruleProfile), ...(proficiencies ?? []).filter(p => p.category !== 'adventuring').map(p => ({ name: p.name.trim(), category: p.category }))] },
     } })
     return reply.code(201).send({ character })
   })

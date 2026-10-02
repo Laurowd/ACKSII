@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest'
-import {RULE_CLASSES,magicPools,advancement,allocateAdventure,monsterXp,proficiencyIssues,spellIssues,proficiencyBudget} from './gameRules'
+import {RULE_CLASSES,magicPools,advancement,allocateAdventure,monsterXp,proficiencyIssues,spellIssues,proficiencyBudget,SPELL_LIST} from './gameRules'
 import {defaultWeaponStyle,weaponCatalogValues} from './equipment'
 import {settleDomainMonth,researchPlan,researchOutcome} from './campaignRules'
 import {buildClass,ClassBuild} from './classBuilder'
@@ -107,7 +107,7 @@ describe('custom point construction',()=>{
     const elf=buildClass({...build,race:'elf',racial:3,hd:1,arcane:1,keyAttributes:['str','int'],proficiencies:Array.from({length:32},(_,i)=>`P${i}`)})
     expect(elf.summary).toMatchObject({xpSecond:4000,maxLevel:10})
     expect(elf.creationRules.rules.levels[0]!.hitDice).toBe('1d6+1')
-    const nobiran=buildClass({...build,race:'nobiran',racial:2,hd:0,fighting:0,arcane:4,keyAttributes:['int','wil'],stronghold:'Sanctum',proficiencies:Array.from({length:30},(_,i)=>`P${i}`)})
+    const nobiran=buildClass({...build,race:'nobiran',racial:2,hd:0,fighting:0,arcane:4,keyAttributes:['int','wil'],stronghold:'Sanctum',codeOfBehavior:'Observar os votos da ordem.',divineSpellList:[1,2,3,4,5].flatMap(level=>SPELL_LIST.filter(s=>s.tradition==='divine'&&s.level===level).slice(0,10).map(s=>({...s,tradition:'divine' as const}))),proficiencies:Array.from({length:30},(_,i)=>`P${i}`)})
     expect(nobiran.summary).toMatchObject({xpSecond:3125,maxLevel:12,savingClass:'Mage'})
     expect(magicPools(nobiran.creationRules.rules,character)).toHaveLength(2)
   })

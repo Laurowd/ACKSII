@@ -2,6 +2,8 @@ export interface CatalogClass {
   id: string
   name: string
   source: 'catalog' | 'campaign'
+  legacyIds?: string[]
+  powers?: { name: string; description: string; minimumLevel: number }[]
   hitDie: string
   conBonus: boolean
   description: string
@@ -31,7 +33,7 @@ export function classRows(c: CatalogClass) {
 }
 
 export function selectedClass(classes: CatalogClass[], character: { classKey?: string; className: string }) {
-  if (character.classKey) return classes.find(c => c.id === character.classKey)
+  if (character.classKey) return classes.find(c => c.id === character.classKey || c.legacyIds?.includes(character.classKey!))
   return classes.find(c => c.source === 'campaign' && c.name === character.className) ?? classes.find(c => c.name === character.className)
 }
 

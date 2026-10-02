@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify'
 import prisma from '../lib/prisma'
 import { authGuard } from '../middleware/auth'
-import { CLASS_CATALOG } from '../lib/classCatalog'
+import { CLASS_CATALOG, canonicalClass } from '../lib/classCatalog'
 import { magicPools, readState, rulesFor } from '../lib/gameRules'
 
 export async function sessionRoutes(app: FastifyInstance) {
@@ -19,8 +19,8 @@ export async function sessionRoutes(app: FastifyInstance) {
       campaigns: owned.map(({ id, name }) => ({ id, name })),
       characters: characters.map(character => {
         const custom = owned.find(c => c.id === character.campaignId)?.customClasses || []
-        const definition = character.classKey ? [...custom, ...CLASS_CATALOG].find(c => c.id === character.classKey)
-          : custom.find(c => c.name === character.className) || CLASS_CATALOG.find(c => c.name.toLowerCase() === character.className.toLowerCase())
+        const definition = canonicalClass(character.classKey ? [...custom, ...CLASS_CATALOG].find(c => c.id === character.classKey)
+          : custom.find(c => c.name === character.className) || CLASS_CATALOG.find(c => c.name.toLowerCase() === character.className.toLowerCase()))
         const classDefinition = definition && !definition.id.startsWith('catalog:')
           ? { ...definition, ...readState((definition as any).creationRules), source: 'campaign' }
           : definition || null

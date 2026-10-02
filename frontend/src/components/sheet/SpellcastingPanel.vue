@@ -58,7 +58,7 @@
             <select v-model="spell.tradition" @change="changeTradition(spell)" class="inp min-w-0 sm:w-32" :aria-label="`Tradição da magia ${i + 1}`"><option v-for="pool in info.magic" :key="pool.tradition" :value="pool.tradition">{{ traditionName(pool.tradition) }}</option></select>
             <select v-model.number="spell.level" @change="spell.name = ''" class="inp w-20" :aria-label="`Nível da magia ${i + 1}`"><option v-if="!availableLevels(spell.tradition).includes(spell.level)" :value="spell.level">{{ spell.level }} · indisponível</option><option v-for="level in availableLevels(spell.tradition)" :key="level" :value="level">{{ level }}</option></select>
             <input v-model="spell.name" :list="`spellcasting-list-${i}`" class="inp col-span-2 min-w-0 flex-1" :aria-label="`Nome da magia ${i + 1}`" placeholder="Nome da magia" />
-            <datalist :id="`spellcasting-list-${i}`"><option v-for="suggestion in metadata.spells?.filter((entry: any) => entry.level === spell.level && entry.tradition === spell.tradition)" :key="suggestion.name" :value="suggestion.name" /></datalist>
+            <datalist :id="`spellcasting-list-${i}`"><option v-for="suggestion in spellSuggestions(spell)" :key="suggestion.name" :value="suggestion.name" /></datalist>
             <button type="button" @click="repertoire.splice(i, 1)" :aria-label="`Remover ${spell.name || 'magia'} do repertório`" class="text-sm text-red-400 justify-self-start">Remover</button>
           </div>
           <button type="button" @click="addSpell" :disabled="!info.magic.some((pool: any) => pool.slots.some((slots: number) => slots > 0))" class="text-sm text-gold disabled:opacity-40">+ Adicionar magia</button>
@@ -151,6 +151,7 @@ function discardDraft() {
   if (window.confirm('Descartar as alterações do repertório e voltar às magias registradas?')) resetDraft()
 }
 function availableLevels(tradition: string): number[] { return (info.value.magic?.find((pool: any) => pool.tradition === tradition)?.slots || []).flatMap((slots: number, i: number) => slots ? [i + 1] : []) }
+function spellSuggestions(spell:any){return (info.value.magic?.find((pool:any)=>pool.tradition===spell.tradition)?.spellList || metadata.value.spells || []).filter((entry:any)=>entry.level===spell.level&&entry.tradition===spell.tradition)}
 function changeTradition(spell: any) { spell.level = availableLevels(spell.tradition)[0] || 1; spell.name = '' }
 function addSpell() { const pool = info.value.magic.find((pool: any) => availableLevels(pool.tradition).length); if (pool) repertoire.value.push({ name: '', level: availableLevels(pool.tradition)[0], tradition: pool.tradition }) }
 

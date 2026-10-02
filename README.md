@@ -12,6 +12,8 @@ Para continuar usando o banco existente no Neon, siga [Produção com Neon](docs
 
 O **Painel do Mestre** oferece uma visão compacta dos recursos do grupo. Fichas podem ser exportadas para impressão ou JSON e importadas como novas fichas: consulte [portabilidade e consulta de sessão](docs/PORTABILIDADE_FICHAS.md).
 
+O mestre pode usar **Classes → Criar classe** para construir uma classe por pontos, com prévia de progressão, poderes por nível e validação de magia e requisitos raciais. Veja [criação de classes e tratamento das cópias antigas](docs/CRIACAO_CLASSES.md).
+
 ## Pré-requisitos
 
 - **Node.js** 24 LTS (24.14 ou posterior na série 24)

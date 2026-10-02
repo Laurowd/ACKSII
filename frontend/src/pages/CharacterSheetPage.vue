@@ -21,6 +21,7 @@
         Há alterações no repertório ainda não enviadas. Use Salvar repertório na aba Magia para confirmá-las.
         <button type="button" @click="currentTab = 'magic'" class="text-gold underline ml-2">Abrir rascunho de repertório</button>
       </div>
+      <p v-if="contextReady && classLevelLimit && char.level>classLevelLimit" role="alert" class="mb-4 rounded-xl border border-gold/30 p-4 text-sm">Esta ficha está acima do nível máximo {{ classLevelLimit }} da classe. Os dados foram preservados; confira a progressão com o mestre.</p>
       <div v-if="anyConflict" role="alert" class="mb-4 rounded border border-red-400 p-4 text-steel-light">
         A ficha mudou em outra sessão. Suas alterações locais foram preservadas.
         Exporte o JSON antes de carregar a versão atual para comparar os dados.
@@ -303,7 +304,7 @@ async function loadCampaignContext() {
       customClasses.value = catalog!.value.data
       campaignOptionalRules.value = { ...defaultOptionalRules, ...settings!.value.data.optionalRules }
       const definition = selectedClass(customClasses.value, char.value)
-      if (definition && !char.value.classKey) char.value.classKey = definition.id
+      if (definition && (!char.value.classKey || definition.legacyIds?.includes(char.value.classKey))) char.value.classKey = definition.id
       contextReady.value = true
     }
   } catch (e) {
@@ -350,6 +351,7 @@ const hpPercent = computed(() => {
 })
 
 const metrics = computed(() => calculateCharacterMetrics(char.value || {}, selectedClass(customClasses.value, char.value || {})))
+const classLevelLimit=computed(()=>{const definition=selectedClass(customClasses.value,char.value||{});if(!definition)return 0;try{return JSON.parse(definition.xpPerLevel).length}catch{return 0}})
 const computedAC = computed(() => metrics.value.armorClass)
 const computedInitiative = computed(() => metrics.value.initiative)
 const computedHealingRate = computed(() => metrics.value.healingRate)

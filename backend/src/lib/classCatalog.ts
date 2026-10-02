@@ -3,6 +3,7 @@ import { DEFAULT_CLASSES } from '../utils/seedClasses'
 import { creationRules, abilityModifier } from './creationRules'
 import { ruleProfile } from './ruleProfiles'
 import { RULE_CLASSES, rulesFor } from './gameRules'
+import { legacyBaseName } from './legacyClasses'
 
 export const catalogKey = (name: string) => `catalog:${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
 
@@ -18,6 +19,11 @@ export const CLASS_CATALOG = DEFAULT_CLASSES.map(c => ({
   thiefSkills: '[]', rebukingUndead: '[]',
 }))
 
+export function canonicalClass<T extends {id:string;name:string}>(definition:T|null|undefined) {
+  const base=definition&&legacyBaseName(definition)
+  return base ? CLASS_CATALOG.find(c=>c.name===base)! : definition
+}
+
 export async function canReadCampaign(campaignId: string, userId: string) {
   const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } })
   if (!campaign) return false
@@ -32,11 +38,12 @@ export async function resolveClass(classKey: string, campaignId: string | null, 
   if (classKey.startsWith('catalog:')) return CLASS_CATALOG.find(c => c.id === classKey) ?? null
   if (classKey) {
     if (!campaignId) return null
-    return prisma.customClass.findFirst({ where: { id: classKey, campaignId } })
+    const custom = await prisma.customClass.findFirst({ where: { id: classKey, campaignId } })
+    return canonicalClass(custom)
   }
   if (campaignId && name) {
     const custom = await prisma.customClass.findFirst({ where: { campaignId, name } })
-    if (custom) return custom
+    if (custom) return canonicalClass(custom)
   }
   return CLASS_CATALOG.find(c => c.name.toLowerCase() === name.toLowerCase()) ?? null
 }

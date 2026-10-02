@@ -2,7 +2,7 @@ import tables from '../data/acksRules.json'
 import spellList from '../data/spellAccess.json'
 import { abilityModifier, creationRules } from './creationRules'
 
-export type ClassRules = { page: number; proficiencies: string[]; proficiencyPeriod: number; magic: string; bonusGeneral?:number;
+export type ClassRules = { page: number; proficiencies: string[]; proficiencyPeriod: number; magic: string; bonusGeneral?:number; divineSpellList?:{name:string;level:number;tradition:string}[];
   levels: { level: number; xp: number; hitDice: string; casterLevel: number; arcaneCasterLevel?: number; divineCasterLevel?: number; spellSlots: number[] }[] }
 export const RULE_CLASSES = tables.classes as Record<string, ClassRules>
 RULE_CLASSES['Dwarven Craftpriest']!.bonusGeneral=3
@@ -49,7 +49,7 @@ export function magicPools(rules: ClassRules, character: any, level = character.
     const slots = Array.from({ length: 6 }, (_, i) => row.spellSlots[index * 6 + i] || 0)
     const studious = tradition === 'arcane' || rules.magic === 'studious-divine'
     return { tradition, casterLevel: (tradition === 'arcane' ? row.arcaneCasterLevel : row.divineCasterLevel) ?? row.casterLevel, studious, slots,
-      repertoire: slots.map(n => !n ? 0 : studious ? n + Math.max(0, abilityModifier(character.int)) : null) }
+      repertoire: slots.map(n => !n ? 0 : studious ? n + Math.max(0, abilityModifier(character.int)) : null),...(tradition==='divine'&&rules.divineSpellList?{spellList:rules.divineSpellList}:{}) }
   })
 }
 
@@ -64,6 +64,7 @@ export function spellIssues(rules: ClassRules, character: any, spells: any[], le
     if (seen.has(key)) issues.push(`${spell.name}: repetida no repertório ${pool.tradition}.`)
     seen.add(key)
     if (!SPELL_LIST.some(s => normalized(s.name) === normalized(spell.name) && s.level === spell.level && s.tradition === pool.tradition)) issues.push(`${spell.name}: não consta na lista ${pool.tradition} de nível ${spell.level}; use o modo manual para magia de campanha.`)
+    if(pool.tradition==='divine'&&rules.divineSpellList&&!rules.divineSpellList.some(s=>normalized(s.name)===normalized(spell.name)&&s.level===spell.level))issues.push(`${spell.name}: não pertence ao repertório religioso desta classe.`)
   }
   for (const pool of pools) for (let i = 0; i < 6; i++) {
     const count = spells.filter(s => s.level === i + 1 && (s.tradition === pool.tradition || (!s.tradition && pools.length === 1))).length

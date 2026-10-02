@@ -361,6 +361,50 @@ test('player proficiency edits use the same lists and limits while target-only e
   assert.equal((await request('POST', `/api/characters/${c.id}/mercantile/${legacy.id}/reopen`, { reason: 'Player attempted reopening' }, token)).statusCode, 403);
 });
 
+test('catalog hides seeded duplicates, preserves variants and resolves existing class IDs', async () => {
+  const { RAW_DEFAULT_CLASSES } = require('../dist/utils/seedClasses');
+  const campaign = await db.campaign.create({data:{name:'Legacy classes',masterId:user.id,joinCode:`legacy-class-${suffix}`}});
+  const seed = async name => {
+    const base = RAW_DEFAULT_CLASSES.find(c=>c.name===name);
+    return db.customClass.create({data:{campaignId:campaign.id,name:base.name,hitDie:base.hitDie,conBonus:base.conBonus,
+      ...Object.fromEntries(['xpPerLevel','titles','attackThrows','savingThrows'].map(key=>[key,JSON.stringify(base[key])]))}});
+  };
+  const fighter=await seed('Fighter'),elf=await seed('Elven Spellsword');
+  const variant=await db.customClass.create({data:{campaignId:campaign.id,name:'Fighter',classFeatures:'Campaign-specific powers',hitDie:'1d8',conBonus:true,xpPerLevel:'[0,2200]',titles:'["Recruit","Veteran"]',attackThrows:'[10,9]',savingThrows:'[]'}});
+  const response=await request('GET',`/api/classes/catalog?campaignId=${campaign.id}`);
+  assert.equal(response.statusCode,200,response.body);
+  const catalog=response.json();
+  assert.equal(catalog.filter(c=>c.name==='Fighter').length,2);
+  assert.equal(catalog.filter(c=>c.name==='Elven Spellsword').length,1);
+  assert.ok(catalog.find(c=>c.id==='catalog:fighter').legacyIds.includes(fighter.id));
+  assert.ok(catalog.find(c=>c.id==='catalog:elven-spellsword').legacyIds.includes(elf.id));
+  assert.equal(JSON.parse(catalog.find(c=>c.id==='catalog:elven-spellsword').xpPerLevel).length,10);
+  assert.equal((await request('GET',`/api/classes/${campaign.id}`)).json()[0].id,variant.id);
+  const created=await request('POST','/api/characters/guided',{characterName:'Existing class reference',campaignId:campaign.id,classKey:fighter.id,str:10,int:10,dex:10,wil:10,con:10,cha:10,hpMax:6,rulesMode:'standard',proficiencies:[{name:'Combat Reflexes',category:'class'},{name:'Caving',category:'general'}]});
+  assert.equal(created.statusCode,201,created.body);
+  assert.equal(created.json().character.classKey,'catalog:fighter');
+  assert.ok(await db.customClass.findUnique({where:{id:fighter.id}}));
+});
+
+test('structured future powers survive creation and halfling d2 sheets follow the first-level minimum',async()=>{
+  const campaign=await db.campaign.create({data:{name:'Power plans',masterId:user.id,joinCode:`plans-${suffix}`}});
+  const build={name:'Deferred guard',race:'human',racial:0,hd:2,fighting:2,thievery:0,divine:0,arcane:0,fightingVariant:'crusader',armorTrade:1,weaponTrade:0,styleTrade:0,damageTrade:'none',thiefSkills:[],powers:[],startingProficiency:'Manual of Arms',keyAttributes:['str'],stronghold:'Castle',smoothXp:true,proficiencies:['Navigation',...Array.from({length:27},(_,i)=>`Custom ${i}`)],powerSelections:[{trade:'1-7-7',children:[{name:'Animal Reflexes',description:'Reflexos +1',kind:'power'},{trade:'advanced-7-9-13',children:[{name:'A',description:'Poder A'},{name:'B',description:'Poder B'}]}]}]};
+  const created=await request('POST',`/api/class-builder/${campaign.id}/create`,build);
+  assert.equal(created.statusCode,201,created.body);
+  const definition=JSON.parse(created.json().creationRules);
+  assert.equal(definition.powers.find(p=>p.name==='B').minimumLevel,13);
+  assert.ok(created.json().classFeatures.includes('armadura: Medium'));
+  const invalid=await request('POST',`/api/class-builder/${campaign.id}/preview`,{...build,powerSelections:[{trade:'1-7-7',children:[{kind:'skill',name:'Hiding'},{name:'A'}]}]});
+  assert.equal(invalid.statusCode,400);
+  const halfling=await request('POST',`/api/class-builder/${campaign.id}/create`,{...build,name:'Halfling scout',race:'halfling',racial:1,hd:0,fighting:1,thievery:3,armorTrade:0,keyAttributes:['dex'],stronghold:'Hideout',halflingSkills:['Placating'],thiefSkills:['Backstabbing','Climbing','Hiding','Listening','Lockpicking','Pickpocketing','Searching','Shadowy Senses','Sneaking','Trapbreaking'],powerSelections:[],thiefSelections:[{trade:'1-4-10',children:[{kind:'skill',name:'Deciphering'},{kind:'skill',name:'Scrollreading'}]}],proficiencies:['Navigation',...Array.from({length:29},(_,i)=>`Custom ${i}`)]});
+  assert.equal(halfling.statusCode,201,halfling.body);
+  assert.equal(halfling.json().hitDie,'1d2');
+  const sheet=await request('POST','/api/characters/guided',{characterName:'Small scout',campaignId:campaign.id,classKey:halfling.json().id,str:10,int:10,dex:10,wil:10,con:10,cha:10,hpMax:4,rulesMode:'standard',proficiencies:[{name:'Navigation',category:'class'},{name:'Caving',category:'general'}]});
+  assert.equal(sheet.statusCode,201,sheet.body);
+  const info=(await request('GET',`/api/game-rules/characters/${sheet.json().character.id}`)).json();
+  assert.equal(info.standardAdventuring.find(p=>p.name==='Dungeonbashing').throwTarget,22);
+});
+
 test('logout revokes the token on the server', async () => {
   assert.equal((await request('POST', '/api/auth/logout')).statusCode, 204);
   assert.equal((await request('GET', '/api/auth/me')).statusCode, 401);
