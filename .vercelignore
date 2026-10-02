@@ -10,6 +10,9 @@
 **/coverage
 frontend/cypress
 frontend/e2e
+load
+scripts/load-*.cjs
+scripts/run-load.cjs
 frontend/test-results
 frontend/playwright-report
 backend/tests
