@@ -6,13 +6,15 @@
     </div>
     <p class="text-sm text-steel-light">As tabelas disponíveis vêm do cadastro atual do projeto. Requisitos, poderes e escolhas iniciais devem ser conferidos com o livro e o mestre.</p>
     <div class="flex flex-wrap gap-3">
-      <label class="flex-1">Buscar classe<input v-model="search" class="inp mt-1" placeholder="Nome da classe" /></label>
-      <label class="flex-1">Campanha<select v-model="campaignId" class="inp mt-1"><option value="">Catálogo base</option><option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option></select></label>
+      <label class="flex-1 min-w-0">Buscar classe<input v-model="search" class="inp mt-1" placeholder="Nome da classe" /></label>
+      <label class="flex-1 min-w-0">Campanha<select v-model="campaignId" :disabled="loadingCampaigns" class="inp mt-1"><option value="">Catálogo base</option><option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option></select></label>
     </div>
     <p v-if="error" role="alert" class="text-red-400">{{ error }} <button @click="load" class="underline">Tentar novamente</button></p>
-    <p v-if="loading">Carregando classes...</p>
+    <p v-if="campaignError" role="alert" class="text-red-400">{{ campaignError }} <button @click="loadCampaigns" class="underline">Tentar carregar campanhas novamente</button></p>
+    <p v-if="loadingCampaigns" role="status">Carregando campanhas...</p>
+    <p v-if="loading" role="status">Carregando classes...</p>
     <div v-else class="grid md:grid-cols-3 gap-4">
-      <button v-for="c in filtered" :key="c.id" @click="chosen = c" class="text-left p-4 rounded-xl bg-dark-card border" :class="chosen?.id === c.id ? 'border-gold' : 'border-steel-dark'">
+      <button v-for="c in filtered" :key="c.id" @click="chosen = c" :aria-pressed="chosen?.id === c.id" class="text-left p-4 rounded-xl bg-dark-card border" :class="chosen?.id === c.id ? 'border-gold' : 'border-steel-dark'">
         <span class="text-xs text-steel-light">{{ c.source === 'catalog' ? 'Catálogo base' : 'Classe da campanha' }}</span>
         <h2 class="text-xl text-gold font-bold">{{ c.name }}</h2>
         <p>{{ c.hitDie }} · {{ classRows(c).length }} níveis</p>
@@ -46,6 +48,7 @@ const campaignId = ref('')
 const classes = ref<CatalogClass[]>([])
 const chosen = ref<CatalogClass | null>(null)
 const search = ref(''), error = ref(''), loading = ref(false)
+const campaignError = ref(''), loadingCampaigns = ref(false)
 let requestId = 0
 const filtered = computed(() => classes.value.filter(c => c.name.toLowerCase().includes(search.value.toLowerCase())))
 const canManage = computed(() => campaigns.value.some(c => c.id === campaignId.value && c.masterId === auth.user?.id))
@@ -59,9 +62,12 @@ async function load() {
   finally { if (id === requestId) loading.value = false }
 }
 watch(campaignId, load)
-onMounted(async () => {
-  await load()
+async function loadCampaigns() {
+  if (loadingCampaigns.value) return
+  loadingCampaigns.value = true; campaignError.value = ''
   try { campaigns.value = (await api.get('/api/campaigns')).data }
-  catch (e) { error.value = errorMessage(e, 'Não foi possível carregar campanhas.') }
-})
+  catch (e) { campaignError.value = errorMessage(e, 'Não foi possível carregar campanhas.') }
+  finally { loadingCampaigns.value = false }
+}
+onMounted(() => { void load(); void loadCampaigns() })
 </script>

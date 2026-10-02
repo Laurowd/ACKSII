@@ -60,6 +60,7 @@
 import {ref,onMounted,watch,computed} from 'vue'
 import api from '../../services/api'
 import {errorMessage,proficiencyOptions} from '../../utils/catalog'
+import { proficiencyValidation } from '../../utils/ruleChoices'
 import CampaignWorkflows from './CampaignWorkflows.vue'
 import { useAuthStore } from '../../stores/auth'
 import { useCharacterOperations } from '../../composables/characterOperations'
@@ -91,6 +92,10 @@ async function applyAdvance(){await run(async()=>{
   await complete('Nível atualizado. Confira as escolhas pendentes e o repertório.')
 })}
 async function addProficiency(){await run(async()=>{
+  await prepared()
+  const choices = [...(props.character.proficiencies || []).filter((p:any) => ['class','general'].includes(p.category)), choice.value]
+  const validation = proficiencyValidation(info.value.rules, props.character.int, choices, metadata.value.generalProficiencies, props.character.level)
+  if (validation.issues.length) throw Error(validation.issues.join(' '))
   const input={choices:[{...choice.value}]}
   const data=await operations.run('proficiencies:validated:add',version=>api.post(`${url()}/proficiencies`,{...input,version}))
   if(!data)throw operations.getLastError() || Error('A alteração não foi concluída. Confira os dados e tente novamente.')

@@ -1,4 +1,15 @@
-# Validação local — 01/10/2026
+# Validação local — 02/10/2026
+
+## Escolhas iniciais e revisão do frontend de 02/10
+
+- O assistente confere listas, categorias, especializações, repetições e limites de proficiências na etapa Identidade. Seduction continua disponível como geral; para Venturer, sua seleção como proficiência de classe é apontada junto ao campo antes da revisão ou criação da ficha.
+- As listas de Venturer, Fighter e Explorer foram corrigidas usando as seções de proficiências do compêndio local do Revised Rulebook: Language e Navigation em Venturer, Intimidation em Fighter e Trapping em Explorer. Opções incompatíveis foram removidas dessas listas; fichas existentes não são alteradas.
+- Magias iniciais mostram apenas tradições disponíveis no nível 1, respeitam limites e exigem a primeira magia dos conjuradores de estudo. Classes com magia tardia não oferecem magias indisponíveis. Trocar classe preserva as escolhas e pede a correção de incompatibilidades. O modo manual permite nomes de magia de campanha com decisão do mestre.
+- A revisão inclui as magias escolhidas. Erros de regra retornados pela API levam à etapa Identidade, com os dados preservados. Controles ficam bloqueados durante a criação e rascunhos recebem proteção ao fechar ou recarregar a página.
+- O editor de repertório confere nomes, tradições, níveis, repetições e quantidades antes de enviar. Fechar e reabrir sua seção preserva o rascunho. O catálogo tem recuperação independente para falhas ao carregar campanhas. Erros locais mostram a orientação original.
+- Builds aprovados; **69 testes unitários do backend, 74 do frontend, 40 de integração, 32 Playwright e 54 Cypress** aprovados. A suíte Playwright inteira e as sete especificações Cypress passaram; capturas adicionais verificaram os formulários em 320 e 1440 px, nos temas escuro e pergaminho, com cores estáveis após a transição.
+
+Os testes usaram API isolada e PostgreSQL descartável local, sem gravar no Neon. Não há migração nova nesta revisão. As capturas e o caso reproduzido constam em `frontend/test-results`; os relatórios Cypress ficam em `frontend/cypress/results` (artefatos locais ignorados pelo Git).
 
 ## Consistência da ficha e revisão do frontend de 01/10
 

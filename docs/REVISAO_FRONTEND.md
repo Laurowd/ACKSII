@@ -1,4 +1,18 @@
-# Revisão do frontend — 30/09/2026
+# Revisão do frontend — 02/10/2026
+
+## Revisão de magias e proficiências de 02/10
+
+O erro relatado permitia avançar com Seduction como proficiência de classe de Venturer e só recusava a ficha na confirmação final. A interface agora confere a lista na etapa Identidade, aponta o campo e informa quando a proficiência pertence à outra categoria. Seduction é uma escolha geral para Venturer; mudar a categoria também precisa respeitar o limite de escolhas gerais.
+
+Foram corrigidas opções ausentes e incompatíveis em três listas do catálogo, comparando as seções de proficiências do compêndio local. A conferência de escolhas passou a cobrir limites, especializações e repetições na criação e na inclusão de proficiências pelo assistente de regras.
+
+Magias iniciais respeitam a tradição e a disponibilidade da classe no nível 1. O assistente exige a primeira magia de estudo, confere o limite do repertório e inclui as magias na revisão. Mudanças de classe conservam as escolhas e mostram incompatibilidades para correção. Magias livres continuam disponíveis no modo manual, com justificativa.
+
+Também foram corrigidos o descarte de rascunho ao fechar/reabrir o editor de repertório, a recuperação da lista de campanhas no catálogo e a substituição de orientações locais por mensagens genéricas. Linhas de proficiências e magias se reorganizam em celulares; campos têm nomes acessíveis e indicação de erro. Envios bloqueiam alterações simultâneas e a criação protege rascunhos ao recarregar ou fechar a página.
+
+Validação: builds aprovados, 143 testes unitários, 40 casos de integração, 32 cenários Playwright e 54 Cypress. Os cenários incluem criação real, falhas simuladas, recuperação, compras, exportação/importação, concorrência, magia e avanço. Inspeção visual em 320 e 1440 px nos dois temas; dados de teste apenas no PostgreSQL local.
+
+## Registro anterior — 30/09/2026
 
 Revisão das telas de acesso, personagens, campanhas, ficha e painel do mestre, com leitura do código e testes no Edge. As correções preservam o tema visual e as regras do backend.
 
@@ -24,7 +38,7 @@ Revisão das telas de acesso, personagens, campanhas, ficha e painel do mestre, 
 - Inspeção visual das capturas móveis de campanhas e painel do mestre em 390 × 844.
 - Contas, campanhas e personagens de teste foram criados somente no PostgreSQL local descartável. API de teste em 3109 e frontend em 4175; o Neon não foi usado nesta revisão.
 
-## Próximas melhorias, por prioridade
+## Prioridades apontadas em 30/09 (registro histórico)
 
 1. **Feedback nas telas avançadas:** ainda há operações que apenas registram erros no console em gerenciamento de campanha e nas abas Combate, Domínio e Atividades. Migrar para mensagens contextuais e preservar claramente as alterações não salvas.
 2. **Formulários da ficha:** completar a associação entre rótulos e campos, nomes dos botões de ícone e validação junto ao campo. A revisão atual cobriu os formulários de acesso e campanhas; não todos os campos da ficha.

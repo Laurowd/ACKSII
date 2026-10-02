@@ -4,8 +4,8 @@
     <h1 class="text-3xl font-bold text-gold">Criar personagem</h1>
     <ol class="flex flex-wrap gap-3" aria-label="Etapas de criação"><li v-for="(label, i) in steps" :key="label" :aria-current="step === i ? 'step' : undefined" :class="step === i ? 'text-gold font-bold' : 'text-steel-light'">{{ i + 1 }}. {{ label }}</li></ol>
     <p class="mt-3 text-sm text-steel-light">Criação sem templates (Rulebook p. 13). As listas e quantidades são conferidas; o mestre define disponibilidade de equipamento, especializações e repertórios religiosos.</p>
-    <label>Modo de criação<select v-model="draft.rulesMode" class="inp"><option value="standard">Regras do livro</option><option value="manual">Ajustes aprovados pelo mestre</option></select></label>
-    <label v-if="draft.rulesMode === 'manual'" class="block">Decisão do mestre (obrigatória)<input v-model="draft.exceptionReason" class="inp" maxlength="1000" /></label>
+    <label>Modo de criação<select v-model="draft.rulesMode" :disabled="submitting" class="inp"><option value="standard">Regras do livro</option><option value="manual">Ajustes aprovados pelo mestre</option></select></label>
+    <label v-if="draft.rulesMode === 'manual'" class="block">Decisão do mestre (obrigatória)<input v-model="draft.exceptionReason" :disabled="submitting" class="inp" maxlength="1000" /></label>
     <div v-if="klass && !supportsStandard" class="rounded border border-gold/50 p-3 space-y-2" role="status">
       <p>A classe “{{ klass.name }}” da campanha é uma definição livre, sem regras automatizadas. Para usá-la, selecione ajustes aprovados pelo mestre e registre a decisão.</p>
       <button v-if="draft.rulesMode !== 'manual'" type="button" @click="draft.rulesMode = 'manual'; error = ''" class="text-gold underline">Usar ajustes aprovados pelo mestre</button>
@@ -14,8 +14,9 @@
     </div>
     <p v-if="loadingResources" role="status">Carregando regras e equipamentos...</p>
     <div v-if="resourceError" role="alert" class="text-red-400">{{ resourceError }} <button type="button" @click="loadResources" class="underline">Tentar carregar regras novamente</button></div>
-    <p v-if="error" role="alert" class="text-red-400">{{ error }}</p>
+    <p v-if="error" ref="errorAlert" role="alert" tabindex="-1" class="text-red-400">{{ error }}</p>
     <form @submit.prevent="next" class="bg-dark-card border border-steel-dark rounded-xl p-4 md:p-6 space-y-5">
+      <fieldset :disabled="submitting" class="min-w-0 space-y-5">
       <template v-if="step === 0">
         <h2 class="text-xl text-gold">Campanha e atributos</h2>
         <label class="block">Campanha<select v-model="draft.campaignId" class="inp mt-1"><option value="">Sem campanha</option><option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option></select></label>
@@ -46,19 +47,40 @@
           <label v-if="subclasses.length">Subclasse<select v-model="draft.subclass" class="inp"><option value="">A definir</option><option v-for="s in subclasses" :key="s">{{ s }}</option></select></label>
           <label>Idiomas<input v-model="draft.languagesKnown" maxlength="2000" class="inp" /></label>
         </div>
-        <label class="flex gap-2"><input v-model="draft.isSpellcaster" type="checkbox" /> Este personagem usa magia</label>
+        <label class="flex gap-2"><input v-model="draft.isSpellcaster" type="checkbox" :disabled="draft.rulesMode === 'standard'" /> Este personagem usa magia</label>
+        <p v-if="draft.rulesMode === 'standard'" class="text-sm text-steel-light">O uso de magia é definido pela classe. {{ availableMagic.length ? 'As tradições disponíveis neste nível aparecem abaixo.' : 'Esta classe não possui magias disponíveis no nível 1.' }}</p>
         <p class="text-sm text-steel-light">Escolha as proficiências e magias iniciais. O modo do livro confere as listas e os limites; idiomas, especializações e repertórios religiosos devem ser conferidos com o mestre.</p>
         <h3 class="text-gold">Proficiências</h3>
-        <p v-if="draft.rulesMode === 'standard'" class="text-sm">Adventuring e seus cinco testes serão incluídos automaticamente. Escolha ao menos 1 proficiência de classe e 1 geral. Limites: 1 de classe e {{ 1 + (klass?.rules?.bonusGeneral || 0) + Math.max(0, getModifier(draft.int)) }} gerais.</p>
+        <p v-if="draft.rulesMode === 'standard'" class="text-sm">Adventuring e seus cinco testes serão incluídos automaticamente. Escolha ao menos 1 proficiência de classe e 1 geral. Limites: {{ proficiencyCheck.limits.class }} de classe e {{ proficiencyCheck.limits.general }} gerais.</p>
         <p v-else class="text-sm">Adventuring e seus cinco testes serão incluídos automaticamente. Registre as proficiências aprovadas pelo mestre para esta classe.</p>
-        <datalist id="creation-class-profs"><option v-for="name in proficiencyOptions(klass?.rules?.proficiencies || [])" :key="name" :value="name" /></datalist>
+        <datalist id="creation-class-profs"><option v-for="name in proficiencyOptions(chosenRules.rules?.proficiencies || [])" :key="name" :value="name" /></datalist>
         <datalist id="creation-general-profs"><option v-for="name in proficiencyOptions(metadata.generalProficiencies || [])" :key="name" :value="name" /></datalist>
-        <div v-for="(p, i) in draft.proficiencies" :key="i" class="flex flex-wrap gap-2"><input v-model="p.name" :list="p.category === 'class' ? 'creation-class-profs' : 'creation-general-profs'" aria-label="Nome da proficiência" required maxlength="200" class="inp flex-1" /><select v-model="p.category" aria-label="Categoria" class="inp flex-1"><option value="general">Geral</option><option value="class">Classe</option></select><button type="button" @click="draft.proficiencies.splice(i, 1)" class="text-red-400">Remover</button></div>
+        <div v-for="(p, i) in draft.proficiencies" :key="i" class="space-y-1">
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2">
+            <input v-model="p.name" @change="choicesReviewed = true" :list="p.category === 'class' ? 'creation-class-profs' : 'creation-general-profs'" aria-label="Nome da proficiência" :aria-invalid="choicesReviewed && !!proficiencyCheck.rows[i]" :aria-describedby="`creation-prof-error-${i}`" required maxlength="200" class="inp min-w-0 col-span-2 sm:col-span-1" />
+            <select v-model="p.category" @change="choicesReviewed = true" aria-label="Categoria" class="inp min-w-0"><option value="general">Geral</option><option value="class">Classe</option></select>
+            <button type="button" @click="draft.proficiencies.splice(i, 1)" :aria-label="`Remover proficiência ${i + 1}`" class="text-red-400">Remover</button>
+          </div>
+          <p :id="`creation-prof-error-${i}`" v-if="choicesReviewed && proficiencyCheck.rows[i]" class="text-sm text-red-400">{{ proficiencyCheck.rows[i] }}</p>
+        </div>
         <button type="button" @click="draft.proficiencies.push({ name: '', category: 'general' })" class="text-gold">+ Proficiência</button>
-        <template v-if="draft.isSpellcaster">
+        <template v-if="draft.isSpellcaster || draft.spells.length">
           <h3 class="text-gold">Magias iniciais</h3><p class="text-sm">Escolha o repertório de estudo ou as magias concedidas pela ordem, conforme sua classe.</p>
-          <div v-for="(s,i) in draft.spells" :key="i" class="flex gap-2"><select v-model="s.tradition" class="inp"><option value="arcane">Arcana</option><option value="divine">Divina</option></select><select v-model="s.name" class="inp"><option value="">Escolha</option><option v-for="spell in metadata.spells?.filter((e:any)=>e.level===1 && e.tradition===s.tradition) || []" :key="spell.name">{{ spell.name }}</option></select><button type="button" @click="draft.spells.splice(i,1)">Remover</button></div>
-          <button type="button" class="text-gold" @click="draft.spells.push({name:'',level:1,tradition:klass?.rules?.magic?.includes('divine') ? 'divine' : 'arcane'})">+ Magia inicial</button>
+          <p v-for="pool in availableMagic" :key="pool.tradition" class="text-sm text-steel-light">{{ traditionName(pool.tradition) }} · nível 1 · {{ pool.repertoire[0] == null ? 'repertório definido pela ordem' : `limite de ${pool.repertoire[0]} magias` }}{{ pool.studious ? ' · escolha ao menos uma magia inicial' : '' }}</p>
+          <div v-for="(s,i) in draft.spells" :key="i" class="space-y-1">
+            <div class="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[8rem_minmax(0,1fr)_auto] gap-2">
+              <select v-model="s.tradition" @change="s.name = ''; choicesReviewed = true" :aria-label="`Tradição da magia inicial ${i + 1}`" class="inp min-w-0 col-span-2 sm:col-span-1">
+                <option v-if="draft.rulesMode === 'standard' && !availableMagic.some(p => p.tradition === s.tradition)" :value="s.tradition">{{ traditionName(s.tradition) }} · indisponível</option>
+                <option v-for="tradition in draft.rulesMode === 'manual' ? ['arcane', 'divine'] : availableMagic.map(p => p.tradition)" :key="tradition" :value="tradition">{{ traditionName(tradition) }}</option>
+              </select>
+              <input v-if="draft.rulesMode === 'manual'" v-model="s.name" :list="`creation-spells-${s.tradition}`" :aria-label="`Nome da magia inicial ${i + 1}`" required maxlength="200" class="inp min-w-0" />
+              <select v-else v-model="s.name" @change="choicesReviewed = true" :aria-label="`Nome da magia inicial ${i + 1}`" :aria-invalid="choicesReviewed && !!spellCheck.rows[i]" :aria-describedby="`creation-spell-error-${i}`" required class="inp min-w-0"><option value="">Escolha a magia</option><option v-if="s.name && !initialSpellOptions(s.tradition).some(spell => spell.name === s.name)" :value="s.name">{{ s.name }} · indisponível</option><option v-for="spell in initialSpellOptions(s.tradition)" :key="spell.name" :value="spell.name">{{ spell.name }}</option></select>
+              <button type="button" @click="draft.spells.splice(i,1)" :aria-label="`Remover magia inicial ${i + 1}`" class="text-red-400">Remover</button>
+            </div>
+            <p :id="`creation-spell-error-${i}`" v-if="choicesReviewed && spellCheck.rows[i]" class="text-sm text-red-400">{{ spellCheck.rows[i] }}</p>
+          </div>
+          <datalist v-for="tradition in ['arcane', 'divine']" :key="tradition" :id="`creation-spells-${tradition}`"><option v-for="spell in initialSpellOptions(tradition)" :key="spell.name" :value="spell.name" /></datalist>
+          <button type="button" class="text-gold disabled:opacity-40" :disabled="draft.rulesMode === 'standard' && !availableMagic.length" @click="draft.spells.push({name:'',level:1,tradition:availableMagic[0]?.tradition || 'arcane'})">+ Magia inicial</button>
         </template>
       </template>
       <template v-if="step === 3">
@@ -89,22 +111,25 @@
         <p v-if="draft.rulesMode === 'manual'">Decisão do mestre: {{ draft.exceptionReason }}</p>
         <dl class="grid grid-cols-3 gap-3"><div v-for="a in attributes" :key="a.key"><dt>{{ a.label }}</dt><dd class="text-gold">{{ draft[a.key] }} ({{ formatMod(getModifier(draft[a.key])) }})</dd></div></dl>
         <p>Idiomas: {{ draft.languagesKnown || 'A definir' }} · {{ draft.proficiencies.length }} proficiências · {{ draft.items.length }} registros de itens recebidos · {{ useBudget ? draft.purchases.length : 0 }} compras</p>
-        <ul class="list-disc pl-5"><li v-for="(p,i) in draft.proficiencies" :key="`p${i}`">{{ p.name }} ({{ p.category }})</li><li v-for="(item,i) in draft.items" :key="`i${i}`">{{ item.quantity }} × {{ item.name }}</li></ul>
+        <ul class="list-disc pl-5"><li v-for="(p,i) in draft.proficiencies" :key="`p${i}`">{{ p.name }} ({{ p.category === 'class' ? 'classe' : 'geral' }})</li><li v-for="(item,i) in draft.items" :key="`i${i}`">{{ item.quantity }} × {{ item.name }}</li></ul>
+        <p>Magias iniciais: {{ draft.spells.length }}.</p><ul v-if="draft.spells.length" class="list-disc pl-5"><li v-for="(spell, i) in draft.spells" :key="i">{{ spell.name }} · {{ traditionName(spell.tradition) }} · nível {{ spell.level }}</li></ul>
         <template v-if="useBudget"><p>Ouro inicial: {{ startingGold }} GP · Compras: {{ purchasesSummary.spentGp.toFixed(2) }} GP</p><ul class="list-disc pl-5"><li v-for="(purchase,i) in purchasesSummary.lines" :key="i">{{ purchase.quantity }} × {{ purchase.name }} — {{ purchase.costGp.toFixed(2) }} GP</li></ul></template>
         <p class="text-sm text-steel-light">A ficha será criada somente ao confirmar. Título, XP do próximo nível e salvamentos vêm da classe selecionada.</p>
       </template>
       <div class="flex justify-between pt-4 border-t border-steel-dark"><button type="button" :disabled="step === 0 || submitting" @click="step--" class="text-gold disabled:opacity-40">Voltar</button><button type="submit" :disabled="initializing || submitting || loadingClasses || loadingResources || !!resourceError" class="rounded bg-gold text-dark-bg font-bold px-5 py-2 disabled:opacity-40">{{ submitting ? 'Criando...' : step === 4 ? 'Confirmar e abrir ficha' : 'Continuar' }}</button></div>
+      </fieldset>
     </form>
   </main>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import { classRows, errorMessage, proficiencyOptions, type CatalogClass } from '../utils/catalog'
 import { formatMod, getModifier } from '../utils/mechanics'
 import { getClassFeats } from '../utils/classFeats'
 import { creationSettings, purchaseSummary } from '../utils/creation'
+import { choiceMagicPools, proficiencyValidation, spellValidation, traditionName } from '../utils/ruleChoices'
 const route = useRoute(), router = useRouter()
 const steps = ['Atributos', 'Classe', 'Identidade', 'Equipamento', 'Revisão']
 const attributes = [{ key: 'str', label: 'Força' }, { key: 'int', label: 'Intelecto' }, { key: 'dex', label: 'Destreza' }, { key: 'wil', label: 'Vontade' }, { key: 'con', label: 'Constituição' }, { key: 'cha', label: 'Carisma' }] as const
@@ -115,6 +140,8 @@ const draft = ref({ campaignId: String(route.query.campaignId || ''), classKey: 
   proficiencies: [] as { name: string; category: string }[], items: [] as { name: string; quantity: number; weight: number }[],
 })
 const step = ref(0), error = ref(''), rollLog = ref(''), submitting = ref(false), loadingClasses = ref(false)
+const errorAlert = ref<HTMLElement | null>(null)
+watch(error, async value => { if (value) { await nextTick(); errorAlert.value?.focus() } })
 const metadata = ref<any>({}), equipment = ref<any[]>([]), useBudget = ref(false), startingGold = ref(100)
 const loadingResources = ref(true), resourceError = ref('')
 const initializing = ref(true)
@@ -125,6 +152,12 @@ const campaigns = ref<{ id: string; name: string }[]>([]), classes = ref<Catalog
 const klass = computed(() => classes.value.find(c => c.id === draft.value.classKey))
 const priorities = ref(['str', 'dex', 'con'])
 const chosenRules = computed(() => creationSettings(klass.value))
+const choicesReviewed = ref(false)
+const magic = computed(() => choiceMagicPools(chosenRules.value.rules, draft.value.int))
+const availableMagic = computed(() => magic.value.filter(pool => pool.slots[0]))
+const proficiencyCheck = computed(() => draft.value.rulesMode === 'standard' && chosenRules.value.rules ? proficiencyValidation(chosenRules.value.rules, draft.value.int, draft.value.proficiencies, metadata.value.generalProficiencies) : { rows: [] as string[], issues: [] as string[], limits: { class: 0, general: 0 } })
+const spellCheck = computed(() => draft.value.rulesMode === 'standard' ? spellValidation(magic.value, draft.value.spells, metadata.value.spells || []) : { rows: [] as string[], issues: [] as string[] })
+function initialSpellOptions(tradition: string): { name: string; level: number; tradition: string }[] { return (metadata.value.spells || []).filter((spell: any) => spell.level === 1 && spell.tradition === tradition) }
 const supportsStandard = computed(() => !!chosenRules.value.rules)
 const catalogAlternative = computed(() => classes.value.find(c => c.source === 'catalog' && c.name === klass.value?.name))
 const requirementErrors = computed(() => {
@@ -139,8 +172,9 @@ watch(() => draft.value.campaignId, () => { draft.value.classKey = ''; void load
 watch(klass, (value) => {
   draft.value.subclass = ''
   draft.value.isSpellcaster = chosenRules.value?.spellcaster ?? false
-  if (value) draft.value.hpMax = Math.max(1, 4 + (value.conBonus ? getModifier(draft.value.con) : 0)) + Number(value.rules?.levels[0]?.hitDice.match(/\+(\d+)/)?.[1] || 0)
+  if (value) draft.value.hpMax = Math.max(1, 4 + (value.conBonus ? getModifier(draft.value.con) : 0)) + Number(chosenRules.value.rules?.levels[0]?.hitDice.match(/\+(\d+)/)?.[1] || 0)
 })
+watch(() => draft.value.rulesMode, mode => { if (mode === 'standard') draft.value.isSpellcaster = chosenRules.value.spellcaster ?? false })
 async function loadClasses() {
   const id = ++sequence
   loadingClasses.value = true; error.value = ''
@@ -169,7 +203,7 @@ function rollHp() {
   const values = new Uint32Array(1)
   const ceiling = Math.floor(4294967296 / sides) * sides
   do { crypto.getRandomValues(values) } while (values[0]! >= ceiling)
-  draft.value.hpMax = Math.max(1, Math.max(4, values[0]! % sides + 1) + (klass.value.conBonus ? getModifier(draft.value.con) : 0)) + Number(klass.value.rules?.levels[0]?.hitDice.match(/\+(\d+)/)?.[1] || 0)
+  draft.value.hpMax = Math.max(1, Math.max(4, values[0]! % sides + 1) + (klass.value.conBonus ? getModifier(draft.value.con) : 0)) + Number(chosenRules.value.rules?.levels[0]?.hitDice.match(/\+(\d+)/)?.[1] || 0)
 }
 async function next() {
   if (initializing.value || submitting.value || loadingClasses.value || loadingResources.value || resourceError.value) return
@@ -183,13 +217,18 @@ async function next() {
   }
   if (step.value >= 1 && requirementErrors.value.length) { error.value = `Requisitos: ${requirementErrors.value.join(', ')}`; return }
   if (step.value >= 2 && draft.value.rulesMode === 'standard') {
+    choicesReviewed.value = true
     const missing = ['class', 'general'].filter(category => !draft.value.proficiencies.some(p => p.category === category && p.name.trim()))
     if (missing.length) { error.value = `Escolha ao menos uma proficiência ${missing.map(c => c === 'class' ? 'de classe' : 'geral').join(' e ')}.`; step.value = 2; return }
+    const issues = [...proficiencyCheck.value.issues, ...spellCheck.value.issues]
+    for (const pool of availableMagic.value) if (pool.studious && !draft.value.spells.some(spell => spell.tradition === pool.tradition)) issues.push(`Escolha sua primeira magia ${traditionName(pool.tradition)}.`)
+    if (issues.length) { error.value = issues.join(' '); step.value = 2; return }
     const con = klass.value!.conBonus ? getModifier(draft.value.con) : 0
     const racial = Number(chosenRules.value.rules?.levels[0]?.hitDice.match(/\+(\d+)/)?.[1] || 0)
     const min = Math.max(1, 4 + con) + racial, max = Number(klass.value!.hitDie.slice(2)) + con + racial
     if (draft.value.hpMax < min || draft.value.hpMax > max) { error.value = `PV iniciais devem estar entre ${min} e ${max} para esta classe.`; step.value = 2; return }
   }
+  if (step.value >= 2 && (!draft.value.characterName.trim() || draft.value.proficiencies.some(p => !p.name.trim()) || draft.value.spells.some(s => !s.name.trim()))) { error.value = 'Preencha os nomes do personagem e das escolhas adicionadas.'; step.value = 2; return }
   if (step.value >= 3 && useBudget.value) {
     if (!Number.isInteger(startingGold.value) || startingGold.value < 30 || startingGold.value > 180 || startingGold.value % 10) {
       error.value = 'O ouro inicial deve ser múltiplo de 10, entre 30 e 180 GP.'; step.value = 3; return
@@ -204,10 +243,17 @@ async function next() {
     const res = await api.post('/api/characters/guided', { ...draft.value, purchases:useBudget.value ? draft.value.purchases : [], ...(useBudget.value ? {startingGoldGp:startingGold.value}:{}), campaignId: draft.value.campaignId || null })
     created = true
     await router.push(`/character/${res.data.character.id}`)
-  } catch (e) { error.value = errorMessage(e, 'Não foi possível criar a ficha. Suas escolhas foram preservadas.') }
+  } catch (e) {
+    error.value = errorMessage(e, 'Não foi possível criar a ficha. Suas escolhas foram preservadas.')
+    const failedStep = (e as any)?.response?.data?.step
+    if ([1, 2, 3].includes(failedStep)) { step.value = failedStep; choicesReviewed.value = true }
+  }
   finally { submitting.value = false }
 }
 onBeforeRouteLeave(() => created || !dirty || window.confirm('Sair e descartar as escolhas deste personagem?'))
+function beforeUnload(event: BeforeUnloadEvent) { if (dirty && !created) { event.preventDefault(); event.returnValue = '' } }
+onMounted(() => window.addEventListener('beforeunload', beforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 async function loadResources() {
   loadingResources.value = true; resourceError.value = ''
   try {

@@ -36,6 +36,7 @@ export function selectedClass(classes: CatalogClass[], character: { classKey?: s
 }
 
 export function errorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && !(error as any).isAxiosError) return error.message || fallback
   const e = error as { response?: { data?: { error?: string; message?: string } } }
   return e.response?.data?.message || e.response?.data?.error || fallback
 }

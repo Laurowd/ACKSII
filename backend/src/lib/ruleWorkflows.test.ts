@@ -37,6 +37,15 @@ describe('rulebook character workflows',()=>{
     expect(spellIssues(RULE_CLASSES.Mage!,character,[{name:'Fireball',level:3,tradition:'arcane'}]).length).toBeGreaterThan(0)
     expect(proficiencyIssues(RULE_CLASSES.Fighter!,{...character,level:3},[{name:'Combat Reflexes',category:'class'},{name:'Combat Reflexes',category:'class'}]).join(' ')).toContain('repetida')
   })
+  it('uses the revised book lists for Venturer, Fighter and Explorer choices',()=>{
+    for (const name of ['Language','Navigation']) expect(proficiencyIssues(RULE_CLASSES.Venturer!, character, [{name,category:'class'}])).toEqual([])
+    expect(proficiencyIssues(RULE_CLASSES.Venturer!, character, [{name:'Seduction',category:'class'}]).join(' ')).toContain('não pertence')
+    expect(proficiencyIssues(RULE_CLASSES.Venturer!, character, [{name:'Seduction',category:'general'}])).toEqual([])
+    expect(proficiencyIssues(RULE_CLASSES.Venturer!, character, [{name:'Elven Bloodline',category:'class'}]).length).toBeGreaterThan(0)
+    expect(proficiencyIssues(RULE_CLASSES.Fighter!, character, [{name:'Intimidation',category:'class'}])).toEqual([])
+    expect(proficiencyIssues(RULE_CLASSES.Fighter!, character, [{name:'Combat Trickery (wrestling)',category:'class'}]).length).toBeGreaterThan(0)
+    expect(proficiencyIssues(RULE_CLASSES.Explorer!, character, [{name:'Trapping',category:'class'}])).toEqual([])
+  })
   it('rerolls all HD, applies CON per die and preserves wounds',()=>{
     expect(advancement(RULE_CLASSES.Fighter!,{...character,con:16},[1,8])).toMatchObject({level:2,hpMax:13,hpCurr:10})
     expect(advancement(RULE_CLASSES.Fighter!,{...character,con:3},[1,1])).toMatchObject({hpMax:7,hpCurr:4})

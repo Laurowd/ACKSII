@@ -5,7 +5,7 @@
         <h2 id="spellcasting-title" class="text-xl font-bold text-gold">Conjuração e descanso</h2>
         <p class="text-sm text-steel-light mt-1">Usos calculados pela classe, nível e tradição do personagem.</p>
       </div>
-      <button type="button" @click="load" :disabled="busy" class="text-sm text-gold underline disabled:opacity-50">Atualizar usos</button>
+      <button type="button" @click="load" :disabled="busy || loading" class="text-sm text-gold underline disabled:opacity-50">Atualizar usos</button>
     </div>
     <p v-if="error" role="alert" class="text-red-400 text-sm">{{ error }}</p>
     <p v-if="notice" role="status" class="text-green-400 text-sm">{{ notice }}</p>
@@ -35,19 +35,19 @@
       </div>
       <details class="border border-steel-dark p-3 rounded-lg" @toggle="onEditorToggle">
         <summary class="cursor-pointer font-bold text-gold">Editar repertório com validação</summary>
-        <div class="space-y-3 mt-3">
+        <fieldset :disabled="busy || loading" class="min-w-0 space-y-3 mt-3">
           <div v-for="(spell, i) in repertoire" :key="i" class="grid grid-cols-[minmax(0,1fr)_4rem] sm:flex items-center gap-2">
-            <select v-model="spell.tradition" class="inp min-w-0 sm:w-32" :aria-label="`Tradição da magia ${i + 1}`"><option v-for="pool in info.magic" :key="pool.tradition" :value="pool.tradition">{{ traditionName(pool.tradition) }}</option></select>
-            <input v-model.number="spell.level" type="number" min="1" max="6" class="inp w-16" :aria-label="`Nível da magia ${i + 1}`" />
+            <select v-model="spell.tradition" @change="changeTradition(spell)" class="inp min-w-0 sm:w-32" :aria-label="`Tradição da magia ${i + 1}`"><option v-for="pool in info.magic" :key="pool.tradition" :value="pool.tradition">{{ traditionName(pool.tradition) }}</option></select>
+            <select v-model.number="spell.level" @change="spell.name = ''" class="inp w-20" :aria-label="`Nível da magia ${i + 1}`"><option v-if="!availableLevels(spell.tradition).includes(spell.level)" :value="spell.level">{{ spell.level }} · indisponível</option><option v-for="level in availableLevels(spell.tradition)" :key="level" :value="level">{{ level }}</option></select>
             <input v-model="spell.name" :list="`spellcasting-list-${i}`" class="inp col-span-2 min-w-0 flex-1" :aria-label="`Nome da magia ${i + 1}`" placeholder="Nome da magia" />
             <datalist :id="`spellcasting-list-${i}`"><option v-for="suggestion in metadata.spells?.filter((entry: any) => entry.level === spell.level && entry.tradition === spell.tradition)" :key="suggestion.name" :value="suggestion.name" /></datalist>
             <button type="button" @click="repertoire.splice(i, 1)" :aria-label="`Remover ${spell.name || 'magia'} do repertório`" class="text-sm text-red-400 justify-self-start">Remover</button>
           </div>
-          <button type="button" @click="repertoire.push({ name: '', level: 1, tradition: info.magic[0].tradition })" class="text-sm text-gold">+ Adicionar magia</button>
+          <button type="button" @click="addSpell" :disabled="!info.magic.some((pool: any) => pool.slots.some((slots: number) => slots > 0))" class="text-sm text-gold disabled:opacity-40">+ Adicionar magia</button>
           <label class="block text-sm"><input v-model="orderApproved" type="checkbox" /> Repertório religioso conferido com o mestre, quando aplicável.</label>
           <p class="text-xs text-steel-light">Salvar substitui o repertório atual. Magias de campanha e outras exceções podem ser registradas pelo mestre no editor manual.</p>
           <button type="button" @click="saveRepertoire" :disabled="busy" class="btn">Salvar repertório</button>
-        </div>
+        </fieldset>
       </details>
       <div class="border-t border-steel-dark pt-4 space-y-3">
         <h3 class="font-bold text-gold">Recuperar usos</h3>
@@ -66,18 +66,20 @@ import api from '../../services/api'
 import { errorMessage } from '../../utils/catalog'
 import { useCharacterOperations } from '../../composables/characterOperations'
 import { remainingSpellUses, spellTradition } from '../../utils/spellcasting'
+import { spellValidation } from '../../utils/ruleChoices'
 
 const props = defineProps<{ character: any; prepare: () => Promise<boolean>; refresh: () => Promise<void> }>()
 const operations = useCharacterOperations()
 const info = ref<any>({}), metadata = ref<any>({}), busy = ref(false), loading = ref(true), error = ref(''), notice = ref('')
 const repertoire = ref<any[]>([]), orderApproved = ref(false), restDay = ref(1), restConfirmed = ref(false)
+let repertoireInitialized = false
 const url = () => `/api/game-rules/characters/${props.character.id}`
 const traditionName = (tradition: string) => tradition === 'arcane' ? 'Arcana' : tradition === 'divine' ? 'Divina' : 'Tradição a definir'
 const remaining = (tradition: string, level: number) => remainingSpellUses(info.value, tradition, level)
 const canCast = (spell: any) => remaining(spellTradition(info.value, spell), spell.level) > 0
 
 async function load() {
-  if (busy.value) return
+  if (busy.value || (loading.value && Object.keys(info.value).length)) return
   loading.value = true
   error.value = ''
   try {
@@ -91,9 +93,13 @@ async function load() {
 }
 
 function onEditorToggle(event: Event) {
-  if (!(event.target as HTMLDetailsElement).open) return
+  if (!(event.target as HTMLDetailsElement).open || repertoireInitialized) return
   repertoire.value = (props.character.spells || []).map((spell: any) => ({ name: spell.name, level: spell.level, tradition: spellTradition(info.value, spell) }))
+  repertoireInitialized = true
 }
+function availableLevels(tradition: string): number[] { return (info.value.magic?.find((pool: any) => pool.tradition === tradition)?.slots || []).flatMap((slots: number, i: number) => slots ? [i + 1] : []) }
+function changeTradition(spell: any) { spell.level = availableLevels(spell.tradition)[0] || 1; spell.name = '' }
+function addSpell() { const pool = info.value.magic.find((pool: any) => availableLevels(pool.tradition).length); if (pool) repertoire.value.push({ name: '', level: availableLevels(pool.tradition)[0], tradition: pool.tradition }) }
 
 async function change(key: string, path: string, input: any, message: string) {
   if (busy.value) return
@@ -116,6 +122,8 @@ async function change(key: string, path: string, input: any, message: string) {
 }
 
 async function saveRepertoire() {
+  const check = spellValidation(info.value.magic || [], repertoire.value, metadata.value.spells || [])
+  if (check.issues.length) { error.value = check.issues.join(' '); notice.value = ''; return }
   await change('magic:repertoire:update', 'magic/repertoire', { spells: JSON.parse(JSON.stringify(repertoire.value)), orderApproved: orderApproved.value }, 'Repertório registrado.')
 }
 async function cast(spellId: string) { await change(`magic:${spellId}:cast`, 'magic/cast', { spellId }, 'Uso de magia registrado.') }

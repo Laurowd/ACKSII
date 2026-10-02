@@ -49,6 +49,30 @@ test('guided creation persists initial choices atomically', async () => {
   assert.equal(character.version, 0);
   assert.equal((await db.item.count({ where: { characterId: character.id } })), 1);
 });
+
+test('book-mode creation validates proficiencies and magic before creating any records', async () => {
+  const base = { characterName: `Choices ${suffix}`, classKey: 'catalog:venturer', rulesMode: 'standard', str: 10, int: 10, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 6,
+    proficiencies: [{ name: 'Navigation', category: 'class' }, { name: 'Caving', category: 'general' }] };
+  const mage = { ...base, classKey: 'catalog:mage', hpMax: 4, proficiencies: [{ name: 'Alchemy', category: 'class' }, { name: 'Caving', category: 'general' }] };
+  const armor = { name: 'Arcane Armor', level: 1, tradition: 'arcane' };
+  const before = await db.character.count({ where: { userId: user.id } });
+  for (const input of [
+    { ...base, proficiencies: [{ name: 'Seduction', category: 'class' }, { name: 'Caving', category: 'general' }] },
+    { ...mage, spells: [{ ...armor, tradition: 'divine' }] },
+    { ...mage, spells: [armor, armor] },
+    { ...mage, spells: [] },
+  ]) {
+    const response = await request('POST', '/api/characters/guided', input);
+    assert.equal(response.statusCode, 400, response.body);
+    assert.equal(response.json().step, 2);
+  }
+  assert.equal(await db.character.count({ where: { userId: user.id } }), before);
+  assert.equal((await request('POST', '/api/characters/guided', base)).statusCode, 201);
+  const created = await request('POST', '/api/characters/guided', { ...mage, spells: [{ ...armor, name: ' Arcane Armor ' }] });
+  assert.equal(created.statusCode, 201, created.body);
+  const spell = await db.spell.findFirst({ where: { characterId: created.json().character.id } });
+  assert.equal(spell.name, 'Arcane Armor');
+});
 test('concurrent sheet saves allow exactly one winner', async () => {
   const responses = await Promise.all(['first', 'second'].map(notes => request('PUT', `/api/characters/${character.id}`, { version: character.version, notes })));
   assert.deepEqual(responses.map(r => r.statusCode).sort(), [200, 409]);

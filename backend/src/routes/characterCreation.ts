@@ -76,7 +76,7 @@ export async function characterCreationRoutes(app: FastifyInstance) {
       const issues = [...proficiencyIssues(ruleData,data,proficiencies || []),...spellIssues(ruleData,data,spells || [])]
       for (const category of ['class','general']) if (!proficiencies?.some(p=>p.category===category)) issues.push(`Escolha ao menos uma proficiência ${category}.`)
       for (const pool of magicPools(ruleData,data)) if (pool.studious && pool.slots[0] && !spells?.some(s=>s.tradition===pool.tradition && s.level===1)) issues.push(`Escolha sua primeira magia ${pool.tradition}.`)
-      if (issues.length) return reply.code(400).send({message:issues.join(' ')})
+      if (issues.length) return reply.code(400).send({message:issues.join(' '), step:2})
     }
     if (rulesMode === 'manual' && !exceptionReason?.trim()) return reply.code(400).send({message:'Registre a decisão do mestre para as escolhas manuais.'})
     const purchasedItems: any[] = [], purchasedWeapons: any[] = []
@@ -104,7 +104,7 @@ export async function characterCreationRoutes(app: FastifyInstance) {
       level: 1, xp: 0, hpCurr: data.hpMax, ...progressionFields(klass, 1, data.wil),
       ...(ruleData ? Object.fromEntries(Array.from({length:6},(_,i)=>[`spellSlotsLevel${i+1}`,magicPools(ruleData,data).reduce((sum,p)=>sum+p.slots[i]!,0)])) : {}),
       items: { create: [...(items ?? []).map(i => ({ name: i.name.trim(), quantity: i.quantity, weight: i.weight })),...purchasedItems] },
-      weapons:{create:purchasedWeapons}, spells:{create:spells||[]},
+      weapons:{create:purchasedWeapons}, spells:{create:(spells||[]).map(spell => ({ ...spell, name: spell.name.trim() }))},
       proficiencies: { create: [...initialAdventuring(data.str, official ? klass.name : ''), ...(proficiencies ?? []).filter(p => p.category !== 'adventuring').map(p => ({ name: p.name.trim(), category: p.category }))] },
     } })
     return reply.code(201).send({ character })
