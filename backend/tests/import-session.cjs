@@ -95,6 +95,11 @@ test('ownership identifiers and unknown nested fields are rejected instead of si
     { characterName: 'Rejected', campaignId: campaign.id }, { characterName: 'Rejected', items: [{ name: 'Rope', characterId: 'foreign' }] },
     { characterName: 'Rejected', spells: [{ name: 'Slumber', level: 1, untrusted: true }] },
   ]) assert.equal((await request({ document: document(character) })).statusCode, 400);
+  for (const drafts of [
+    { untrusted: true },
+    { repertoire: { orderApproved: false, spells: [{ name: 'Slumber', level: 1, tradition: 'arcane', characterId: 'foreign' }] } },
+    { repertoire: { orderApproved: false, spells: [{ name: 'Slumber', level: 7, tradition: 'arcane' }] } },
+  ]) assert.equal((await request({ document: { ...document({ characterName: 'Rejected draft' }), drafts } })).statusCode, 400);
   assert.equal(await db.character.count({ where: { userId: user.id } }), previous);
 });
 

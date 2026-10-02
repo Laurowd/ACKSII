@@ -1,3 +1,5 @@
+import incomeFactors from '../data/domainIncomeFactors.json'
+
 export function domainEconomy(d: Record<string, any>) {
   const families = Number(d.peasantFamilies ?? 0)
   const land = families * Number(d.revenuePerFamily ?? 3)
@@ -7,4 +9,9 @@ export function domainEconomy(d: Record<string, any>) {
   const expenses = ['garrisonCost', 'civilExpenses', 'constructionCosts', 'mercenaryPayroll',
     'specialistPayroll', 'maintenanceCost', 'liturgiesCost', 'titheCost'].reduce((sum, k) => sum + Number(d[k] ?? 0), 0)
   return { land, services, taxes, gross, expenses, balance: gross + Number(d.eventModifier ?? 0) - expenses }
+}
+
+export function domainIncomeFactor(morale: number) {
+  const current = Math.max(-4, Math.min(4, Number(morale) || 0))
+  return (incomeFactors as Record<string, number>)[String(current)] ?? 1
 }

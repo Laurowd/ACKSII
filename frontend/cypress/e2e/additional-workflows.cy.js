@@ -108,7 +108,7 @@ describe('Classes livres, consulta e operações complementares', () => {
           expect(result.character.coinGP).to.eq(220)
           cy.api(this.account, 'POST', sale, { version: result.character.version }, 409)
           // Manual status edits must not allow crediting the same cargo again.
-          mutateCharacter(this.account, 'PUT', `${path}/mercantile/${venture.id}`, { status: 'IN_TRANSIT' })
+          mutateCharacter(this.account, 'PUT', `${path}/mercantile/${venture.id}`, { status: 'IN_TRANSIT' }, 400)
           mutateCharacter(this.account, 'POST', sale, {}, 409)
           cy.api(this.account, 'GET', path).its('character.coinGP').should('eq', 220)
         })

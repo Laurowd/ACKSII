@@ -11,6 +11,16 @@
       <router-link to="/dashboard" class="text-gold underline">Voltar aos personagens</router-link>
     </div>
     <template v-else-if="char">
+      <div v-if="contextLoading" role="status" class="mb-4 rounded-xl border border-steel-dark p-4 text-steel-light">Carregando catálogo e regras da campanha…</div>
+      <div v-else-if="contextError" role="alert" class="mb-4 rounded-xl border border-red-400/50 p-4 space-y-2">
+        <p>{{ contextError }}</p>
+        <p class="text-sm text-steel-light">Carregue o catálogo e as regras antes de editar, salvar ou exportar esta ficha.</p>
+        <button type="button" @click="loadCampaignContext" class="text-gold underline">Tentar carregar regras e catálogo novamente</button>
+      </div>
+      <div v-if="repertoirePending" role="status" class="mb-4 rounded-xl border border-gold/30 p-4 text-sm text-steel-light">
+        Há alterações no repertório ainda não enviadas. Use Salvar repertório na aba Magia para confirmá-las.
+        <button type="button" @click="currentTab = 'magic'" class="text-gold underline ml-2">Abrir rascunho de repertório</button>
+      </div>
       <div v-if="anyConflict" role="alert" class="mb-4 rounded border border-red-400 p-4 text-steel-light">
         A ficha mudou em outra sessão. Suas alterações locais foram preservadas.
         Exporte o JSON antes de carregar a versão atual para comparar os dados.
@@ -27,13 +37,13 @@
            Voltar
         </router-link>
         <div class="flex flex-wrap items-center gap-3">
-          <button @click="exportSheet('json')" class="text-gold text-sm underline">Exportar JSON</button>
-          <button @click="exportSheet('html')" class="text-gold text-sm underline" title="Baixa uma ficha imprimível; abra o arquivo para salvar como PDF">Ficha para impressão/PDF</button>
+          <button @click="exportSheet('json')" :disabled="!contextReady" class="text-gold text-sm underline disabled:opacity-40">Exportar JSON</button>
+          <button @click="exportSheet('html')" :disabled="!contextReady" class="text-gold text-sm underline disabled:opacity-40" title="Baixa uma ficha imprimível; abra o arquivo para salvar como PDF">Ficha para impressão/PDF</button>
           <span v-if="anySaving" class="text-gold text-sm animate-pulse">Salvando...</span>
           <span v-else-if="anySaveError" class="text-red-400 text-xs">Falha ao salvar</span>
           <span v-else-if="anyPendingChanges" class="text-steel-light text-xs">Alterações pendentes</span>
           <span v-else-if="lastSaved" class="text-steel text-xs">Salvo </span>
-          <button @click="manualSave" :disabled="anySaving" class="px-4 py-2 bg-linear-to-r from-gold-dark to-gold text-dark-bg font-bold rounded-lg
+          <button @click="manualSave" :disabled="anySaving || !contextReady" class="px-4 py-2 bg-linear-to-r from-gold-dark to-gold text-dark-bg font-bold rounded-lg
                  hover:from-gold hover:to-gold-light transition-all text-sm disabled:cursor-wait disabled:opacity-60">
             Salvar
           </button>
@@ -66,7 +76,7 @@
       </div>
 
       <!-- Tab Contents -->
-      <div role="tabpanel" :id="`sheet-${currentTab}`" :aria-labelledby="`tab-${currentTab}`" class="tab-content transition-all">
+      <div v-if="contextReady" role="tabpanel" :id="`sheet-${currentTab}`" :aria-labelledby="`tab-${currentTab}`" class="tab-content transition-all">
         <RulesAssistant v-if="currentTab === 'rules'" :character="char" :prepare="saveCharacter" :refresh="refreshRuleCharacter" :can-manage="canManageRules" @open-magic="currentTab = 'magic'" />
         <CombatTab
           v-if="currentTab === 'combat'"
@@ -75,6 +85,7 @@
           :custom-classes="customClasses"
           :current-campaign-members="currentCampaignMembers"
           :auth-store="authStore"
+          :can-manage="canManageRules"
           :encumbrance-result="encumbranceResult"
           :computed-a-c="computedAC"
           :computed-initiative="computedInitiative"
@@ -86,6 +97,7 @@
           @owner-change="onOwnerChange"
           @class-change="onClassChange"
           @level-change="onLevelChange"
+          @open-rules="currentTab = 'rules'"
         />
 
         <InventoryTab
@@ -104,6 +116,7 @@
           :prepare="saveCharacter" :refresh="refreshRuleCharacter"
           :character="char"
           :optional-rules="campaignOptionalRules"
+          :repertoire-draft="repertoireDraft"
           @save="autoSave"
         />
 
@@ -117,6 +130,7 @@
           v-if="currentTab === 'activities'"
           :character="char"
           :prepare="saveCharacter"
+          :can-manage="canManageRules"
         />
       </div>
 
@@ -147,6 +161,7 @@ import { createCharacterOperations, characterOperationsKey, mergeUnchangedDraft,
 import { notifyError } from '../utils/toast'
 import { errorMessage, selectedClass, type CatalogClass } from '../utils/catalog'
 import { characterExport, characterPrintHtml, downloadCharacter } from '../utils/characterExport'
+import { emptyRepertoireDraft, repertoireHasChanges } from '../utils/spellcasting'
 
 
 import CombatTab from '../components/sheet/CombatTab.vue';
@@ -168,15 +183,21 @@ const lastSaved = ref(false)
 const saveError = ref(false)
 const saveConflict = ref(false)
 const hasPendingChanges = ref(false)
+const repertoireDraft = ref(emptyRepertoireDraft())
+const repertoirePending = computed(() => repertoireHasChanges(repertoireDraft.value))
 const operationState = ref<OperationState>({ pending: 0, busy: false, error: null, conflict: false })
 const operations = createCharacterOperations({ getCharacter: () => char.value, prepare: saveCharacter, onState: (state) => { operationState.value = state } })
 provide(characterOperationsKey, operations)
-const anyPendingChanges = computed(() => hasPendingChanges.value || operationState.value.pending > 0)
+const anyPendingChanges = computed(() => hasPendingChanges.value || operationState.value.pending > 0 || repertoirePending.value)
 const anyConflict = computed(() => saveConflict.value || operationState.value.conflict)
 const anySaveError = computed(() => saveError.value || Boolean(operationState.value.error))
 const anySaving = computed(() => saving.value || operationState.value.busy)
 async function saveAllChanges() { return await saveCharacter() && await operations.retryPending() }
-async function manualSave() { if (!anyPendingChanges.value) hasPendingChanges.value = true; return saveAllChanges() }
+async function manualSave() {
+  if (repertoirePending.value && !hasPendingChanges.value && !operationState.value.pending) { currentTab.value = 'magic'; return false }
+  if (!anyPendingChanges.value) hasPendingChanges.value = true
+  return saveAllChanges()
+}
 
 let saveTimeout: ReturnType<typeof setTimeout> | null = null
 let savedNoticeTimeout: ReturnType<typeof setTimeout> | null = null
@@ -185,6 +206,7 @@ let saveQueued = false
 
 const campaigns = ref<any[]>([])
 const customClasses = ref<CatalogClass[]>([])
+const contextLoading = ref(false), contextError = ref(''), contextReady = ref(false)
 let savedAssignment: { campaignId: string | null; userId: string } | null = null
 const defaultOptionalRules: Record<string, boolean> = {
   enableDomainEconomy: true,
@@ -194,7 +216,6 @@ const defaultOptionalRules: Record<string, boolean> = {
   enableMonthlyMaintenance: true,
   enableActivityQueue: true,
   enableClassAutoProgression: true,
-  enableAdvancedEncumbrance: true,
 }
 const campaignOptionalRules = ref({ ...defaultOptionalRules })
 
@@ -233,10 +254,11 @@ async function refreshRuleCharacter() {
 }
 
 function exportSheet(format: 'json' | 'html') {
-  if (!char.value) return
+  if (!char.value || !contextReady.value) return
   const definition = selectedClass(customClasses.value, char.value)
   const automaticProgression = campaignOptionalRules.value.enableClassAutoProgression !== false
-  const content = format === 'json' ? JSON.stringify(characterExport(char.value, definition, automaticProgression), null, 2) : characterPrintHtml(char.value, definition, automaticProgression)
+  const exported = characterExport(char.value, definition, automaticProgression)
+  const content = format === 'json' ? JSON.stringify({ ...exported, ...(repertoirePending.value && { drafts: { repertoire: { spells: repertoireDraft.value.spells, orderApproved: repertoireDraft.value.orderApproved } } }) }, null, 2) : characterPrintHtml(char.value, definition, automaticProgression)
   downloadCharacter(content, char.value.characterName || 'personagem', format)
 }
 
@@ -263,29 +285,30 @@ const currentCampaignMembers = computed(() => {
   return campaign?.members || []
 })
 
-async function loadCampaignClasses(campaignId: string | null) {
+async function loadCampaignContext() {
+  if (contextLoading.value || !char.value) return
+  contextLoading.value = true; contextReady.value = false; contextError.value = ''
+  const campaignId = char.value.campaignId
   try {
-    const res = await api.get('/api/classes/catalog', { params: { campaignId: campaignId || undefined } })
-    customClasses.value = res.data
-    const selected = char.value && selectedClass(customClasses.value, char.value)
-    if (selected && !char.value.classKey) char.value.classKey = selected.id
-  } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível carregar o catálogo de classes desta campanha.'))
-  }
-}
-
-async function loadCampaignOptionalRules(campaignId: string | null) {
-  campaignOptionalRules.value = { ...defaultOptionalRules }
-  if (!campaignId) return
-  try {
-    const res = await api.get(`/api/campaigns/${campaignId}/settings`)
-    campaignOptionalRules.value = {
-      ...campaignOptionalRules.value,
-      ...(res.data.optionalRules || {})
+    const results = await Promise.allSettled([
+      api.get('/api/classes/catalog', { params: { campaignId: campaignId || undefined } }),
+      campaignId ? api.get(`/api/campaigns/${campaignId}/settings`) : Promise.resolve({ data: { optionalRules: {} } }),
+    ])
+    const [catalog, settings] = results
+    const issues: string[] = []
+    if (catalog!.status === 'rejected') issues.push(errorMessage(catalog!.reason, 'Não foi possível carregar o catálogo de classes.'))
+    if (settings!.status === 'rejected') issues.push(errorMessage(settings!.reason, 'Não foi possível carregar as regras da campanha.'))
+    if (issues.length) throw new Error(issues.join(' '))
+    if (catalog!.status === 'fulfilled' && settings!.status === 'fulfilled') {
+      customClasses.value = catalog!.value.data
+      campaignOptionalRules.value = { ...defaultOptionalRules, ...settings!.value.data.optionalRules }
+      const definition = selectedClass(customClasses.value, char.value)
+      if (definition && !char.value.classKey) char.value.classKey = definition.id
+      contextReady.value = true
     }
   } catch (e) {
-    notifyError(errorMessage(e, 'Não foi possível carregar as regras opcionais desta campanha.'))
-  }
+    contextError.value = errorMessage(e, 'Não foi possível carregar as regras e o catálogo.')
+  } finally { contextLoading.value = false }
 }
 
 async function onCampaignChange() {
@@ -305,8 +328,7 @@ async function updateAssignment(includeOwner: boolean) {
     })
     char.value.version = assignment.data.character.version
     savedAssignment = { campaignId: char.value.campaignId, userId: char.value.userId }
-    await loadCampaignClasses(char.value.campaignId)
-    await loadCampaignOptionalRules(char.value.campaignId)
+    await loadCampaignContext()
   } catch (e) {
     if (savedAssignment) Object.assign(char.value, savedAssignment)
     notifyError(errorMessage(e, 'Não foi possível alterar a campanha ou o responsável. Salve a ficha e tente novamente.'))
@@ -375,6 +397,7 @@ function characterPayload() {
 
 async function saveCharacter(): Promise<boolean> {
   if (!char.value) return true
+  if (!contextReady.value) return !hasPendingChanges.value
   if (anyConflict.value) return false
   await operations.waitForActive()
   if (!hasPendingChanges.value && !saveInFlight) return true
@@ -455,10 +478,10 @@ async function reloadAfterConflict() {
     saveConflict.value = false
     saveError.value = false
     hasPendingChanges.value = false
+    repertoireDraft.value = emptyRepertoireDraft()
     saveQueued = false
     if (saveTimeout) { clearTimeout(saveTimeout); saveTimeout = null }
-    await loadCampaignClasses(char.value.campaignId)
-    await loadCampaignOptionalRules(char.value.campaignId)
+    await loadCampaignContext()
   } catch (error) { notifyError(errorMessage(error, 'Não foi possível carregar a ficha.')) }
 }
 
@@ -480,7 +503,8 @@ function warnAboutPendingChanges(event: BeforeUnloadEvent) {
 
 async function saveBeforeNavigation() {
   if (!anyPendingChanges.value && !saveInFlight && !operationState.value.busy) return true
-  return await saveAllChanges()
+  if (!await saveAllChanges()) return false
+  return !repertoirePending.value || window.confirm('O repertório tem alterações ainda não enviadas. Sair e descartar esse rascunho? Para salvá-lo, permaneça e use Salvar repertório na aba Magia.')
 }
 onBeforeRouteLeave(saveBeforeNavigation)
 onBeforeRouteUpdate((to,from)=>to.fullPath.split('#')[0]===from.fullPath.split('#')[0] || saveBeforeNavigation())
@@ -496,10 +520,7 @@ async function loadCharacter() {
     const res = await api.get(`/api/characters/${route.params.id}`)
     char.value = res.data.character
     normalizeLoadedCharacter()
-    await loadCampaignClasses(char.value.campaignId)
-    if (char.value?.campaignId) {
-      await loadCampaignOptionalRules(char.value.campaignId)
-    }
+    await loadCampaignContext()
   } catch (e) {
     loadError.value = errorMessage(e, 'Não foi possível carregar a ficha. Verifique a conexão e tente novamente.')
   } finally {

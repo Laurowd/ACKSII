@@ -12,6 +12,7 @@
         <p class="font-bold text-gold break-words">{{ document.character.characterName || 'Personagem sem nome' }}</p>
         <p class="text-sm text-steel-light mt-1">{{ document.character.className || 'Classe livre' }} · Nível {{ document.character.level || 1 }}</p>
         <p class="text-xs text-steel-light mt-3">Itens, magias e demais registros recebem novos identificadores. Classes de campanha precisam existir no destino. O histórico de aventuras e financeiro permanece na ficha original.</p>
+        <p v-if="document.drafts?.repertoire" class="text-sm text-gold mt-3">O arquivo também guarda um rascunho de repertório não enviado. Serão importadas as magias registradas; as escolhas pendentes ficam em drafts.repertoire no JSON para revisão na aba Magia.</p>
       </div>
       <p v-if="error" role="alert" class="text-red-400 text-sm">{{ error }}</p>
       <div class="flex justify-end gap-3"><button type="button" @click="close" :disabled="busy" class="px-4 py-2 text-steel-light">Cancelar</button><button type="submit" :disabled="!document || reading || busy" class="rounded-lg bg-gold px-4 py-2 font-bold text-dark-bg disabled:opacity-50">{{ busy ? 'Importando...' : 'Criar ficha importada' }}</button></div>

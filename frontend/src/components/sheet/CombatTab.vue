@@ -414,17 +414,22 @@
     </div>
 
     <!-- ====== PROFICIENCIES ====== -->
+    <div class="rounded-xl border border-steel-dark p-4 text-sm text-steel-light space-y-2">
+      <p>Inclua escolhas de proficiência pelo assistente, que confere a lista da classe e os limites. O alvo do teste pode ser ajustado abaixo conforme a situação em jogo.</p>
+      <button type="button" @click="emit('open-rules')" class="text-gold underline">Escolher proficiências com validação</button>
+      <p v-if="canManage" class="text-xs">Os nomes e botões de inclusão abaixo são ajustes manuais do mestre para exceções da campanha.</p>
+    </div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
       <div v-for="cat in PROF_CATS" :key="cat.key" class="bg-dark-card border border-gold/20 rounded-xl p-5">
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-lg font-bold text-gold">{{ cat.icon }} {{ cat.label }}</h3>
-          <button type="button" @click="addProficiency(cat.key)" :aria-label="`Adicionar proficiência: ${cat.label}`" class="text-sm text-gold hover:text-gold-light transition-colors">+</button>
+          <button v-if="canManage" type="button" @click="addProficiency(cat.key)" :aria-label="`Adicionar proficiência: ${cat.label}`" class="text-sm text-gold hover:text-gold-light transition-colors">+</button>
         </div>
         <div v-for="p in getProfsByCategory(cat.key)" :key="p.id" class="flex items-center gap-2 mb-2 bg-dark-bg/35 border border-steel-dark/50 rounded-lg px-2.5 py-2 hover:bg-dark-bg/50 transition-colors">
-          <input v-model="p.name" @change="saveProficiency(p)" :aria-label="`Nome da proficiência ${p.name || 'nova'}`" class="flex-1 min-w-0 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-dark-text text-sm focus:outline-none focus:border-gold" placeholder="Proficiência" />
-          <label class="text-[10px] uppercase tracking-wider text-steel w-10 text-right font-semibold shrink-0">Throw</label>
-          <input v-model.number="p.throwTarget" @change="saveProficiency(p)" :aria-label="`Alvo da proficiência ${p.name || 'nova'}`" type="number" class="w-14 shrink-0 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-gold text-center text-sm font-bold focus:outline-none focus:border-gold" />
-          <button type="button" @click="removeProficiency(p.id)" :aria-label="`Remover proficiência ${p.name || 'sem nome'}`" class="text-crimson-light hover:text-crimson text-xs font-bold px-1.5 py-0.5 rounded border border-transparent hover:border-crimson/40 shrink-0">X</button>
+          <input v-model="p.name" @change="saveProficiency(p)" :readonly="!canManage" :aria-label="`Nome da proficiência ${p.name || 'nova'}`" class="flex-1 min-w-0 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-dark-text text-sm focus:outline-none focus:border-gold" placeholder="Proficiência" />
+          <label :for="`proficiency-target-${p.id}`" class="text-[10px] uppercase tracking-wider text-steel w-10 text-right font-semibold shrink-0">Alvo</label>
+          <input :id="`proficiency-target-${p.id}`" v-model.number="p.throwTarget" @change="saveProficiency(p)" :aria-label="`Alvo da proficiência ${p.name || 'nova'}`" type="number" class="w-14 shrink-0 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-gold text-center text-sm font-bold focus:outline-none focus:border-gold" />
+          <button v-if="canManage || cat.key !== 'adventuring'" type="button" @click="removeProficiency(p.id)" :aria-label="`Remover proficiência ${p.name || 'sem nome'}`" class="text-crimson-light hover:text-crimson text-xs font-bold px-1.5 py-0.5 rounded border border-transparent hover:border-crimson/40 shrink-0">X</button>
         </div>
       </div>
     </div>
@@ -469,6 +474,7 @@ const props = defineProps<{
   customClasses: any[],
   currentCampaignMembers: any[],
   authStore: any,
+  canManage?: boolean,
   encumbranceResult: any,
   computedAC: any,
   computedInitiative: number,
@@ -477,7 +483,7 @@ const props = defineProps<{
   displayXpNext: number
 }>()
 
-const emit = defineEmits(['save', 'campaign-change', 'owner-change', 'class-change', 'level-change'])
+const emit = defineEmits(['save', 'campaign-change', 'owner-change', 'class-change', 'level-change', 'open-rules'])
 const relations = useCharacterRelations(() => props.character)
 const compendiumWeapons = ref<any[]>([])
 

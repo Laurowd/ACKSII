@@ -59,7 +59,7 @@ describe('ACKS II corrections through the API', () => {
   it('scopes proficiency edits to the character and saves zero throw values', async () => {
     db.proficiency.findFirst.mockResolvedValueOnce(null)
     expect((await request('PUT', '/proficiencies/foreign', { name: 'Test' })).statusCode).toBe(404)
-    db.proficiency.findFirst.mockResolvedValueOnce({ id: 'p' })
+    db.proficiency.findFirst.mockResolvedValueOnce({ id: 'p', name: 'Test', category: 'class' })
     expect((await request('PUT', '/proficiencies/p', { name: 'Test', throwTarget: 0, category: 'class' })).statusCode).toBe(200)
     expect(db.proficiency.update).toHaveBeenCalledWith({ where: { id: 'p' }, data: { name: 'Test', throwTarget: 0, category: 'class' } })
     expect((await request('PUT', '/proficiencies/p', { name: 'Test' }, 'other')).statusCode).toBe(403)

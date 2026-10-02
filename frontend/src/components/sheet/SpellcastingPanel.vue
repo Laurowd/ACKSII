@@ -51,7 +51,7 @@
       <p v-if="!character.spells?.length" class="text-sm text-steel-light rounded-lg border border-dashed border-steel-dark p-4">Nenhuma magia registrada para este personagem.</p>
       <p v-if="info.supported && info.magic?.length" class="text-xs text-steel-light">O repertório é a lista de magias disponíveis para o personagem. Os usos diários são compartilhados entre as magias de cada nível e tradição.</p>
       <p v-if="info.supported && info.magic?.length" class="text-xs text-steel-light">Magias interrompidas também gastam um uso. Não há preparação prévia de magias.</p>
-      <details v-if="info.supported && info.magic?.length && !loading" class="border border-steel-dark p-3 rounded-lg" @toggle="onEditorToggle">
+      <details v-if="info.supported && info.magic?.length && !loading" :open="repertoireDraft.open" class="border border-steel-dark p-3 rounded-lg" @toggle="onEditorToggle">
         <summary class="cursor-pointer font-bold text-gold">Editar repertório com validação</summary>
         <fieldset :disabled="busy || loading" class="min-w-0 space-y-3 mt-3">
           <div v-for="(spell, i) in repertoire" :key="i" class="grid grid-cols-[minmax(0,1fr)_4rem] sm:flex items-center gap-2">
@@ -64,7 +64,9 @@
           <button type="button" @click="addSpell" :disabled="!info.magic.some((pool: any) => pool.slots.some((slots: number) => slots > 0))" class="text-sm text-gold disabled:opacity-40">+ Adicionar magia</button>
           <label class="block text-sm"><input v-model="orderApproved" type="checkbox" /> Repertório religioso conferido com o mestre, quando aplicável.</label>
           <p class="text-xs text-steel-light">Salvar substitui o repertório atual. Magias de campanha e outras exceções podem ser registradas pelo mestre no editor manual.</p>
+          <p v-if="draftPending" class="text-sm text-gold">Rascunho ainda não enviado. Ele é preservado ao trocar de aba.</p>
           <button type="button" @click="saveRepertoire" :disabled="busy" class="btn">Salvar repertório</button>
+          <button v-if="draftPending" type="button" @click="discardDraft" :disabled="busy" class="text-sm text-steel-light underline ml-3">Descartar rascunho</button>
         </fieldset>
       </details>
     </section>
@@ -81,21 +83,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import HelpTooltip from '../HelpTooltip.vue'
 import api from '../../services/api'
 import { errorMessage } from '../../utils/catalog'
 import { useCharacterOperations } from '../../composables/characterOperations'
-import { remainingSpellUses, spellTradition } from '../../utils/spellcasting'
+import { remainingSpellUses, spellTradition, repertoireHasChanges, repertoireSnapshot, type RepertoireDraft } from '../../utils/spellcasting'
 import { spellValidation } from '../../utils/ruleChoices'
 
 const props = defineProps<{ character: any; prepare: () => Promise<boolean>; refresh: () => Promise<void>;
+  repertoireDraft: RepertoireDraft;
   spellDescriptions?: { name: string; level?: number; notes?: string }[]; descriptionsLoading?: boolean; descriptionsError?: string }>()
 const emit = defineEmits<{ 'retry-descriptions': [] }>()
 const operations = useCharacterOperations()
 const info = ref<any>({}), metadata = ref<any>({}), busy = ref(false), loading = ref(true), error = ref(''), notice = ref('')
-const repertoire = ref<any[]>([]), orderApproved = ref(false), restDay = ref(1), restConfirmed = ref(false)
-let repertoireInitialized = false
+const repertoire = computed({ get: () => props.repertoireDraft.spells || [], set: value => { props.repertoireDraft.spells = value } })
+const orderApproved = computed({ get: () => props.repertoireDraft.orderApproved, set: value => { props.repertoireDraft.orderApproved = value } })
+const draftPending = computed(() => repertoireHasChanges(props.repertoireDraft))
+const restDay = ref(1), restConfirmed = ref(false)
 const url = () => `/api/game-rules/characters/${props.character.id}`
 const traditionName = (tradition: string) => tradition === 'arcane' ? 'Arcana' : tradition === 'divine' ? 'Divina' : 'Tradição a definir'
 const remaining = (tradition: string, level: number) => remainingSpellUses(info.value, tradition, level)
@@ -133,15 +138,23 @@ async function load() {
 }
 
 function onEditorToggle(event: Event) {
-  if (!(event.target as HTMLDetailsElement).open || repertoireInitialized) return
+  props.repertoireDraft.open = (event.target as HTMLDetailsElement).open
+  if (!props.repertoireDraft.open || props.repertoireDraft.spells !== null) return
+  resetDraft()
+}
+function resetDraft() {
   repertoire.value = (props.character.spells || []).map((spell: any) => ({ name: spell.name, level: spell.level, tradition: spellTradition(info.value, spell) }))
-  repertoireInitialized = true
+  orderApproved.value = false
+  props.repertoireDraft.original = repertoireSnapshot(props.repertoireDraft)
+}
+function discardDraft() {
+  if (window.confirm('Descartar as alterações do repertório e voltar às magias registradas?')) resetDraft()
 }
 function availableLevels(tradition: string): number[] { return (info.value.magic?.find((pool: any) => pool.tradition === tradition)?.slots || []).flatMap((slots: number, i: number) => slots ? [i + 1] : []) }
 function changeTradition(spell: any) { spell.level = availableLevels(spell.tradition)[0] || 1; spell.name = '' }
 function addSpell() { const pool = info.value.magic.find((pool: any) => availableLevels(pool.tradition).length); if (pool) repertoire.value.push({ name: '', level: availableLevels(pool.tradition)[0], tradition: pool.tradition }) }
 
-async function change(key: string, path: string, input: any, message: string) {
+async function change(key: string, path: string, input: any, message: string, applied: () => void = () => {}) {
   if (busy.value) return
   busy.value = true
   error.value = notice.value = ''
@@ -155,6 +168,7 @@ async function change(key: string, path: string, input: any, message: string) {
         info.value.lastRestDay = state.lastRestDay
         restDay.value = Math.max(restDay.value, (state.lastRestDay ?? -1) + 1)
       }
+      applied()
     })
     if (!data) { error.value = errorMessage(operations.getLastError(), 'A operação não foi concluída. Confira os dados ou use Salvar para repetir uma falha de conexão.'); return }
     notice.value = message
@@ -164,7 +178,11 @@ async function change(key: string, path: string, input: any, message: string) {
 async function saveRepertoire() {
   const check = spellValidation(info.value.magic || [], repertoire.value, metadata.value.spells || [])
   if (check.issues.length) { error.value = check.issues.join(' '); notice.value = ''; return }
-  await change('magic:repertoire:update', 'magic/repertoire', { spells: JSON.parse(JSON.stringify(repertoire.value)), orderApproved: orderApproved.value }, 'Repertório registrado.')
+  const submitted = repertoireSnapshot(props.repertoireDraft)
+  await change('magic:repertoire:update', 'magic/repertoire', { spells: JSON.parse(JSON.stringify(repertoire.value)), orderApproved: orderApproved.value }, 'Repertório registrado.', () => {
+    if (repertoireSnapshot(props.repertoireDraft) === submitted) resetDraft()
+    else props.repertoireDraft.original = JSON.stringify({ spells: (props.character.spells || []).map((spell: any) => ({ name: spell.name, level: spell.level, tradition: spellTradition(info.value, spell) })), orderApproved: false })
+  })
 }
 async function cast(spellId: string) { await change(`magic:${spellId}:cast`, 'magic/cast', { spellId }, 'Uso de magia registrado.') }
 async function rest() {
@@ -172,6 +190,9 @@ async function rest() {
   restConfirmed.value = false
 }
 onMounted(load)
+watch(() => props.character.spells, () => {
+  if (props.repertoireDraft.spells !== null && !draftPending.value && info.value.magic?.length) resetDraft()
+}, { deep: true })
 </script>
 
 <style scoped>

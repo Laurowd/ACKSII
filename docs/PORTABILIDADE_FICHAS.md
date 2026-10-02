@@ -10,6 +10,10 @@ O JSON inclui os campos da ficha, armas, proficiências, inventário, magias, ri
 
 O formato atual é `acks-ii-character`, versão `1`. Dados da conta, vínculos com usuário/campanha, identificadores das relações e datas internas são omitidos.
 
+O editor validado de repertório mantém um rascunho separado das magias registradas. Ele é preservado ao trocar de aba, indica pendências e pede confirmação ao sair. Use **Salvar repertório** para confirmar as escolhas; **Salvar** da ficha permite repetir um envio que falhou, preservando mudanças digitadas após a tentativa. O JSON guarda o rascunho pendente em `drafts.repertoire`; o HTML usa as magias registradas. Na importação, esse rascunho serve para recuperação e revisão manual: ele não substitui as magias registradas nem contorna a validação. A prévia e o resultado da importação informam isso.
+
+A exportação aguarda o carregamento do catálogo e das regras da campanha. Em caso de falha, use a nova tentativa indicada na ficha antes de exportar, para preservar os cálculos e opções da mesa.
+
 ## Criar uma ficha a partir do JSON
 
 1. Abra **Personagens** no menu e clique em **Importar JSON**.
@@ -32,6 +36,8 @@ XP, moedas, tesouro do domínio e demais saldos atuais são preservados. A impor
 O histórico de auditoria e os registros de operações ligados à ficha original não são restaurados. Fechamentos anteriores de aventuras e meses, períodos de pesquisa e vínculos internos de projetos permanecem na origem. A nova ficha ganha um registro de importação no histórico.
 
 Projetos de pesquisa acompanhada em andamento são preservados com seu estado e prazo atuais como registros manuais. Combine a continuação com o mestre; os materiais já pagos não são cobrados novamente durante a importação. Dados de itens mágicos, incluindo cargas, são mantidos, mas o vínculo com o identificador do projeto original é removido.
+
+Cargas importadas como vendidas não possuem o histórico de liquidação da ficha original. Elas continuam vendidas e não geram novo crédito. O mestre responsável pode usar **Reabrir registro manual**, com justificativa, apenas quando confirmou que o retorno ainda não foi recebido. Reabrir não movimenta moedas; uma venda liquidada nesta ficha não pode ser reaberta nem ter seus valores alterados.
 
 Após importar, confira os saldos e os trabalhos em andamento antes de registrar novas operações. Para recuperar também usuários, campanhas e histórico completo, use os procedimentos de [backup e restauração](PRODUCAO_VERCEL.md).
 

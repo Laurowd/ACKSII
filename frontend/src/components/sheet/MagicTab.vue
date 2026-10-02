@@ -1,6 +1,7 @@
 <template>
   <div class="space-y-4">
     <SpellcastingPanel :character="character" :prepare="prepare" :refresh="refresh"
+      :repertoire-draft="repertoireDraft"
       :spell-descriptions="compendiumSpells" :descriptions-loading="loadingDescriptions" :descriptions-error="descriptionsError"
       @retry-descriptions="loadSpellDescriptions" />
     <details v-if="canManage" class="bg-dark-card border border-steel-dark rounded-xl p-4 sm:p-5">
@@ -214,6 +215,7 @@ export default { name: 'MagicTab' }
 import api from '../../services/api'
 import { useCharacterRelations } from '../../composables/characterRelations'
 import HelpTooltip from '../HelpTooltip.vue'
+import type { RepertoireDraft } from '../../utils/spellcasting'
 import SpellcastingPanel from './SpellcastingPanel.vue'
 import { useAuthStore } from '../../stores/auth'
 import { notifyError } from '../../utils/toast'
@@ -222,6 +224,7 @@ import { computed, ref, onMounted } from 'vue'
 
 const props = defineProps<{
   character: any,
+  repertoireDraft: RepertoireDraft,
   optionalRules?: Record<string, boolean>
   prepare: () => Promise<boolean>
   refresh: () => Promise<void>

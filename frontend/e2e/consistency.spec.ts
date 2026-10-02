@@ -3,6 +3,137 @@ import { readFile } from 'node:fs/promises'
 import { characterExport } from '../src/utils/characterExport'
 let account: any
 
+async function confirmedWrite(page: Page, headers: Record<string, string>, method: 'post' | 'put', path: string, data: any) {
+  const id = path.split('/')[3]
+  const current = (await (await page.request.get(`/api/characters/${id}`, { headers })).json()).character
+  const response = await page.request[method](path, { headers, data: { ...data, version: current.version } })
+  expect(response.ok(), await response.text()).toBe(true)
+  return response.json()
+}
+
+test('cargo is sold through settlement and its values stay protected on desktop and mobile', async ({ page }, testInfo) => {
+  const { character, headers } = await fixture(page)
+  const base = `/api/characters/${character.id}`
+  await confirmedWrite(page, headers, 'post', base + '/mercantile', { cargoName: 'Audit spices', baseValueGp: 100, originMarketClass: 3, destMarketClass: 1 })
+  await page.reload()
+  await page.getByRole('button', { name: 'Atividades e Downtime', exact: true }).click()
+  await expect(page.getByLabel('Valor base de Audit spices')).toBeEnabled()
+  const sold = page.waitForResponse(r => r.url().endsWith('/sell') && r.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Vender carga', exact: true }).click()
+  expect((await sold).status()).toBe(200)
+  await expect(page.getByLabel('Valor base de Audit spices')).toBeDisabled()
+  await expect(page.getByLabel('Mercado de origem de Audit spices')).toBeDisabled()
+  await expect(page.getByText('Vendida', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Reabrir registro manual' })).toHaveCount(0)
+  const current = (await (await page.request.get(base, { headers })).json()).character
+  expect(current.coinGP).toBe(120)
+  expect(current.mercantileVentures[0].profitGp).toBe(20)
+  await page.setViewportSize({ width: 320, height: 812 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+  await page.screenshot({ path: testInfo.outputPath('settled-cargo-mobile.png'), fullPage: true })
+  const imported = await page.request.post('/api/characters/import', { headers, data: { document: { format: 'acks-ii-character', version: 1, character: {
+    characterName: 'Legacy sale', classKey: 'catalog:fighter', coinGP: 50,
+    mercantileVentures: [{ cargoName: 'Manual cargo', baseValueGp: 100, originMarketClass: 3, destMarketClass: 1, status: 'SOLD', profitGp: 20 }],
+  } } } })
+  expect(imported.status(), await imported.text()).toBe(201)
+  const legacy = (await imported.json()).character
+  await page.goto(`/character/${legacy.id}`)
+  await page.getByRole('button', { name: 'Atividades e Downtime', exact: true }).click()
+  page.once('dialog', dialog => dialog.accept('Saldo conferido: venda antiga sem crédito de moedas.'))
+  await page.getByRole('button', { name: 'Reabrir registro manual', exact: true }).click()
+  await expect(page.getByText('Em trânsito', { exact: true })).toBeVisible()
+  expect((await (await page.request.get(`/api/characters/${legacy.id}`, { headers })).json()).character.coinGP).toBe(50)
+})
+
+test('unavailable rules or catalog block edits and exports until retry preserves campaign choices', async ({ page }) => {
+  const { character, headers } = await fixture(page)
+  const created = await page.request.post('/api/campaigns', { headers, data: { name: `Context ${character.id}` } })
+  expect(created.status()).toBe(201)
+  const campaign = await created.json()
+  const settings = `/api/campaigns/${campaign.id}/settings`
+  expect((await page.request.put(settings, { headers, data: { optionalRules: { enableClassAutoProgression: false, enableAdvancedEncumbrance: false } } })).status()).toBe(200)
+  await confirmedWrite(page, headers, 'put', `/api/characters/${character.id}/assignment`, { campaignId: campaign.id })
+  await confirmedWrite(page, headers, 'put', `/api/characters/${character.id}`, { xpNext: 7777 })
+  for (const url of [`**${settings}`, '**/api/classes/catalog?*']) {
+    await page.route(url, route => route.fulfill({ status: 503, json: { error: 'Context temporarily unavailable' } }))
+    await page.reload()
+    await expect(page.getByRole('alert').filter({ hasText: 'Carregue o catálogo e as regras' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Exportar JSON', exact: true })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toBeDisabled()
+    await page.unroute(url)
+    await page.getByRole('button', { name: 'Tentar carregar regras e catálogo novamente' }).click()
+    await expect(page.getByRole('button', { name: 'Exportar JSON', exact: true })).toBeEnabled()
+    const downloaded = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'Exportar JSON', exact: true }).click()
+    const result = JSON.parse(await readFile((await (await downloaded).path())!, 'utf8'))
+    expect(result.character.xpNext).toBe(7777)
+  }
+  await page.goto(`/campaigns/${campaign.id}/manage`)
+  await expect(page.getByRole('button', { name: 'Salvar Configurações', exact: true })).toBeVisible()
+  await expect(page.getByRole('checkbox', { name: /Carga avançada|Encumbrance/i })).toHaveCount(0)
+  await expect(page.getByText('Carga e movimento seguem o cálculo de carga da ficha.', { exact: false })).toBeVisible()
+})
+
+test('repertoire draft survives tabs, export, canceled navigation and a failed save retry', async ({ page }) => {
+  const { character, headers } = await fixture(page)
+  const base = `/api/characters/${character.id}`
+  await confirmedWrite(page, headers, 'put', base, { classKey: 'catalog:mage', int: 16 })
+  await confirmedWrite(page, headers, 'post', base + '/spells', { name: 'Slumber', level: 1 })
+  await page.reload()
+  await page.getByRole('button', { name: 'Magia', exact: true }).click()
+  await page.getByText('Editar repertório com validação', { exact: true }).click()
+  await page.getByLabel('Nome da magia 1', { exact: true }).fill('Arcane Armor')
+  await expect(page.getByText('Há alterações no repertório ainda não enviadas.', { exact: false })).toBeVisible()
+  await page.getByRole('button', { name: 'Inventário & Tesouro', exact: true }).click()
+  await page.getByRole('button', { name: 'Abrir rascunho de repertório' }).click()
+  await expect(page.getByLabel('Nome da magia 1', { exact: true })).toHaveValue('Arcane Armor')
+  page.once('dialog', dialog => dialog.dismiss())
+  await page.getByRole('link', { name: 'Voltar', exact: true }).click()
+  await expect(page).toHaveURL(new RegExp(`/character/${character.id}$`))
+  const downloaded = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Exportar JSON', exact: true }).click()
+  const result = JSON.parse(await readFile((await (await downloaded).path())!, 'utf8'))
+  expect(result.drafts.repertoire.spells[0].name).toBe('Arcane Armor')
+  expect(result.character.spells[0].name).toBe('Slumber')
+  const imported = await page.request.post('/api/characters/import', { headers, data: { document: result } })
+  expect(imported.status(), await imported.text()).toBe(201)
+  const restored = await imported.json()
+  expect(restored.character.spells[0].name).toBe('Slumber')
+  expect(restored.warnings.join(' ')).toContain('rascunho de repertório não enviado')
+  const path = `/api/game-rules/characters/${character.id}/magic/repertoire`
+  await page.route(`**${path}`, route => route.fulfill({ status: 503, json: { error: 'Temporary repertoire failure' } }))
+  await page.getByRole('button', { name: 'Salvar repertório', exact: true }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'Temporary repertoire failure' }).first()).toBeVisible()
+  // A retry of an earlier request must preserve newer typing as an unsent draft.
+  await page.getByLabel('Nome da magia 1', { exact: true }).fill('Slumber')
+  await page.unroute(`**${path}`)
+  const retried = page.waitForResponse(r => r.url().endsWith(path) && r.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click()
+  expect((await retried).status()).toBe(200)
+  await expect(page.getByLabel('Nome da magia 1', { exact: true })).toHaveValue('Slumber')
+  await expect(page.getByRole('button', { name: 'Abrir rascunho de repertório' })).toBeVisible()
+  await page.getByRole('button', { name: 'Salvar repertório', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Abrir rascunho de repertório' })).toHaveCount(0)
+  const stored = (await (await page.request.get(base, { headers })).json()).character
+  expect(stored.spells[0].name).toBe('Slumber')
+})
+
+test('domain estimate agrees with monthly preview across morale income reductions', async ({ page }) => {
+  const { character, headers } = await fixture(page)
+  const base = `/api/characters/${character.id}`
+  for (const [morale, balance] of [[-4, -500], [-3, -50], [-2, 220], [0, 400]]) {
+    await confirmedWrite(page, headers, 'put', base + '/domain', { peasantFamilies: 100, revenuePerFamily: 3, servicePerFamily: 4, taxPerFamily: 2, garrisonCost: 200, liturgiesCost: 100, titheCost: 100, maintenanceCost: 100, treasury: 1000, peasantMorale: morale })
+    await page.reload()
+    await page.getByRole('button', { name: 'Domínio & Seguidores', exact: true }).click()
+    const estimate = page.getByText('Saldo mensal estimado', { exact: true }).locator('..')
+    await expect(estimate).toContainText(`${balance >= 0 ? '+' : ''}${balance} GP`)
+    const current = (await (await page.request.get(base, { headers })).json()).character
+    const preview = await page.request.post(`/api/campaign-rules/characters/${character.id}/domain/preview`, { headers, data: { version: current.version, year: 1, month: 1, baseMorale: 0, moraleDice: [3, 4], growth: 0, losses: 0, eventFamilies: 0, eventMorale: 0, administered: false, repressed: false, classification: 'outlands', hexes: 1, tributeGp: 0 } })
+    expect(preview.status(), await preview.text()).toBe(200)
+    expect((await preview.json()).balance).toBe(balance)
+  }
+})
+
 async function fixture(page: Page) {
   const suffix = `consistent_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`
   if (!account) {

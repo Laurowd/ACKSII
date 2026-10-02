@@ -85,13 +85,14 @@ test('every relation create, edit and delete advances the sheet once and returns
     ['activities', 'activity', { title: 'Travel' }, { title: 'Study' }],
     ['armyUnits', 'unit', { name: 'Guard' }, { name: 'Veterans' }],
   ]) {
-    const created = await request('POST', `${base}/${route}`, { version, ...create });
+    const actor = route === 'proficiencies' ? masterToken : ownerToken;
+    const created = await request('POST', `${base}/${route}`, { version, ...create }, actor);
     assert.ok([200, 201].includes(created.statusCode), created.body);
     const result = assertRevision(created, version, created.statusCode);
     const entityId = result[entity].id;
     version = result.version;
-    version = assertRevision(await request('PUT', `${base}/${route}/${entityId}`, { version, ...edit }), version).version;
-    version = assertRevision(await request('DELETE', `${base}/${route}/${entityId}`, { version }), version).version;
+    version = assertRevision(await request('PUT', `${base}/${route}/${entityId}`, { version, ...edit }, actor), version).version;
+    version = assertRevision(await request('DELETE', `${base}/${route}/${entityId}`, { version }, actor), version).version;
   }
   version = assertRevision(await request('PUT', `${base}/domain`, { version, treasury: 25, peasantFamilies: 10 }), version).version;
   version = assertRevision(await request('PUT', `${base}/domain`, { version, treasury: 30 }), version).version;

@@ -8,3 +8,12 @@ export function remainingSpellUses(info: any, tradition: string, level: number):
   if (!pool) return 0
   return Math.max(0, Number(pool.slots?.[level - 1] || 0) - Number(info.used?.[`${tradition}:${level}`] || 0))
 }
+export interface RepertoireDraft {
+  spells: Array<{ name: string; level: number; tradition: string }> | null
+  original: string
+  orderApproved: boolean
+  open: boolean
+}
+export const emptyRepertoireDraft = (): RepertoireDraft => ({ spells: null, original: '', orderApproved: false, open: false })
+export const repertoireSnapshot = (draft: RepertoireDraft) => JSON.stringify({ spells: draft.spells, orderApproved: draft.orderApproved })
+export const repertoireHasChanges = (draft: RepertoireDraft) => draft.spells !== null && repertoireSnapshot(draft) !== draft.original

@@ -305,6 +305,62 @@ test('concurrent cargo settlement credits coins once and preserves an audit reco
   assert.equal((await request('POST', endpoint, { version: stored.version })).statusCode, 409);
 });
 
+test('cargo statuses cannot bypass settlement and sold values remain immutable', async () => {
+  const created = await request('POST', '/api/characters/guided', { characterName: `Sale guard ${suffix}`, classKey: 'catalog:fighter', str: 10, int: 10, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 6 });
+  const c = created.json().character, base = `/api/characters/${c.id}/mercantile`;
+  assert.equal((await request('POST', base, { status: 'SOLD', baseValueGp: 100 })).statusCode, 400);
+  assert.equal((await request('POST', base, { profitGp: 20 })).statusCode, 400);
+  assert.equal((await request('POST', base, { baseValueGp: -1 })).statusCode, 400);
+  const cargo = await request('POST', base, { cargoName: 'Silk', baseValueGp: 100, originMarketClass: 3, destMarketClass: 1 });
+  assert.equal(cargo.statusCode, 201, cargo.body);
+  const endpoint = `${base}/${cargo.json().venture.id}`;
+  assert.equal((await request('PUT', endpoint, { status: 'SOLD' })).statusCode, 400);
+  assert.equal((await request('POST', endpoint + '/sell', {})).statusCode, 200);
+  assert.equal((await request('PUT', endpoint, { status: 'IN_TRANSIT' })).statusCode, 400);
+  assert.equal((await request('PUT', endpoint, { baseValueGp: 200 })).statusCode, 409);
+  assert.equal((await request('PUT', endpoint, { profitGp: 0 })).statusCode, 400);
+  assert.equal((await request('PUT', endpoint, { cargoName: 'Renamed silk' })).statusCode, 200);
+  assert.equal((await request('POST', endpoint + '/reopen', { reason: 'Attempt to credit twice' })).statusCode, 409);
+  assert.equal((await request('GET', base + '/settlements')).json().settledIds.includes(cargo.json().venture.id), true);
+  assert.equal((await db.character.findUniqueOrThrow({ where: { id: c.id } })).coinGP, 120);
+});
+
+test('master can reopen a legacy manual sale without crediting coins or erasing settlement history', async () => {
+  const c = await db.character.create({ data: { userId: user.id, characterName: 'Legacy trader', coinGP: 50 } });
+  const venture = await db.mercantileVenture.create({ data: { characterId: c.id, cargoName: 'Legacy silk', status: 'SOLD', baseValueGp: 100, profitGp: 20 } });
+  const endpoint = `/api/characters/${c.id}/mercantile/${venture.id}`;
+  assert.equal((await request('POST', endpoint + '/reopen', { reason: '   ' })).statusCode, 400);
+  const response = await request('POST', endpoint + '/reopen', { reason: 'Mestre conferiu que não houve crédito de moedas.' });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().venture.status, 'IN_TRANSIT');
+  assert.equal((await db.character.findUniqueOrThrow({ where: { id: c.id } })).coinGP, 50);
+  assert.equal(await db.auditLog.count({ where: { characterId: c.id, action: 'MERCANTILE_REOPEN' } }), 1);
+  assert.equal((await request('POST', endpoint + '/sell', {})).statusCode, 200);
+  assert.equal((await db.character.findUniqueOrThrow({ where: { id: c.id } })).coinGP, 150);
+});
+
+test('player proficiency edits use the same lists and limits while target-only edits remain available', async () => {
+  const registration = await request('POST', '/api/auth/register', { username: `choices_${suffix}`, email: `choices_${suffix}@test.invalid`, password, role: 'PLAYER' }, null);
+  const token = registration.json().token;
+  const created = await request('POST', '/api/characters/guided', { characterName: 'Player choices', classKey: 'catalog:venturer', str: 10, int: 10, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 4 }, token);
+  assert.equal(created.statusCode, 201, created.body);
+  const c = created.json().character, base = `/api/characters/${c.id}/proficiencies`;
+  assert.equal((await request('POST', base, { name: 'Seduction', category: 'class' }, token)).statusCode, 400);
+  assert.equal((await request('POST', base, { name: 'Adventuring', category: 'adventuring' }, token)).statusCode, 403);
+  const added = await request('POST', base, { name: 'Navigation', category: 'class', throwTarget: 0 }, token);
+  assert.equal(added.statusCode, 201, added.body);
+  assert.equal(added.json().proficiency.throwTarget, 0);
+  const endpoint = `${base}/${added.json().proficiency.id}`;
+  assert.equal((await request('PUT', endpoint, { name: 'Seduction' }, token)).statusCode, 400);
+  assert.equal((await request('POST', base, { name: 'Navigation', category: 'class' }, token)).statusCode, 400);
+  assert.equal((await request('PUT', endpoint, { throwTarget: 8 }, token)).statusCode, 200);
+  assert.equal((await request('PUT', endpoint, { name: 'Seduction', category: 'general' }, token)).statusCode, 200);
+  const stored = await db.proficiency.findUniqueOrThrow({ where: { id: added.json().proficiency.id } });
+  assert.equal(stored.throwTarget, 8); assert.equal(stored.category, 'general');
+  const legacy = await db.mercantileVenture.create({ data: { characterId: c.id, cargoName: 'Manual cargo', status: 'SOLD', baseValueGp: 100 } });
+  assert.equal((await request('POST', `/api/characters/${c.id}/mercantile/${legacy.id}/reopen`, { reason: 'Player attempted reopening' }, token)).statusCode, 403);
+});
+
 test('logout revokes the token on the server', async () => {
   assert.equal((await request('POST', '/api/auth/logout')).statusCode, 204);
   assert.equal((await request('GET', '/api/auth/me')).statusCode, 401);

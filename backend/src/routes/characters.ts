@@ -9,7 +9,7 @@ import { resolveClass, progressionFields } from '../lib/classCatalog';
 import { findCompendiumEntry } from './compendium';
 import { domainEconomy } from '../lib/domainEconomy';
 import { researchData } from '../lib/magicResearch';
-import { readState } from '../lib/gameRules';
+import { readState, rulesFor, proficiencyIssues } from '../lib/gameRules';
 import { defaultWeaponStyle } from '../lib/equipment';
 import { abilityModifier } from '../lib/creationRules';
 import { weaponCatalogValues } from '../lib/equipment';
@@ -164,6 +164,19 @@ export async function characterRoutes(app: FastifyInstance) {
       return { error: 'forbidden' as const, character: null }
     }
     return { error: null, character }
+  }
+
+  async function canAdjustProficiencies(character: { campaignId: string | null }, userId: string, role: string, tx: Prisma.TransactionClient) {
+    if (role !== 'MASTER') return false;
+    if (!character.campaignId) return true;
+    return (await tx.campaign.findUnique({ where: { id: character.campaignId }, select: { masterId: true } }))?.masterId === userId;
+  }
+
+  async function checkProficiencies(character: any, choices: { name: string; category: string }[]) {
+    const rules = rulesFor(await resolveClass(character.classKey, character.campaignId, character.className));
+    if (!rules) return 'Esta classe exige escolhas manuais conferidas pelo mestre.';
+    if (choices.some(p => !p.name.trim())) return 'Informe o nome da proficiência.';
+    return proficiencyIssues(rules, character, choices).join(' ');
   }
 
   // List characters (MASTER sees own + campaigns they master, PLAYER sees own)
@@ -754,6 +767,13 @@ export async function characterRoutes(app: FastifyInstance) {
     if (!existing) return mutationResponse(404, { error: 'Proficiency not found' });
     const data = relationFields(request.body) as { name?: string; category?: string; throwTarget?: number };
     if (data.name !== undefined && !data.name.trim()) return mutationResponse(400, { error: 'Informe o nome da proficiência.' });
+    const changesChoice = (data.name !== undefined && data.name !== existing.name) || (data.category !== undefined && data.category !== existing.category);
+    if (changesChoice && !await canAdjustProficiencies(access.character!, id, role, tx)) {
+      const choices = await tx.proficiency.findMany({ where: { characterId } });
+      if ((data.category || existing.category) === 'adventuring' || existing.category === 'adventuring') return mutationResponse(403, { error: 'Poderes de aventura são ajustados pelo mestre. Use as escolhas de classe ou gerais.' });
+      const issue = await checkProficiencies(access.character, choices.map(p => p.id === profId ? { ...p, ...data } : p));
+      if (issue) return mutationResponse(400, { error: issue });
+    }
     return { proficiency: await tx.proficiency.update({ where: { id: profId }, data }) };
   }));
   app.post('/:characterId/proficiencies', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('Proficiency')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
@@ -763,8 +783,14 @@ export async function characterRoutes(app: FastifyInstance) {
     const character = await tx.character.findUnique({ where: { id: characterId } });
     if (!character) return mutationResponse(404, { error: 'Character not found' });
     if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
+    if (!await canAdjustProficiencies(character, id, role, tx)) {
+      if (data.category === 'adventuring') return mutationResponse(403, { error: 'Proficiências de aventura são ajustadas pelo mestre.' });
+      const choices = await tx.proficiency.findMany({ where: { characterId } });
+      const issue = await checkProficiencies(character, [...choices, { name: data.name || '', category: data.category || 'general' }]);
+      if (issue) return mutationResponse(400, { error: issue });
+    }
     const proficiency = await tx.proficiency.create({
-      data: { characterId, name: data.name || '', throwTarget: data.throwTarget || 11, category: data.category || 'general' }
+      data: { characterId, name: data.name || '', throwTarget: data.throwTarget ?? 11, category: data.category || 'general' }
     });
     return mutationResponse(201, { proficiency });
   }));
@@ -777,6 +803,7 @@ export async function characterRoutes(app: FastifyInstance) {
     if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
     const proficiency = await tx.proficiency.findFirst({ where: { id: profId, characterId } });
     if (!proficiency) return mutationResponse(404, { error: 'Proficiency not found' });
+    if (proficiency.category === 'adventuring' && !await canAdjustProficiencies(character, id, role, tx)) return mutationResponse(403, { error: 'Proficiências de aventura são ajustadas pelo mestre.' });
     await tx.proficiency.delete({ where: { id: profId } });
     return mutationResponse(200, { message: 'Proficiency deleted' });
   }));
@@ -1021,6 +1048,13 @@ export async function characterRoutes(app: FastifyInstance) {
   }));
 
   // ====== MERCANTILE VENTURES ======
+  app.get('/:characterId/mercantile/settlements', { preHandler: [authGuard] }, async (request, reply) => {
+    const { characterId } = request.params as { characterId: string };
+    const access = await ensureCharacterAccess(characterId, request.user.id, request.user.role);
+    if (access.error) return reply.code(access.error === 'not_found' ? 404 : 403).send({ error: access.error });
+    const sales = await prisma.auditLog.findMany({ where: { characterId, action: 'MERCANTILE_SALE' }, select: { id: true } });
+    return { settledIds: sales.map(s => s.id.replace(/^mercantile-sale:/, '')) };
+  });
   app.post('/:characterId/mercantile', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('MercantileVenture')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;
@@ -1029,16 +1063,18 @@ export async function characterRoutes(app: FastifyInstance) {
     if (!character) return mutationResponse(404, { error: 'Character not found' });
     if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
     
+    if ((data.status && data.status !== 'IN_TRANSIT') || Number(data.profitGp || 0) !== 0) return mutationResponse(400, { error: 'Use Vender carga para registrar a venda e creditar o retorno.' });
+    if (data.baseValueGp !== undefined && (!Number.isFinite(data.baseValueGp) || data.baseValueGp < 0)) return mutationResponse(400, { error: 'Informe um valor de carga maior ou igual a zero.' });
     const venture = await tx.mercantileVenture.create({
       data: { 
         characterId, 
         cargoName: data.cargoName || 'Cargo',
-        baseValueGp: Number(data.baseValueGp) || 100,
+        baseValueGp: Number(data.baseValueGp ?? 100),
         originMarketClass: Math.max(1, Math.min(6, Number(data.originMarketClass) || 3)),
         destMarketClass: Math.max(1, Math.min(6, Number(data.destMarketClass) || 3)),
         distanceHexes: Math.max(1, Number(data.distanceHexes) || 1),
-        status: data.status || 'IN_TRANSIT',
-        profitGp: Number(data.profitGp) || 0
+        status: 'IN_TRANSIT',
+        profitGp: 0
       }
     });
     return mutationResponse(201, { venture });
@@ -1054,7 +1090,10 @@ export async function characterRoutes(app: FastifyInstance) {
     
     const existing = await tx.mercantileVenture.findFirst({ where: { id: ventureId, characterId } });
     if (!existing) return mutationResponse(404, { error: 'Mercantile venture not found' });
-    
+    if (data.status !== undefined && data.status !== existing.status || data.profitGp !== undefined && data.profitGp !== existing.profitGp) return mutationResponse(400, { error: 'Status e lucro são resultados da venda. Use Vender carga.' });
+    if (data.baseValueGp !== undefined && (!Number.isFinite(data.baseValueGp) || data.baseValueGp < 0)) return mutationResponse(400, { error: 'Informe um valor de carga maior ou igual a zero.' });
+    const hasSale = await tx.auditLog.findUnique({ where: { id: `mercantile-sale:${ventureId}` } });
+    if ((existing.status === 'SOLD' || hasSale) && ['baseValueGp', 'originMarketClass', 'destMarketClass', 'distanceHexes'].some(key => data[key] !== undefined && data[key] !== (existing as any)[key])) return mutationResponse(409, { error: 'Os valores de uma venda concluída não podem ser alterados.' });
     const venture = await tx.mercantileVenture.update({
       where: { id: ventureId },
       data: {
@@ -1068,6 +1107,22 @@ export async function characterRoutes(app: FastifyInstance) {
       },
     });
     return mutationResponse(200, { venture });
+  }));
+
+  app.post('/:characterId/mercantile/:ventureId/reopen', { preHandler: [authGuard], schema: { body: versionedBody({ type: 'object', additionalProperties: false, required: ['reason'], properties: { reason: { type: 'string', minLength: 5, maxLength: 1000 } } }) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
+    const { characterId, ventureId } = request.params as { characterId: string; ventureId: string };
+    const access = await ensureCharacterAccess(characterId, request.user.id, request.user.role, tx);
+    if (access.error) return mutationResponse(access.error === 'not_found' ? 404 : 403, { error: access.error });
+    const campaign = access.character!.campaignId ? await tx.campaign.findUnique({ where: { id: access.character!.campaignId }, select: { masterId: true } }) : null;
+    if (request.user.role !== 'MASTER' || campaign && campaign.masterId !== request.user.id) return mutationResponse(403, { error: 'Somente o mestre responsável pode corrigir uma venda manual.' });
+    const existing = await tx.mercantileVenture.findFirst({ where: { id: ventureId, characterId } });
+    if (!existing) return mutationResponse(404, { error: 'Carga não encontrada.' });
+    if (existing.status !== 'SOLD' || await tx.auditLog.findUnique({ where: { id: `mercantile-sale:${ventureId}` } })) return mutationResponse(409, { error: 'Só é possível reabrir um registro manual sem liquidação registrada.' });
+    const reason = (request.body as { reason: string }).reason.trim();
+    if (reason.length < 5) return mutationResponse(400, { error: 'Informe a justificativa da correção.' });
+    const venture = await tx.mercantileVenture.update({ where: { id: ventureId }, data: { status: 'IN_TRANSIT', profitGp: 0 } });
+    await tx.auditLog.create({ data: { characterId, campaignId: access.character!.campaignId, userId: request.user.id, action: 'MERCANTILE_REOPEN', details: JSON.stringify({ ventureId, reason, previousProfitGp: existing.profitGp }) } });
+    return { venture };
   }));
 
   // Settlement and the coin credit must succeed together, including retries.

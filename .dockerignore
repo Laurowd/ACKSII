@@ -1,0 +1,21 @@
+# Root context is used only for the frontend image and its shared rules table.
+# Keep credentials, local helpers, test artifacts and dependencies outside it.
+**
+!frontend/
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/index.html
+!frontend/vite.config.ts
+!frontend/tsconfig*.json
+!frontend/Dockerfile
+!frontend/Caddyfile
+!frontend/src/
+!frontend/src/**
+!frontend/public/
+!frontend/public/**
+!backend/
+!backend/src/
+!backend/src/data/
+!backend/src/data/domainIncomeFactors.json
+frontend/src/**/*.spec.ts
+frontend/src/**/*.test.ts

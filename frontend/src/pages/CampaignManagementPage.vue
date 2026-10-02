@@ -29,6 +29,7 @@
                 <input type="checkbox" v-model="settings.optionalRules[rule.key]" @change="onRuleToggle" />
               </label>
             </div>
+            <p class="text-xs text-steel-light mt-3">Carga e movimento seguem o cálculo de carga da ficha. Não há modo alternativo de carga nesta versão.</p>
           </div>
           <div class="space-y-3">
             <div class="grid grid-cols-3 gap-2">
@@ -382,7 +383,6 @@ const optionalRuleOptions = [
   { key: 'enableMonthlyMaintenance', label: 'Custos mensais de manutenção' },
   { key: 'enableActivityQueue', label: 'Fila semanal/mensal de atividades' },
   { key: 'enableClassAutoProgression', label: 'Progressão automática por classe' },
-  { key: 'enableAdvancedEncumbrance', label: 'Encumbrance avançada' },
 ]
 
 const economy = ref({
@@ -523,7 +523,6 @@ function defaultOptionalRules() {
     enableMonthlyMaintenance: true,
     enableActivityQueue: true,
     enableClassAutoProgression: true,
-    enableAdvancedEncumbrance: true,
   } as Record<string, boolean>
 }
 

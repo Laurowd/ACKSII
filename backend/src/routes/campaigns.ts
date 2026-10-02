@@ -130,8 +130,7 @@ export async function campaignsRoutes(app: FastifyInstance) {
           enableTreasureToXp: true,
           enableMonthlyMaintenance: true,
           enableActivityQueue: true,
-          enableClassAutoProgression: true,
-          enableAdvancedEncumbrance: true
+          enableClassAutoProgression: true
         }),
         members: {
           create: {

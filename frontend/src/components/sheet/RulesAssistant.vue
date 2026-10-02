@@ -24,7 +24,7 @@
           </div>
         </template><p v-else>Nível máximo da classe.</p>
         <h3 class="text-gold">Preencher escolhas de proficiência pendentes</h3>
-        <div class="flex flex-wrap gap-2"><select v-model="choice.category" class="inp"><option value="class">Classe</option><option value="general">Geral</option></select><input v-model="choice.name" list="rule-proficiencies" class="inp" placeholder="Proficiência ou especialização"/><datalist id="rule-proficiencies"><option v-for="name in proficiencyOptions(choice.category==='class' ? info.rules.proficiencies : metadata.generalProficiencies)" :key="name" :value="name" /></datalist><button @click="addProficiency" :disabled="busy || !choice.name.trim()" class="btn">Adicionar escolha</button></div>
+        <div class="flex flex-wrap gap-2"><select v-model="choice.category" aria-label="Categoria da escolha de proficiência" class="inp"><option value="class">Classe</option><option value="general">Geral</option></select><input v-model="choice.name" aria-label="Nome da escolha de proficiência" list="rule-proficiencies" class="inp" placeholder="Proficiência ou especialização"/><datalist id="rule-proficiencies"><option v-for="name in proficiencyOptions(choice.category==='class' ? info.rules.proficiencies : metadata.generalProficiencies)" :key="name" :value="name" /></datalist><button @click="addProficiency" :disabled="busy || !choice.name.trim()" class="btn">Adicionar escolha</button></div>
         <p class="text-xs">As descrições individuais determinam especializações, requisitos e graduações permitidas.</p>
       </section>
 

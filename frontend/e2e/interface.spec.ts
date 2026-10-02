@@ -1,6 +1,27 @@
 import { test, expect, type Page } from '@playwright/test'
 const accounts: Record<string, any> = {}
 
+test('player proficiency edits use validated choices while test targets stay editable', async ({ page }) => {
+  const { character, headers } = await openMage(page, 'PLAYER')
+  const base = `/api/characters/${character.id}`
+  expect((await page.request.put(base, { headers, data: { version: character.version, classKey: 'catalog:venturer', int: 10 } })).status()).toBe(200)
+  await page.reload()
+  await expect(page.getByRole('button', { name: /Adicionar proficiência:/ })).toHaveCount(0)
+  await expect(page.getByLabel('Nome da proficiência Climbing', { exact: true })).toHaveAttribute('readonly', '')
+  await page.getByRole('button', { name: 'Escolher proficiências com validação' }).click()
+  await page.getByLabel('Nome da escolha de proficiência').fill('Seduction')
+  await page.getByRole('button', { name: 'Adicionar escolha', exact: true }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'Seduction' })).toBeVisible()
+  await page.getByLabel('Categoria da escolha de proficiência').selectOption('general')
+  await page.getByRole('button', { name: 'Adicionar escolha', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Proficiência' })).toBeVisible()
+  await page.getByRole('button', { name: 'Geral & Combate', exact: true }).click()
+  await expect(page.getByLabel('Nome da proficiência Seduction', { exact: true })).toHaveAttribute('readonly', '')
+  await page.getByLabel('Alvo da proficiência Seduction', { exact: true }).fill('8')
+  await page.getByLabel('Alvo da proficiência Seduction', { exact: true }).blur()
+  await expect.poll(async () => (await (await page.request.get(base, { headers })).json()).character.proficiencies.find((p: any) => p.name === 'Seduction')?.throwTarget).toBe(8)
+})
+
 async function openMage(page: Page, role = 'MASTER') {
   const suffix = `ui_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
   if (!accounts[role]) {
@@ -54,9 +75,9 @@ test('help opens only at its trigger and works with hover, keyboard and Escape',
   await page.getByRole('button', { name: 'Ajuda: Movement', exact: true }).hover()
   await expect(page.getByRole('tooltip')).toContainText('velocidades básicas')
   await page.getByRole('button', { name: 'Domínio & Seguidores', exact: true }).click()
-  await page.getByLabel('Maintenance Cost (GP)', { exact: true }).hover()
+  await page.getByLabel('Manutenção (GP)', { exact: true }).hover()
   await expect(page.getByRole('tooltip')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Ajuda: Maintenance Cost', exact: true }).hover()
+  await page.getByRole('button', { name: 'Ajuda: Manutenção', exact: true }).hover()
   await expect(page.getByRole('tooltip')).toContainText('Custos fixos mensais')
   expect(errors).toEqual([])
 })

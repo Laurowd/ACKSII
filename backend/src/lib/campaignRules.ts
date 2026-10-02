@@ -1,4 +1,4 @@
-import { domainEconomy } from './domainEconomy'
+import { domainEconomy, domainIncomeFactor } from './domainEconomy'
 import { itemResearchRate, calculateItemResearch } from './magicResearch'
 import { abilityModifier } from './creationRules'
 
@@ -22,7 +22,7 @@ export function settleDomainMonth(d:any,input:any) {
   const capacity=({outlands:185,borderlands:375,civilized:780} as any)[input.classification]*input.hexes
   const naturalGrowth=current===-4?0:input.growth
   const population=Math.max(0,Math.min(capacity,families+naturalGrowth-input.losses+input.eventFamilies))
-  const factor=current===-4?0:current===-3?0.5:current===-2?0.8:1
+  const factor=domainIncomeFactor(current)
   const economy=domainEconomy(d),revenue=economy.gross*factor
   const balance=revenue+Number(d.eventModifier||0)-economy.expenses-input.tributeGp
   const treasury=Number(d.treasury)+balance

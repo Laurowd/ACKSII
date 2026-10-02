@@ -28,6 +28,15 @@ function importScalarBody(modelName: string) {
 }
 
 const characterSchema = importScalarBody('Character');
+const repertoireDraftSchema = {
+  type: 'object', additionalProperties: false, required: ['spells', 'orderApproved'],
+  properties: {
+    spells: { type: 'array', maxItems: 500, items: { type: 'object', additionalProperties: false, required: ['name', 'level', 'tradition'], properties: {
+      name: { type: 'string', maxLength: 1000 }, level: { type: 'integer', minimum: 1, maximum: 6 }, tradition: { type: 'string', enum: ['arcane', 'divine', ''] },
+    } } },
+    orderApproved: { type: 'boolean' },
+  },
+};
 export const characterImportBody = {
   type: 'object', additionalProperties: false, required: ['document'],
   properties: {
@@ -39,6 +48,7 @@ export const characterImportBody = {
         exportedAt: { type: 'string', maxLength: 100 },
         classDefinition: { anyOf: [{ type: 'object', maxProperties: 100 }, { type: 'null' }] },
         computed: { type: 'object', maxProperties: 100 },
+        drafts: { type: 'object', additionalProperties: false, properties: { repertoire: repertoireDraftSchema } },
         character: {
           ...characterSchema, required: ['characterName'],
           properties: {
@@ -69,6 +79,11 @@ export function assertCharacterImportFields(body: unknown) {
   check(body, characterImportBody.properties, 'Importação');
   const document = (body as any)?.document;
   check(document, characterImportBody.properties.document.properties, 'Documento');
+  check(document?.drafts, { repertoire: repertoireDraftSchema }, 'Rascunhos');
+  check(document?.drafts?.repertoire, repertoireDraftSchema.properties, 'Rascunho de repertório');
+  if (Array.isArray(document?.drafts?.repertoire?.spells)) {
+    for (const spell of document.drafts.repertoire.spells) check(spell, repertoireDraftSchema.properties.spells.items.properties, 'Magia do rascunho');
+  }
   const character = document?.character;
   check(character, characterImportBody.properties.document.properties.character.properties, 'Ficha');
   if (!character || typeof character !== 'object') return;

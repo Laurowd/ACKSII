@@ -13,10 +13,11 @@ export async function characterImportRoutes(app: FastifyInstance) {
     },
     preHandler: [authGuard], schema: { body: characterImportBody },
   }, async (request, reply) => {
-    const { document, campaignId = null } = request.body as { document: { character: Record<string, any> }; campaignId?: string | null };
+    const { document, campaignId = null } = request.body as { document: { character: Record<string, any>; drafts?: { repertoire?: unknown } }; campaignId?: string | null };
     const userId = request.user.id;
     try {
       const prepared = prepareCharacterImport(document.character);
+      if (document.drafts?.repertoire) prepared.warnings.push('O JSON contém um rascunho de repertório não enviado. Foram importadas as magias registradas; consulte drafts.repertoire no arquivo para recuperar as escolhas pendentes e validá-las na aba Magia.');
       const result = await prisma.$transaction(async tx => {
         if (campaignId) {
           const campaign = await tx.campaign.findUnique({ where: { id: campaignId }, select: { masterId: true } });

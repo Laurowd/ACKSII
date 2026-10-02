@@ -190,6 +190,10 @@ Para executar o Cypress, prepare os builds e o PostgreSQL isolado conforme [Test
 - Acesso de mestres isolado às campanhas que administram.
 - **Fechar aventura** centraliza tesouro e monstros para distribuir XP, com identificador único, proteção contra repetição e atualização conjunta dos participantes. A conversão direta do inventário foi desativada; ajustes excepcionais de XP ficam disponíveis ao mestre com justificativa.
 - **Magia** reúne consulta dos efeitos na interrogação, magias por nível, conjuração, edição do repertório e descanso. Pesquisa e exceções do mestre ficam em seções recolhidas.
+- O rascunho do repertório é preservado entre abas, indica pendências e pede confirmação ao sair. O JSON guarda escolhas ainda não enviadas em `drafts.repertoire`, separadas das magias registradas.
+- Vendas de cargas passam por **Vender carga**, com crédito e histórico juntos. Valores liquidados ficam protegidos; registros antigos sem liquidação podem ser reabertos pelo mestre com justificativa, sem movimentar moedas.
+- A ficha aguarda catálogo e regras da campanha antes de permitir edição ou exportação; falhas têm aviso persistente e nova tentativa. Escolhas de proficiência do jogador usam listas e limites no servidor; exceções manuais ficam com o mestre responsável.
+- O domínio mostra **Saldo mensal estimado**, incluindo a redução de receita pela moral atual e distinguindo tributos/ajustes do fechamento. Carga e movimento seguem o cálculo existente; a opção de carga avançada sem efeito foi retirada.
 - Salvamento da ficha e dos editores menores coordenado por versão, com fila, indicação de alterações pendentes, tentativa de recuperação e proteção ao sair da página.
 - Exportação JSON/HTML com cálculos compartilhados e importação transacional de novas fichas, conforme [portabilidade](docs/PORTABILIDADE_FICHAS.md).
 - Visão de sessão do mestre com recursos atuais do grupo, filtros e indicação de atualização; navegação responsiva, contraste dos temas e estados de foco revisados.
