@@ -3,6 +3,7 @@
     <p class="text-sm text-steel-light">Regras do livro com prévia antes de registrar alterações. Os campos manuais da ficha continuam disponíveis para decisões do mestre.</p>
     <p v-if="error" role="alert" class="text-red-400">{{ error }}</p>
     <p v-if="notice" role="status" class="text-green-400">{{ notice }}</p>
+    <fieldset :disabled="busy" class="min-w-0 space-y-6">
     <button @click="load" :disabled="busy" class="text-gold underline">Atualizar conferência</button>
     <template v-if="info.supported">
       <details v-if="info.issues?.length" class="border border-gold/30 rounded p-3"><summary>Escolhas para conferir com o mestre ({{ info.issues.length }})</summary><ul class="list-disc pl-5"><li v-for="issue in info.issues" :key="issue">{{ issue }}</li></ul></details>
@@ -54,10 +55,11 @@
       </div>
     </details>
     <fieldset :disabled="busy" class="min-w-0"><CampaignWorkflows :character="character" :prepare="prepare" :refresh="refresh" /></fieldset>
+    </fieldset>
   </div>
 </template>
 <script setup lang="ts">
-import {ref,onMounted,watch,computed} from 'vue'
+import {ref,onMounted,onBeforeUnmount,watch,computed} from 'vue'
 import api from '../../services/api'
 import {errorMessage,proficiencyOptions} from '../../utils/catalog'
 import { proficiencyValidation } from '../../utils/ruleChoices'
@@ -73,6 +75,10 @@ const info=ref<any>({}),metadata=ref<any>({}),busy=ref(false),error=ref(''),noti
 const diceText=ref(''),advancePreview=ref<any>(null),advanceInput=ref<any>(null),choice=ref({name:'',category:'class'})
 const awardId=ref(''),treasureGp=ref(0),monsters=ref<any[]>([]),participants=ref<any[]>([]),xpPreview=ref<any>(null),xpInput=ref<any>(null)
 const xpAdjustment=ref({delta:0,reason:''})
+let previewRevision=0
+function invalidatePreviews(){previewRevision++;advancePreview.value=xpPreview.value=null}
+function checkPreview(revision:number){if(revision!==previewRevision)throw Error('Os dados mudaram durante a conferência. Confira novamente antes de confirmar.')}
+onBeforeUnmount(invalidatePreviews)
 const url=()=>`/api/game-rules/characters/${props.character.id}`
 async function run(work:()=>Promise<void>){if(busy.value)return;busy.value=true;error.value='';notice.value='';try{await work()}catch(e){error.value=errorMessage(e,'Não foi possível concluir a operação.')}finally{busy.value=false}}
 async function load(){await run(async()=>{const [r,m,c]=await Promise.all([api.get(url()),api.get('/api/game-rules/metadata'),api.get('/api/characters')]);info.value=r.data;metadata.value=m.data;participants.value=c.data.characters.filter((p:any)=>p.campaignId===props.character.campaignId).map((p:any)=>({id:p.id,name:p.characterName,version:p.version,share:1,selected:p.id===props.character.id}))})}
@@ -83,7 +89,13 @@ async function complete(message:string){
   catch(caught){error.value=errorMessage(caught,'A alteração foi registrada. Atualize a conferência para carregar os novos limites.')}
 }
 function rollHp(){const match=info.value.next.hitDice.match(/^(\d+)d(\d+)/),sides=Number(match[2]),ceiling=Math.floor(4294967296/sides)*sides;diceText.value=Array.from({length:Number(match[1])},()=>{const v=new Uint32Array(1);do{crypto.getRandomValues(v)}while(v[0]!>=ceiling);return v[0]!%sides+1}).join(', ');advancePreview.value=null}
-async function previewAdvance(){await run(async()=>{advanceInput.value={version:await prepared(),dice:diceText.value.split(/[,;\s]+/).filter(Boolean).map(Number)};advancePreview.value=(await api.post(`${url()}/advance/preview`,advanceInput.value)).data})}
+async function previewAdvance(){await run(async()=>{
+  advancePreview.value=null
+  const version=await prepared(),revision=previewRevision
+  advanceInput.value={version,dice:diceText.value.split(/[,;\s]+/).filter(Boolean).map(Number)}
+  const data=(await api.post(`${url()}/advance/preview`,advanceInput.value)).data
+  checkPreview(revision);advancePreview.value=data
+})}
 async function applyAdvance(){await run(async()=>{
   const input=JSON.parse(JSON.stringify(advanceInput.value))
   advancePreview.value=null
@@ -103,7 +115,13 @@ async function addProficiency(){await run(async()=>{
   info.value=(await api.get(url())).data
   notice.value='Proficiência adicionada.'
 })}
-async function previewAdventure(){await run(async()=>{await prepared();const current=(await api.get('/api/characters')).data.characters;xpInput.value={awardId:awardId.value,treasureGp:treasureGp.value,monsters:monsters.value.map(m=>({...m})),...(props.character.campaignId?{campaignId:props.character.campaignId}:{}),participants:participants.value.filter(p=>p.selected).map(p=>({id:p.id,share:p.share,version:current.find((c:any)=>c.id===p.id)?.version}))};xpPreview.value=(await api.post('/api/game-rules/adventures/preview',xpInput.value)).data})}
+async function previewAdventure(){await run(async()=>{
+  xpPreview.value=null
+  await prepared();const revision=previewRevision,current=(await api.get('/api/characters')).data.characters
+  xpInput.value={awardId:awardId.value,treasureGp:treasureGp.value,monsters:monsters.value.map(m=>({...m})),...(props.character.campaignId?{campaignId:props.character.campaignId}:{}),participants:participants.value.filter(p=>p.selected).map(p=>({id:p.id,share:p.share,version:current.find((c:any)=>c.id===p.id)?.version}))}
+  const data=(await api.post('/api/game-rules/adventures/preview',xpInput.value)).data
+  checkPreview(revision);xpPreview.value=data
+})}
 async function applyAdventure(){await run(async()=>{
   const input=JSON.parse(JSON.stringify(xpInput.value))
   xpPreview.value=null
@@ -111,8 +129,8 @@ async function applyAdventure(){await run(async()=>{
   if(!data)throw operations.getLastError() || Error('A alteração não foi concluída. Confira os dados e tente novamente.')
   await complete('XP concedido. A aventura ficou registrada no histórico.')
 })}
-watch(diceText,()=>advancePreview.value=null)
-watch([awardId,treasureGp,monsters,participants],()=>xpPreview.value=null,{deep:true})
+watch([diceText,awardId,treasureGp,monsters,participants],invalidatePreviews,{deep:true,flush:'sync'})
+watch(()=>props.character.version,invalidatePreviews,{flush:'sync'})
 onMounted(load)
 async function adjustXp(){await run(async()=>{
   const sent={...xpAdjustment.value}

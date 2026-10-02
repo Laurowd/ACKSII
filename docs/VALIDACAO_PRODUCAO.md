@@ -1,5 +1,13 @@
 # Validação local — 02/10/2026
 
+## Estado e navegação do frontend de 02/10
+
+- Corrigidos o reaparecimento de cargas consumidas no formulário de itens, respostas atrasadas no histórico e na importação, falhas sem mensagem nos comandos de pesquisa/domínio e o reaproveitamento da tela de uma ficha/campanha anterior ao mudar o ID na rota.
+- Os formulários de regras bloqueiam edição durante conferência/envio. As prévias são invalidadas por mudanças nos dados ou na versão da ficha. A troca de ficha salva pendências e permanece na ficha anterior se houver falha; mudar parâmetros na criação pede confirmação antes de descartar o rascunho.
+- Build do frontend, **74 testes unitários**, **40 cenários Playwright** e **54 casos Cypress** aprovados nas execuções completas. Oito cenários novos verificam gravação real, recusas de comandos, concorrência, respostas fora de ordem, trocas de registros e de arquivo JSON. A conferência de domínio foi inspecionada em 320 px.
+
+Os testes usaram API isolada e PostgreSQL local `acks_test`; não há migração nova nem alteração de dados no Neon. Veja os [achados e próximas melhorias](REVISAO_FRONTEND.md).
+
 ## Escolhas iniciais e revisão do frontend de 02/10
 
 - O assistente confere listas, categorias, especializações, repetições e limites de proficiências na etapa Identidade. Seduction continua disponível como geral; para Venturer, sua seleção como proficiência de classe é apontada junto ao campo antes da revisão ou criação da ficha.

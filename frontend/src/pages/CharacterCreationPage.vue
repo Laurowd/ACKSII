@@ -123,7 +123,7 @@
 </template>
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import { classRows, errorMessage, proficiencyOptions, type CatalogClass } from '../utils/catalog'
 import { formatMod, getModifier } from '../utils/mechanics'
@@ -250,7 +250,9 @@ async function next() {
   }
   finally { submitting.value = false }
 }
-onBeforeRouteLeave(() => created || !dirty || window.confirm('Sair e descartar as escolhas deste personagem?'))
+function confirmDiscard(){return created || !dirty || window.confirm('Sair e descartar as escolhas deste personagem?')}
+onBeforeRouteLeave(confirmDiscard)
+onBeforeRouteUpdate((to,from)=>to.fullPath.split('#')[0]===from.fullPath.split('#')[0] || confirmDiscard())
 function beforeUnload(event: BeforeUnloadEvent) { if (dirty && !created) { event.preventDefault(); event.returnValue = '' } }
 onMounted(() => window.addEventListener('beforeunload', beforeUnload))
 onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))

@@ -51,7 +51,7 @@
         </button>
       </div>
     </nav>
-    <main id="main-content" tabindex="-1"><router-view /></main>
+    <main id="main-content" tabindex="-1"><router-view v-slot="{ Component, route }"><component :is="Component" :key="route.fullPath.split('#')[0]" /></router-view></main>
     <AppToastStack />
   </div>
 </template>

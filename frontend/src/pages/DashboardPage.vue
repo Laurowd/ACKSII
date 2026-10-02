@@ -12,12 +12,12 @@
       </div>
       <div class="flex min-w-0 max-w-full flex-col items-end gap-2">
         <div class="flex flex-wrap max-w-full gap-2">
-          <button v-if="authStore.isMaster && globalCampaignFilter !== 'ALL' && globalCampaignFilter !== ''" @click="toggleAudit" class="px-4 py-2 bg-dark-card border border-steel-dark text-gold hover:text-gold-light hover:border-gold rounded transition-all text-sm">
+          <button v-if="canViewAudit" @click="toggleAudit" class="px-4 py-2 bg-dark-card border border-steel-dark text-gold hover:text-gold-light hover:border-gold rounded transition-all text-sm">
             {{ showAuditLog ? 'Ocultar Logs' : 'Log de Alterações' }}
           </button>
           
           <!-- Campaign Filter -->
-            <select v-if="campaigns.length > 0" v-model="globalCampaignFilter" @change="showAuditLog = false" aria-label="Filtrar fichas por campanha" class="max-w-full bg-dark-bg border border-steel-dark text-gold rounded px-3 py-2 text-sm">
+            <select v-if="campaigns.length > 0" v-model="globalCampaignFilter" aria-label="Filtrar fichas por campanha" class="max-w-full bg-dark-bg border border-steel-dark text-gold rounded px-3 py-2 text-sm">
             <option value="ALL">Todas as Fichas</option>
             <option :value="''">Sem Campanha vinculada</option>
             <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
@@ -60,8 +60,9 @@
 
     <!-- Master view -> grouped by player -->
     <div v-if="showAuditLog && authStore.isMaster" class="mb-8 bg-dark-card border border-gold/20 rounded-xl p-5 animate-slide-in">
-      <h2 class="text-xl font-bold text-gold mb-4 border-b border-steel-dark pb-2">Log de Alterações - Campanha</h2>
-      <div v-if="loadingLogs" class="text-steel-light text-center py-4">Carregando logs...</div>
+      <h2 class="text-xl font-bold text-gold mb-4 border-b border-steel-dark pb-2">Log de Alterações — {{ selectedCampaign?.name }}</h2>
+      <div v-if="loadingLogs" role="status" class="text-steel-light text-center py-4">Carregando logs...</div>
+      <div v-else-if="auditError" role="alert" class="text-red-400"><p>{{ auditError }}</p><button @click="loadAudit" class="text-gold underline mt-2">Tentar carregar histórico novamente</button></div>
       <div v-else-if="auditLogs.length === 0" class="text-steel text-center py-4 border border-dashed border-steel-dark rounded-lg">Nenhuma alteração recente registrada.</div>
       <ul v-else class="space-y-3 max-h-100 overflow-y-auto pr-2 scrollbar-hide">
         <li v-for="log in auditLogs" :key="log.id" class="text-sm border-b border-steel-dark/30 pb-2 flex flex-col md:flex-row md:items-center justify-between">
@@ -166,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import api from '../services/api'
@@ -192,16 +193,30 @@ const deleting = ref(new Set<string>())
 const showAuditLog = ref(false)
 const loadingLogs = ref(false)
 const auditLogs = ref<any[]>([])
+const auditError=ref('')
+const selectedCampaign=computed(()=>campaigns.value.find(c=>c.id===globalCampaignFilter.value))
+const canViewAudit=computed(()=>authStore.isMaster && selectedCampaign.value?.masterId===authStore.user?.id)
+let auditRequest=0
+function clearAudit(){auditRequest++;showAuditLog.value=false;auditLogs.value=[];auditError.value='';loadingLogs.value=false}
+watch(globalCampaignFilter,clearAudit,{flush:'sync'})
+onBeforeUnmount(clearAudit)
 
 async function toggleAudit() {
+  if(!canViewAudit.value)return
   showAuditLog.value = !showAuditLog.value
-  if (showAuditLog.value && globalCampaignFilter.value && globalCampaignFilter.value !== 'ALL') {
+  if(showAuditLog.value)await loadAudit()
+  else auditRequest++
+}
+async function loadAudit() {
+  if(showAuditLog.value && canViewAudit.value){
+    const request=++auditRequest,campaignId=globalCampaignFilter.value
+    auditLogs.value=[];auditError.value=''
     loadingLogs.value = true
     try {
-      const res = await api.get(`/api/campaigns/${globalCampaignFilter.value}/audit`)
-      auditLogs.value = res.data
-    } catch (e) { notifyError(errorMessage(e, 'Não foi possível carregar o histórico.')) }
-    finally { loadingLogs.value = false }
+      const res = await api.get(`/api/campaigns/${campaignId}/audit`)
+      if(request===auditRequest)auditLogs.value = res.data
+    } catch (e) { if(request===auditRequest)auditError.value=errorMessage(e, 'Não foi possível carregar o histórico.') }
+    finally { if(request===auditRequest)loadingLogs.value = false }
   }
 }
 

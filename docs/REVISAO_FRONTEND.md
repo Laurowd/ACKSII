@@ -1,5 +1,21 @@
 # Revisão do frontend — 02/10/2026
 
+## Revisão de estado, navegação e respostas atrasadas de 02/10
+
+- **Cargas de itens:** consumir uma carga atualiza também o formulário de identificação. Salvar uma anotação depois da ativação não restaura cargas antigas. A sincronização preserva campos alterados localmente; valores inválidos de gasto bloqueiam a ativação e recusas da API aparecem no item.
+- **Prévias e confirmações:** os formulários de XP, avanço, domínio e pesquisa ficam bloqueados durante requisições. Mudanças nos dados, na versão da ficha ou no projeto invalidam a conferência, inclusive quando uma resposta antiga chega depois da mudança. Falhas ao iniciar, trabalhar, concluir ou cancelar pesquisa e fechar um mês deixam de desaparecer sem mensagem.
+- **Navegação entre registros:** mudanças de ID da ficha/campanha e de parâmetros do assistente carregam uma nova tela. A troca de ficha salva as alterações pendentes antes de sair e bloqueia a navegação se o salvamento falhar. A criação pede confirmação antes de descartar escolhas ao mudar os parâmetros; navegação por âncora conserva a tela.
+- **Histórico de campanha:** o painel identifica a campanha consultada, descarta respostas de consultas anteriores e permite repetir uma consulta que falhou. Erros não aparecem como histórico vazio. O botão respeita a condição de mestre responsável exigida pela API.
+- **Importação JSON:** a leitura anuncia processamento e bloqueia a confirmação. Ao substituir o arquivo, somente o último arquivo escolhido pode preencher a prévia ou apresentar um erro.
+
+Oito novos cenários Playwright verificam persistência real e situações com respostas atrasadas, falhas de validação, edição concorrente e mudanças de rota. O build, os 74 testes unitários do frontend, os 40 cenários Playwright e os 54 casos Cypress passaram nas execuções completas. A tela de regras foi conferida também em 320 px. Os testes usam apenas PostgreSQL local, sem dados de teste no Neon.
+
+### Próximas melhorias identificadas
+
+1. Carregar as regras opcionais e o catálogo da ficha com erro persistente e nova tentativa. Hoje essas falhas mostram um aviso temporário e podem deixar regras padrão ou um catálogo incompleto para cálculos e exportação.
+2. Ampliar a proteção de rascunhos ainda não enviados: o editor de repertório preserva fechar/reabrir a seção, mas trocar de aba pode descartar o formulário local; editores de campanha também precisam de indicação de alterações e confirmação de saída.
+3. Ampliar a validação de acessibilidade e navegação para Firefox, WebKit e leitor de tela, além do Edge e Chromium já exercitados.
+
 ## Revisão de magias e proficiências de 02/10
 
 O erro relatado permitia avançar com Seduction como proficiência de classe de Venturer e só recusava a ficha na confirmação final. A interface agora confere a lista na etapa Identidade, aponta o campo e informa quando a proficiência pertence à outra categoria. Seduction é uma escolha geral para Venturer; mudar a categoria também precisa respeitar o limite de escolhas gerais.

@@ -1,6 +1,7 @@
 <template>
   <div class="space-y-6">
     <p v-if="error" role="alert" class="text-red-400">{{ error }}</p><p v-if="notice" role="status" class="text-green-400">{{ notice }}</p>
+    <fieldset :disabled="busy" class="min-w-0 space-y-6">
     <MagicItems :character="character" :prepare="prepare" :refresh="refresh" />
     <section v-if="character.domain" class="panel space-y-3">
       <h2 class="text-xl text-gold">Fechamento mensal do domínio</h2>
@@ -57,10 +58,11 @@
       </template>
       <details v-if="tracked && ['IN_PROGRESS','READY'].includes(project?.status)"><summary>Cancelar este projeto</summary><p>Materiais já pagos não serão devolvidos; componentes ainda no inventário serão preservados.</p><button @click="cancelResearch" :disabled="busy" class="text-red-400">Confirmar cancelamento</button></details>
     </section>
+    </fieldset>
   </div>
 </template>
 <script setup lang="ts">
-import {ref,computed,watch} from 'vue'
+import {ref,computed,watch,onBeforeUnmount,type Ref} from 'vue'
 import api from '../../services/api'
 import {errorMessage} from '../../utils/catalog'
 import MagicItems from './MagicItems.vue'
@@ -75,46 +77,59 @@ const plan=ref({casterLevel:Math.min(14,props.character.level),tradition:'arcane
 const work=ref({days:1,period:''}),finish=ref({components:[] as any[],roll:0,engineeringRank:0,otherBonus:0,itemWeight:1/6})
 const domainPreview=ref<any>(null),planPreview=ref<any>(null),outcome=ref<any>(null)
 let domainInput:any,planInput:any,finishInput:any
+let revision=0
+function invalidate(){revision++;domainPreview.value=planPreview.value=outcome.value=null}
+onBeforeUnmount(invalidate)
 const root=()=>`/api/campaign-rules/characters/${props.character.id}`
 const research=()=>`${root()}/research/${projectId.value}`
 async function run(fn:()=>Promise<void>){if(busy.value)return;busy.value=true;error.value='';notice.value='';try{await fn()}catch(e){error.value=errorMessage(e,'Não foi possível concluir.')}finally{busy.value=false}}
 async function version(){if(!await props.prepare() || !await operations.retryPending())throw Error('Resolva o salvamento da ficha antes de continuar.');return props.character.version}
 async function done(message:string){domainPreview.value=planPreview.value=outcome.value=null;notice.value=message}
-async function previewDomain(){await run(async()=>{domainInput={...JSON.parse(JSON.stringify(month.value)),version:await version()};domainPreview.value=(await api.post(`${root()}/domain/preview`,domainInput)).data})}
+async function preview(endpoint:string,values:Ref<any>,target:Ref<any>){
+  target.value=null
+  const currentVersion=await version(),currentRevision=revision
+  const input={...JSON.parse(JSON.stringify(values.value)),version:currentVersion}
+  const data=(await api.post(endpoint,input)).data
+  if(currentRevision!==revision)throw Error('Os dados mudaram durante a conferência. Confira novamente antes de confirmar.')
+  target.value=data
+  return input
+}
+function requireResult(data:any){if(!data)throw operations.getLastError() || Error('Não foi possível concluir a operação.')}
+async function previewDomain(){await run(async()=>{domainInput=await preview(`${root()}/domain/preview`,month,domainPreview)})}
 async function applyDomain(){await run(async()=>{
   const input={...domainInput,fingerprint:domainPreview.value.fingerprint}
   domainPreview.value=null
   const data=await operations.run('domain:month:apply',()=>api.post(`${root()}/domain/apply`,input))
-  if(data)await done('Mês registrado no histórico do domínio.')
+  requireResult(data);await done('Mês registrado no histórico do domínio.')
 })}
-async function previewResearch(){await run(async()=>{planInput={...JSON.parse(JSON.stringify(plan.value)),version:await version()};planPreview.value=(await api.post(`${research()}/preview`,planInput)).data})}
+async function previewResearch(){await run(async()=>{planInput=await preview(`${research()}/preview`,plan,planPreview)})}
 async function startResearch(){await run(async()=>{
   const input={...planInput,fingerprint:planPreview.value.fingerprint},endpoint=`${research()}/start`
   planPreview.value=null
   const data=await operations.run(`research:${projectId.value}:start`,()=>api.post(endpoint,input))
-  if(data)await done('Materiais pagos; pesquisa iniciada.')
+  requireResult(data);await done('Materiais pagos; pesquisa iniciada.')
 })}
 async function recordWork(){await run(async()=>{
   const input={...work.value},endpoint=`${research()}/work`
   const data=await operations.run(`research:${projectId.value}:work`,version=>api.post(endpoint,{...input,version}))
-  if(!data)return
+  requireResult(data)
   work.value.period=''
   await done('Período de trabalho registrado.')
 })}
-async function previewOutcome(){await run(async()=>{finishInput={...JSON.parse(JSON.stringify(finish.value)),version:await version()};outcome.value=(await api.post(`${research()}/outcome`,finishInput)).data})}
+async function previewOutcome(){await run(async()=>{finishInput=await preview(`${research()}/outcome`,finish,outcome)})}
 async function finishResearch(){await run(async()=>{
   const input={...finishInput,fingerprint:outcome.value.fingerprint},endpoint=`${research()}/finish`
   outcome.value=null
   const data=await operations.run(`research:${projectId.value}:finish`,()=>api.post(endpoint,input))
-  if(data)await done('Resultado registrado e inventário atualizado.')
+  requireResult(data);await done('Resultado registrado e inventário atualizado.')
 })}
 async function cancelResearch(){await run(async()=>{
   const endpoint=`${research()}/cancel`
   const data=await operations.run(`research:${projectId.value}:cancel`,version=>api.post(endpoint,{version}))
-  if(data)await done('Projeto cancelado; materiais pagos preservados no histórico.')
+  requireResult(data);await done('Projeto cancelado; materiais pagos preservados no histórico.')
 })}
-watch(month,()=>domainPreview.value=null,{deep:true});watch(plan,()=>planPreview.value=null,{deep:true});watch(finish,()=>outcome.value=null,{deep:true})
-watch(projectId,()=>{planPreview.value=outcome.value=null})
+watch([month,plan,finish],invalidate,{deep:true,flush:'sync'})
+watch([projectId,()=>props.character.version],invalidate,{flush:'sync'})
 </script>
 <style scoped>
 .panel{padding:1.25rem;border:1px solid #484b50;border-radius:.75rem}.btn{padding:.5rem 1rem;background:#c6a052;color:#171717;border-radius:.4rem;font-weight:700}.btn:disabled{opacity:.5}label .inp{display:block;width:100%}

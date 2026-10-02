@@ -139,7 +139,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount, onMounted, provide } from 'vue'
-import { onBeforeRouteLeave, useRoute } from 'vue-router'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import api from '../services/api'
 import { calculateCharacterMetrics } from '../utils/characterMetrics'
@@ -478,10 +478,12 @@ function warnAboutPendingChanges(event: BeforeUnloadEvent) {
   event.returnValue = ''
 }
 
-onBeforeRouteLeave(async () => {
+async function saveBeforeNavigation() {
   if (!anyPendingChanges.value && !saveInFlight && !operationState.value.busy) return true
   return await saveAllChanges()
-})
+}
+onBeforeRouteLeave(saveBeforeNavigation)
+onBeforeRouteUpdate((to,from)=>to.fullPath.split('#')[0]===from.fullPath.split('#')[0] || saveBeforeNavigation())
 
 // Load
 async function loadCharacter() {
