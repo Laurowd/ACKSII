@@ -1,10 +1,16 @@
 import { test, expect, type Page } from '@playwright/test'
 
-async function account(page: Page) {
-  const suffix = `recovery_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
-  const response = await page.request.post('/api/auth/register', { data: { username: suffix, email: `${suffix}@test.invalid`, password: 'browser-test-password', role: 'MASTER' } })
-  expect(response.status()).toBe(201)
-  const { token, user } = await response.json()
+let sharedAccount: { token: string; user: any } | undefined
+async function account(page: Page, isolated = false) {
+  let session = isolated ? undefined : sharedAccount
+  if (!session) {
+    const suffix = `recovery_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
+    const response = await page.request.post('/api/auth/register', { data: { username: suffix, email: `${suffix}@test.invalid`, password: 'browser-test-password', role: 'MASTER' } })
+    expect(response.status()).toBe(201)
+    session = await response.json()
+    if (!isolated) sharedAccount = session
+  }
+  const { token, user } = session!
   await page.goto('/login')
   await page.evaluate(({ token, user }) => { localStorage.setItem('token', token); localStorage.setItem('user', JSON.stringify(user)) }, { token, user })
   return { headers: { authorization: `Bearer ${token}` }, user }
@@ -121,7 +127,8 @@ test('an invalid recovered item can be corrected in its editor and saved as a ne
 })
 
 test('dashboard combines search and sorting, remembers recent sheets and fits a mobile screen', async ({ page }) => {
-  const { headers } = await account(page)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const { headers } = await account(page, true)
   const aria = await hero(page, headers, 'Ária', 'mage')
   await hero(page, headers, 'Bruno')
   await page.goto(`/character/${aria.id}`)
