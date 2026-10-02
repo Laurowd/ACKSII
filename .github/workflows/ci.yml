@@ -33,7 +33,7 @@ jobs:
             backend/package-lock.json
             frontend/package-lock.json
       - name: Validate production preflight rules
-        run: node --test scripts/preflight.test.cjs scripts/backup-cipher.test.cjs scripts/monitor-production.test.cjs scripts/load-config.test.cjs
+        run: node --test scripts/preflight.test.cjs scripts/backup-cipher.test.cjs scripts/monitor-production.test.cjs scripts/load-config.test.cjs scripts/production-load-config.test.cjs
       - name: Install backend dependencies
         run: npm ci --prefix backend
       - name: Install frontend dependencies without the Cypress executable

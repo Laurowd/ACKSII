@@ -6,6 +6,8 @@ Para publicar na hospedagem escolhida, siga [Vercel + Neon](docs/PRODUCAO_VERCEL
 
 Para medir a API com carga gradual em banco local isolado, veja [Testes com k6](docs/TESTES_K6.md). O comando `npm run test:load` gera relatórios de latência, erros e consumo da API, sem acessar produção. Os [resultados de 02/10/2026](docs/RESULTADOS_K6.md) incluem limites observados e prioridades de otimização.
 
+Para uma janela de carga explicitamente autorizada no site publicado, há um [roteiro separado para produção](docs/TESTES_K6_PRODUCAO.md), com limites, contas temporárias e limpeza dos registros do teste. Os [resultados na Vercel + Neon](docs/RESULTADOS_K6_PRODUCAO.md) registram a medição de 02/10/2026.
+
 Para hospedar em servidor com Docker, consulte [Implantação e operação](docs/PRODUCAO.md): Docker Compose, HTTPS, migrações, backups, restauração, rollback e homologação.
 
 Para continuar usando o banco existente no Neon, siga [Produção com Neon](docs/PRODUCAO_NEON.md). Há um Compose sem banco local, conexões separadas para API/migrações e exportação com teste de restauração isolado.

@@ -13,6 +13,8 @@ frontend/e2e
 load
 scripts/load-*.cjs
 scripts/run-load.cjs
+scripts/run-production-load.cjs
+scripts/production-load-*.cjs
 frontend/test-results
 frontend/playwright-report
 backend/tests

@@ -28,7 +28,7 @@ async function main() {
   const database = new URL(config.database); database.searchParams.set('schema', schema); database.searchParams.set('connection_limit', String(config.pool)); database.searchParams.set('pool_timeout', '20');
   const secret = randomBytes(32).toString('hex');
   const environment = { ...process.env, DATABASE_URL: database.toString(), NODE_ENV: 'production', JWT_SECRET: secret,
-    CORS_ORIGIN: 'https://load.invalid', PUBLIC_APP_URL: 'https://load.invalid', TRUST_PROXY: '', LOAD_ISOLATED: '1', LOAD_API_PORT: String(config.port) };
+    CORS_ORIGIN: 'https://load.invalid', PUBLIC_APP_URL: 'https://load.invalid', TRUST_PROXY: '', LOAD_ISOLATED: '1', LOAD_TARGET: 'local', ACKS_PRODUCTION_LOAD_ACK: '', LOAD_API_PORT: String(config.port) };
   const db = new PrismaClient({ datasourceUrl: database.toString() });
   let server, phaseSamples = [], phases = [], fixturePath = path.join(directory, 'fixture.json');
   const run = { date: new Date().toISOString(), commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
