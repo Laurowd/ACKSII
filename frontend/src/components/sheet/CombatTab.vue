@@ -310,12 +310,9 @@
         <div class="bg-dark-card border border-gold/20 rounded-xl p-5 col-span-1 lg:col-span-2">
           <h3 class="text-lg font-bold text-gold mb-4">Poderes da Classe</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div v-for="(pw, idx) in levelFeats.powers" :key="'pow-'+idx" class="bg-dark-bg/40 border border-steel-dark/30 rounded p-3 flex items-start gap-3">
+            <div v-for="(pw, idx) in levelFeats.powers" :key="'pow-'+idx" class="bg-dark-bg/40 border border-steel-dark/30 rounded p-3 flex items-center gap-3">
               <HelpTooltip :label="pw.name">{{ pw.description }}</HelpTooltip>
-              <div>
-                <div class="font-bold text-gray-200">{{ pw.name }}</div>
-                <div class="text-xs text-steel line-clamp-2 md:line-clamp-3">{{ pw.description }}</div>
-              </div>
+              <div class="min-w-0 font-bold text-dark-text break-words">{{ pw.name }}</div>
             </div>
           </div>
         </div>
