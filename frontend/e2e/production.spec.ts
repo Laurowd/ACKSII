@@ -187,6 +187,7 @@ test('tracked research consumes components and creates its item through the UI',
   expect(updated.coinGP).toBe(500);expect(updated.items.map((i:any)=>i.name)).toContain('Test scroll')
   expect(updated.items.map((i:any)=>i.name)).not.toContain('Monster component')
   await page.getByRole('button',{name:'Magia',exact:true}).click()
+  await page.getByText('Aprendizado e pesquisa de magia',{exact:true}).click()
   const trackedRow=page.locator('tr').filter({has:page.getByText('Projeto acompanhado: gerencie em Evolução & Regras.',{exact:true})})
   await expect(trackedRow).toHaveCount(1)
   for(const control of await trackedRow.locator('input, select, button').all()) await expect(control).toBeDisabled()

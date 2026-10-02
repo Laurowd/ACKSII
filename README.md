@@ -189,7 +189,7 @@ Para executar o Cypress, prepare os builds e o PostgreSQL isolado conforme [Test
 - Pipeline de CI em [`.github/workflows/ci.yml`](.github/workflows/ci.yml) com build e testes de backend/frontend.
 - Acesso de mestres isolado às campanhas que administram.
 - **Fechar aventura** centraliza tesouro e monstros para distribuir XP, com identificador único, proteção contra repetição e atualização conjunta dos participantes. A conversão direta do inventário foi desativada; ajustes excepcionais de XP ficam disponíveis ao mestre com justificativa.
-- **Magia** centraliza conjuração, repertório e descanso usando o saldo automático; referências manuais ficam recolhidas para o mestre.
+- **Magia** reúne consulta dos efeitos na interrogação, magias por nível, conjuração, edição do repertório e descanso. Pesquisa e exceções do mestre ficam em seções recolhidas.
 - Salvamento da ficha e dos editores menores coordenado por versão, com fila, indicação de alterações pendentes, tentativa de recuperação e proteção ao sair da página.
 - Exportação JSON/HTML com cálculos compartilhados e importação transacional de novas fichas, conforme [portabilidade](docs/PORTABILIDADE_FICHAS.md).
 - Visão de sessão do mestre com recursos atuais do grupo, filtros e indicação de atualização; navegação responsiva, contraste dos temas e estados de foco revisados.

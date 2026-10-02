@@ -19,21 +19,39 @@
             <div v-for="(slots, i) in pool.slots" :key="i" class="rounded-lg border border-steel-dark p-2 text-center">
               <span class="block text-xs text-steel-light">Nível {{ Number(i) + 1 }}</span>
               <strong class="block text-lg" :class="remaining(pool.tradition, Number(i) + 1) > 0 ? 'text-gold' : 'text-steel'">{{ remaining(pool.tradition, Number(i) + 1) }} <span class="text-xs font-normal text-steel-light">/ {{ slots }}</span></strong>
-              <span class="block text-[10px] text-steel-light">Repertório: {{ pool.repertoire[i] ?? 'ordem' }}</span>
+              <span class="block text-[10px] text-steel-light">{{ pool.repertoire[i] == null ? 'Magias da ordem' : `Limite de magias: ${pool.repertoire[i]}` }}</span>
             </div>
           </div>
         </div>
       </div>
-      <div class="space-y-2">
-        <h3 class="text-sm font-bold text-steel-light">Magias do repertório</h3>
-        <div v-for="spell in character.spells" :key="spell.id" class="flex flex-wrap gap-3 items-center justify-between rounded-lg bg-dark-bg/30 px-3 py-2">
-          <div class="min-w-0"><strong class="break-words text-gold-light">{{ spell.name || 'Magia sem nome' }}</strong><span class="block text-xs text-steel-light">{{ traditionName(spell.tradition || (info.magic.length === 1 ? info.magic[0].tradition : '')) }} · nível {{ spell.level }}</span></div>
-          <button type="button" @click="cast(spell.id)" :disabled="busy || !canCast(spell)" :aria-label="`Conjurar ${spell.name || 'magia'}`" class="px-3 py-2 rounded-lg text-sm font-bold bg-gold/15 text-gold hover:bg-gold/25 disabled:opacity-40 disabled:cursor-not-allowed">Conjurar</button>
-        </div>
-        <p v-if="!character.spells?.length" class="text-sm text-steel-light rounded-lg border border-dashed border-steel-dark p-4">O repertório ainda está vazio. Adicione as magias permitidas no editor abaixo.</p>
-        <p class="text-xs text-steel-light">Magias interrompidas também gastam um uso. Não há preparação prévia de magias.</p>
+    </template>
+    <section class="space-y-3" aria-labelledby="character-spells-title">
+      <div>
+        <h3 id="character-spells-title" class="font-bold text-gold">Magias do personagem</h3>
+        <p class="text-sm text-steel-light mt-1">Consulte o efeito na interrogação de cada magia. Conjurar registra o gasto de um uso diário.</p>
       </div>
-      <details class="border border-steel-dark p-3 rounded-lg" @toggle="onEditorToggle">
+      <p v-if="descriptionsLoading" role="status" class="text-sm text-steel-light">Carregando descrições das magias...</p>
+      <div v-if="descriptionsError" role="alert" class="text-sm text-red-400">
+        <p>{{ descriptionsError }}</p><button type="button" @click="emit('retry-descriptions')" :disabled="descriptionsLoading" class="mt-2 text-gold underline">Tentar carregar descrições novamente</button>
+      </div>
+      <div class="grid gap-4 lg:grid-cols-2">
+        <section v-for="group in spellGroups" :key="group.level" :aria-label="group.level ? `Magias de nível ${group.level}` : 'Magias sem nível'" class="rounded-xl border border-steel-dark bg-dark-bg/30 p-3 sm:p-4">
+          <h4 class="font-bold text-gold mb-3">{{ group.level ? `Nível ${group.level}` : 'Nível não informado' }}</h4>
+          <ul class="space-y-2">
+            <li v-for="spell in group.spells" :key="spell.id" class="flex flex-wrap gap-3 items-center justify-between rounded-lg bg-dark-card px-3 py-3">
+              <div class="flex items-center gap-2 min-w-0 flex-1">
+                <HelpTooltip :label="spell.name || 'Magia sem nome'">{{ spellDescription(spell) }}</HelpTooltip>
+                <div class="min-w-0"><strong class="block break-words text-dark-text">{{ spell.name || 'Magia sem nome' }}</strong><span class="block text-xs text-steel-light">{{ traditionName(spellTradition(info, spell)) }}</span></div>
+              </div>
+              <button v-if="info.supported && info.magic?.length" type="button" @click="cast(spell.id)" :disabled="busy || loading || !canCast(spell)" :aria-label="`Conjurar ${spell.name || 'magia'}`" class="px-3 py-2 rounded-lg text-sm font-bold bg-gold/15 text-gold hover:bg-gold/25 disabled:opacity-40 disabled:cursor-not-allowed">Conjurar</button>
+            </li>
+          </ul>
+        </section>
+      </div>
+      <p v-if="!character.spells?.length" class="text-sm text-steel-light rounded-lg border border-dashed border-steel-dark p-4">Nenhuma magia registrada para este personagem.</p>
+      <p v-if="info.supported && info.magic?.length" class="text-xs text-steel-light">O repertório é a lista de magias disponíveis para o personagem. Os usos diários são compartilhados entre as magias de cada nível e tradição.</p>
+      <p v-if="info.supported && info.magic?.length" class="text-xs text-steel-light">Magias interrompidas também gastam um uso. Não há preparação prévia de magias.</p>
+      <details v-if="info.supported && info.magic?.length && !loading" class="border border-steel-dark p-3 rounded-lg" @toggle="onEditorToggle">
         <summary class="cursor-pointer font-bold text-gold">Editar repertório com validação</summary>
         <fieldset :disabled="busy || loading" class="min-w-0 space-y-3 mt-3">
           <div v-for="(spell, i) in repertoire" :key="i" class="grid grid-cols-[minmax(0,1fr)_4rem] sm:flex items-center gap-2">
@@ -49,6 +67,8 @@
           <button type="button" @click="saveRepertoire" :disabled="busy" class="btn">Salvar repertório</button>
         </fieldset>
       </details>
+    </section>
+    <template v-if="info.supported && info.magic?.length && !loading">
       <div class="border-t border-steel-dark pt-4 space-y-3">
         <h3 class="font-bold text-gold">Recuperar usos</h3>
         <label class="block text-sm">Dia de jogo (contagem contínua)<input v-model.number="restDay" type="number" min="0" class="inp w-28 mt-1" /></label>
@@ -56,19 +76,22 @@
         <button type="button" @click="rest" :disabled="busy || !restConfirmed" class="btn">Registrar descanso</button>
       </div>
     </template>
-    <p v-else class="text-sm text-steel-light">{{ info.reason || 'Esta classe não possui usos de magia neste nível.' }}</p>
+    <p v-else-if="!loading" class="text-sm text-steel-light">{{ info.reason || 'Esta classe não possui usos de magia neste nível.' }}</p>
   </section>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import HelpTooltip from '../HelpTooltip.vue'
 import api from '../../services/api'
 import { errorMessage } from '../../utils/catalog'
 import { useCharacterOperations } from '../../composables/characterOperations'
 import { remainingSpellUses, spellTradition } from '../../utils/spellcasting'
 import { spellValidation } from '../../utils/ruleChoices'
 
-const props = defineProps<{ character: any; prepare: () => Promise<boolean>; refresh: () => Promise<void> }>()
+const props = defineProps<{ character: any; prepare: () => Promise<boolean>; refresh: () => Promise<void>;
+  spellDescriptions?: { name: string; level?: number; notes?: string }[]; descriptionsLoading?: boolean; descriptionsError?: string }>()
+const emit = defineEmits<{ 'retry-descriptions': [] }>()
 const operations = useCharacterOperations()
 const info = ref<any>({}), metadata = ref<any>({}), busy = ref(false), loading = ref(true), error = ref(''), notice = ref('')
 const repertoire = ref<any[]>([]), orderApproved = ref(false), restDay = ref(1), restConfirmed = ref(false)
@@ -77,6 +100,23 @@ const url = () => `/api/game-rules/characters/${props.character.id}`
 const traditionName = (tradition: string) => tradition === 'arcane' ? 'Arcana' : tradition === 'divine' ? 'Divina' : 'Tradição a definir'
 const remaining = (tradition: string, level: number) => remainingSpellUses(info.value, tradition, level)
 const canCast = (spell: any) => remaining(spellTradition(info.value, spell), spell.level) > 0
+const spellGroups = computed(() => {
+  const groups = new Map<number, any[]>()
+  for (const spell of props.character.spells || []) {
+    const level = Number(spell.level) || 0
+    if (!groups.has(level)) groups.set(level, [])
+    groups.get(level)!.push(spell)
+  }
+  return [...groups].sort(([a], [b]) => a - b).map(([level, spells]) => ({ level, spells }))
+})
+function spellDescription(spell: any) {
+  const matches = (props.spellDescriptions || []).filter(entry => entry.name.trim().toLowerCase() === String(spell.name || '').trim().toLowerCase())
+  const entry = matches.find(entry => entry.level === Number(spell.level)) || matches[0]
+  if (entry?.notes?.trim()) return entry.notes
+  if (props.descriptionsLoading) return 'A descrição está sendo carregada.'
+  if (props.descriptionsError) return 'A consulta às descrições está indisponível. Use Tentar carregar descrições novamente.'
+  return 'Descrição não cadastrada no catálogo. Para magias de campanha, consulte o mestre.'
+}
 
 async function load() {
   if (busy.value || (loading.value && Object.keys(info.value).length)) return

@@ -1,5 +1,13 @@
 # Revisão do frontend — 02/10/2026
 
+## Consulta de magias de 02/10
+
+- A lista principal reúne magias por nível, descrição na interrogação e conjuração. Jogadores consultam os efeitos sem abrir um editor. O repertório e os usos diários têm explicações distintas; não há mais uma segunda lista para consulta dentro das exceções.
+- O editor validado fica junto à lista. Exceções do mestre e aprendizado/pesquisa ficam recolhidos, preservando os dados e fluxos existentes. Uma ficha sem pesquisa não recebe o aviso de custo/tempo incompleto.
+- Magias antigas e classes sem conjuração automática continuam visíveis. Descrições ausentes são identificadas; falhas no catálogo têm mensagem persistente e nova tentativa independente da conjuração.
+
+Três cenários Playwright novos cobrem consulta como jogador sem alterações na ficha, falha e recuperação do catálogo e fichas sem controle automático. O cenário de toque também verifica a descrição de magia em 390 px. Build, 74 testes unitários do frontend, 43 cenários Playwright e 54 casos Cypress aprovados nas execuções completas. O teste Cypress de XP passou a aguardar o formulário terminar de carregar antes de digitar. Capturas da lista principal foram conferidas em 1280 e 320 px.
+
 ## Revisão de estado, navegação e respostas atrasadas de 02/10
 
 - **Cargas de itens:** consumir uma carga atualiza também o formulário de identificação. Salvar uma anotação depois da ativação não restaura cargas antigas. A sincronização preserva campos alterados localmente; valores inválidos de gasto bloqueiam a ativação e recusas da API aparecem no item.

@@ -1,4 +1,4 @@
-# Fluxos de regras — 01/10/2026
+# Fluxos de regras — 02/10/2026
 
 As seis prioridades da revisão receberam correções e fluxos assistidos. A ficha continua permitindo ajustes do mestre; isso não equivale à automação integral dos quatro livros.
 
@@ -20,9 +20,13 @@ Fontes: Revised Rulebook pp. 13–17, descrições de classes, pp. 102–104 e 3
 
 **Magia → Conjuração e descanso** é o caminho principal: separa usos por tradição e nível, repertório de estudo e repertório religioso. As 396 combinações de magia/tradição/nível das pp. 186–189 estão em `spellAccess.json`, independentemente das descrições antigas do compêndio.
 
+**Magias do personagem** reúne as magias por nível, consulta do efeito na interrogação e botão **Conjurar**. O repertório é essa lista de magias disponíveis; os usos diários são compartilhados entre as magias de cada nível e tradição. A consulta funciona com mouse, teclado e toque, inclusive em fichas antigas ou classes sem controle automático. Descrições ausentes no catálogo são identificadas; falhas de carregamento permitem tentar novamente. **Editar repertório com validação** fica junto à lista.
+
 **Conjurar** e **Registrar descanso** atualizam o servidor. Descanso exige novo dia de jogo e declaração de 8 horas de sono, intervalo de 24 horas e requisitos de estudo/oração. Não infere passagem de tempo real. A referência manual de usos fica em uma seção recolhida disponível ao mestre; não altera o saldo calculado.
 
-Repertórios religiosos dependem da ordem definida pelo mestre. Magias de campanha, efeitos que ampliam repertórios, especializações e requisitos individuais não têm validação exaustiva. O mestre pode usar **Repertório manual e exceções** para essas entradas; os jogadores podem consultá-las. Fichas antigas conservam suas magias e idiomas. Não há fluxo de templates ou automação completa de aprendizado/troca por estudo.
+Repertórios religiosos dependem da ordem definida pelo mestre. Magias de campanha, efeitos que ampliam repertórios, especializações e requisitos individuais não têm validação exaustiva. O mestre pode usar **Exceções de magia (mestre)** para essas entradas; elas aparecem na mesma lista principal para consulta dos jogadores. Fichas antigas conservam suas magias e idiomas. Não há fluxo de templates ou automação completa de aprendizado/troca por estudo.
+
+**Aprendizado e pesquisa de magia** reúne grimório, anotações de aprendizado, recursos e projetos em uma seção recolhida. Esses registros não substituem nem sincronizam automaticamente o repertório. O aviso de custo/tempo incompleto só aparece quando há uma pesquisa preenchida.
 
 ## Fechamento de aventura
 

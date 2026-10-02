@@ -1,16 +1,16 @@
 import { test, expect, type Page } from '@playwright/test'
-let account: any
+const accounts: Record<string, any> = {}
 
-async function openMage(page: Page) {
+async function openMage(page: Page, role = 'MASTER') {
   const suffix = `ui_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
-  if (!account) {
+  if (!accounts[role]) {
     const registration = await page.request.post('/api/auth/register', {
-      data: { username: suffix, email: `${suffix}@test.invalid`, password: 'browser-test-password', role: 'MASTER' },
+      data: { username: suffix, email: `${suffix}@test.invalid`, password: 'browser-test-password', role },
     })
     expect(registration.status()).toBe(201)
-    account = await registration.json()
+    accounts[role] = await registration.json()
   }
-  const { token, user } = account
+  const { token, user } = accounts[role]
   const headers = { authorization: `Bearer ${token}` }
   const created = await page.request.post('/api/characters/guided', { headers, data: {
     characterName: suffix, classKey: 'catalog:mage', str: 10, int: 16, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 4,
@@ -32,6 +32,7 @@ test('help opens only at its trigger and works with hover, keyboard and Escape',
   page.on('pageerror', error => errors.push(error.message))
   await openMage(page)
   await page.getByRole('button', { name: 'Magia', exact: true }).click()
+  await page.getByText('Aprendizado e pesquisa de magia', { exact: true }).click()
   await page.getByText('Valor da biblioteca', { exact: true }).hover()
   await expect(page.getByRole('tooltip')).toHaveCount(0)
   const help = page.getByRole('button', { name: 'Ajuda: Valor da biblioteca', exact: true })
@@ -70,7 +71,7 @@ test('spell suggestions show names, persist selection and report save failures',
     return option.label === option.value && !option.textContent?.trim()
   }))).toBe(true)
   expect(await page.locator('datalist option[value="Spell Name"]').count()).toBe(0)
-  await page.getByText('Repertório manual e exceções (mestre)', {exact:true}).click()
+  await page.getByText('Exceções de magia (mestre)', {exact:true}).click()
   const spell = page.getByRole('combobox', { name: 'Magia de nível 1', exact: true })
   await expect(spell).not.toHaveAttribute('title')
   await spell.fill('Arcane Armor')
@@ -79,7 +80,7 @@ test('spell suggestions show names, persist selection and report save failures',
   expect((await saved).status()).toBe(200)
   await page.reload()
   await page.getByRole('button', { name: 'Magia', exact: true }).click()
-  await page.getByText('Repertório manual e exceções (mestre)', {exact:true}).click()
+  await page.getByText('Exceções de magia (mestre)', {exact:true}).click()
   await expect(spell).toHaveValue('Arcane Armor')
   await page.getByRole('button', { name: 'Ajuda: Arcane Armor', exact: true }).hover()
   await expect(page.getByRole('tooltip')).toContainText('invisible suit of armor')
@@ -117,11 +118,82 @@ test('editing inventory keeps the full shop and suggestions available', async ({
   }))).toBe(true)
 })
 
+test('players consult descriptions in the main spell list without opening an editor', async ({ page }, testInfo) => {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  const { character, headers } = await openMage(page, 'PLAYER')
+  await page.getByRole('button', { name: 'Magia', exact: true }).click()
+  const list = page.getByRole('region', { name: 'Magias do personagem', exact: true })
+  await expect(list.getByRole('region', { name: 'Magias de nível 1' })).toBeVisible()
+  await expect(list.getByText('Slumber', { exact: true })).toHaveCount(1)
+  await expect(page.getByText('Exceções de magia (mestre)', { exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('Valor da biblioteca', { exact: true })).toBeHidden()
+  await list.getByText('Slumber', { exact: true }).hover()
+  await expect(page.getByRole('tooltip')).toHaveCount(0)
+  const help = list.getByRole('button', { name: 'Ajuda: Slumber', exact: true })
+  await help.hover()
+  await expect(page.getByRole('tooltip')).toContainText('This spell')
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('tooltip')).toHaveCount(0)
+  await help.focus()
+  await expect(page.getByRole('tooltip')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await list.getByRole('button', { name: 'Conjurar Slumber', exact: true }).hover()
+  await expect(page.getByRole('tooltip')).toHaveCount(0)
+  const persisted = (await (await page.request.get(`/api/characters/${character.id}`, { headers })).json()).character
+  expect(persisted.version).toBe(character.version)
+  expect(persisted.spells).toHaveLength(1)
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await page.screenshot({ path: testInfo.outputPath('magic-player-desktop.png'), fullPage: true })
+  await page.setViewportSize({ width: 320, height: 812 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+  await page.screenshot({ path: testInfo.outputPath('magic-player-mobile.png'), fullPage: true })
+  await page.getByText('Aprendizado e pesquisa de magia', { exact: true }).click()
+  await expect(page.getByText('Defina custo e tempo de pesquisa para validação automática.', { exact: true })).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
+test('description loading failure offers retry while spells and casting remain available', async ({ page }) => {
+  await openMage(page)
+  await page.route('**/api/compendium/search?*', route => new URL(route.request().url()).searchParams.get('type') === 'spell'
+    ? route.fulfill({ status: 503, json: { error: 'Descrições temporariamente indisponíveis.' } }) : route.continue())
+  await page.getByRole('button', { name: 'Magia', exact: true }).click()
+  const list = page.getByRole('region', { name: 'Magias do personagem', exact: true })
+  await expect(list.getByRole('alert')).toContainText('Descrições temporariamente indisponíveis.')
+  await expect(list.getByRole('button', { name: 'Conjurar Slumber', exact: true })).toBeEnabled()
+  await list.getByRole('button', { name: 'Ajuda: Slumber', exact: true }).hover()
+  await expect(page.getByRole('tooltip')).toContainText('consulta às descrições está indisponível')
+  await page.keyboard.press('Escape')
+  await page.unroute('**/api/compendium/search?*')
+  await list.getByRole('button', { name: 'Tentar carregar descrições novamente' }).click()
+  await expect(list.getByRole('alert')).toHaveCount(0)
+  await list.getByRole('button', { name: 'Ajuda: Slumber', exact: true }).hover()
+  await expect(page.getByRole('tooltip')).toContainText('This spell')
+})
+
+test('legacy spells remain readable without automatic casting and unknown descriptions have an explanation', async ({ page }) => {
+  const { character, headers } = await openMage(page)
+  expect((await page.request.post(`/api/characters/${character.id}/spells`, { headers, data: { version: character.version, name: 'Magia da campanha', level: 3, tradition: 'arcane' } })).status()).toBe(201)
+  await page.route(`**/api/game-rules/characters/${character.id}`, route => route.fulfill({ json: { supported: false, reason: 'Magia desta classe usa controle manual.' } }))
+  await page.reload()
+  await page.getByRole('button', { name: 'Magia', exact: true }).click()
+  const list = page.getByRole('region', { name: 'Magias do personagem', exact: true })
+  await expect(list.getByText('Slumber', { exact: true })).toBeVisible()
+  await expect(list.getByRole('region', { name: 'Magias de nível 3' })).toBeVisible()
+  await expect(list.getByRole('button', { name: /^Conjurar / })).toHaveCount(0)
+  await list.getByRole('button', { name: 'Ajuda: Magia da campanha', exact: true }).hover()
+  await expect(page.getByRole('tooltip')).toContainText('Descrição não cadastrada no catálogo')
+  await page.keyboard.press('Escape')
+  await list.getByRole('button', { name: 'Ajuda: Slumber', exact: true }).hover()
+  await expect(page.getByRole('tooltip')).toContainText('This spell')
+})
+
 test.describe('touch help', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
   test('help toggles on tap, stays within the viewport and dismisses outside', async ({ page }, testInfo) => {
     await openMage(page)
     await page.getByRole('button', { name: 'Magia', exact: true }).tap()
+    await page.getByText('Aprendizado e pesquisa de magia', { exact: true }).tap()
     const help = page.getByRole('button', { name: 'Ajuda: Valor da oficina', exact: true })
     await help.tap()
     const tip = page.getByRole('tooltip')
@@ -136,6 +208,13 @@ test.describe('touch help', () => {
     await help.tap()
     await expect(tip).toBeVisible()
     await page.getByLabel('Valor da oficina', { exact: true }).tap()
+    await expect(tip).toHaveCount(0)
+    const spellHelp = page.getByRole('button', { name: 'Ajuda: Slumber', exact: true })
+    await spellHelp.tap()
+    await expect(tip).toContainText('This spell')
+    const spellBounds = await tip.boundingBox()
+    expect(spellBounds!.x + spellBounds!.width).toBeLessThanOrEqual(390)
+    await spellHelp.tap()
     await expect(tip).toHaveCount(0)
   })
 })

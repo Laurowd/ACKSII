@@ -1,5 +1,12 @@
 # Validação local — 02/10/2026
 
+## Consulta de magias de 02/10
+
+- Consulta dos efeitos, agrupamento por nível e conjuração reunidos na lista principal. Editor validado junto à lista; pesquisa e exceções do mestre em seções recolhidas. Fichas antigas mantêm suas entradas e continuam consultáveis sem controle automático de usos.
+- Build, **74 testes unitários do frontend**, **43 cenários Playwright** e **54 casos Cypress** aprovados nas execuções completas. Os cenários novos verificam acesso como jogador sem modificar dados, descrição por mouse/teclado/toque, falha e recuperação do catálogo e magias de campanha sem descrição cadastrada. Capturas conferidas em 1280 e 320 px.
+
+Testes realizados com API isolada e PostgreSQL local, sem migração nova ou alteração de dados no Neon.
+
 ## Estado e navegação do frontend de 02/10
 
 - Corrigidos o reaparecimento de cargas consumidas no formulário de itens, respostas atrasadas no histórico e na importação, falhas sem mensagem nos comandos de pesquisa/domínio e o reaproveitamento da tela de uma ficha/campanha anterior ao mudar o ID na rota.

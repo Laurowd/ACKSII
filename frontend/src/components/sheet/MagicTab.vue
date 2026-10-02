@@ -1,23 +1,44 @@
 <template>
   <div class="space-y-4">
-    <SpellcastingPanel :character="character" :prepare="prepare" :refresh="refresh" />
-    <!-- ====== MAGIC SHEET ====== -->
-    <div class="bg-dark-card border border-gold/20 rounded-xl p-5 mb-4">
-      <h2 class="text-xl font-bold text-gold mb-4 border-b border-gold/10 pb-2">Recursos e pesquisa de magia</h2>
-
-      <!-- Spells per day + resources -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <details v-if="canManage" class="rounded-lg border border-steel-dark p-3">
+    <SpellcastingPanel :character="character" :prepare="prepare" :refresh="refresh"
+      :spell-descriptions="compendiumSpells" :descriptions-loading="loadingDescriptions" :descriptions-error="descriptionsError"
+      @retry-descriptions="loadSpellDescriptions" />
+    <details v-if="canManage" class="bg-dark-card border border-steel-dark rounded-xl p-4 sm:p-5">
+      <summary class="font-bold text-gold cursor-pointer">Exceções de magia (mestre)</summary>
+      <div class="space-y-4 mt-4">
+        <p class="text-sm text-steel-light">Registre aqui magias de campanha e ajustes aprovados pelo mestre. As alterações são salvas na mesma lista de magias do personagem.</p>
+        <details class="rounded-lg border border-steel-dark p-3">
           <summary class="text-sm font-bold text-gold cursor-pointer">Referência manual de usos (mestre)</summary>
           <p class="text-xs text-steel-light my-3">Use para regras de campanha ou fichas antigas. Estes valores não alteram os usos calculados acima.</p>
           <div class="grid grid-cols-3 gap-2">
             <div v-for="lev in 6" :key="lev" class="text-center">
               <label class="lbl">Nível {{ lev }}</label>
-              <input v-model.number="character['spellSlotsLevel' + lev]" @change="emit('save')" type="number" min="0"
-                class="inp text-center font-bold w-full" />
+              <input v-model.number="character['spellSlotsLevel' + lev]" @change="emit('save')" type="number" min="0" class="inp text-center font-bold w-full" />
             </div>
           </div>
         </details>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div v-for="lev in 6" :key="lev" class="bg-dark-bg/30 rounded-lg p-3">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-bold text-gold">Nível {{ lev }}</span>
+              <button type="button" @click="addSpell(lev)" :aria-label="`Adicionar magia de nível ${lev}`" class="text-gold hover:text-gold-light text-sm">+</button>
+            </div>
+            <div v-for="s in getSpellsByLevel(lev)" :key="s.id" class="flex items-center gap-1 mb-1">
+              <input v-model="s.name" @change="saveSpellName(s)" class="inp-table min-w-0 flex-1 text-sm" placeholder="Nome da magia" :aria-label="`Magia de nível ${lev}`" :list="'acks-spell-compendium-' + lev" />
+              <button type="button" @click="removeSpell(s.id)" :aria-label="`Remover magia ${s.name || 'sem nome'}`" class="text-crimson-light hover:text-crimson text-xs font-bold pl-1">X</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </details>
+    <!-- ====== MAGIC SHEET ====== -->
+    <details class="bg-dark-card border border-gold/20 rounded-xl p-4 sm:p-5">
+      <summary class="text-xl font-bold text-gold cursor-pointer">Aprendizado e pesquisa de magia</summary>
+      <div class="mt-4">
+      <p class="text-sm text-steel-light mb-4">Grimório, anotações de aprendizado, recursos e projetos de pesquisa.</p>
+
+      <!-- Spells per day + resources -->
+      <div class="mb-6">
         <div>
           <h3 class="text-lg font-bold text-gold mb-3">Recursos de magia</h3>
           <div class="grid grid-cols-2 gap-3">
@@ -78,28 +99,9 @@
         </div>
       </div>
 
-      <div v-if="isRuleEnabled('enableMagicResearchValidation')" class="text-xs rounded border px-3 py-2" :class="researchValidation.ok ? 'border-green-700/40 text-green-400 bg-green-900/10' : 'border-red-700/40 text-red-400 bg-red-900/10'">
+      <div v-if="isRuleEnabled('enableMagicResearchValidation') && hasResearchPlan" class="text-xs rounded border px-3 py-2 mb-6" :class="researchValidation.ok ? 'border-green-700/40 text-green-400 bg-green-900/10' : 'border-red-700/40 text-red-400 bg-red-900/10'">
         {{ researchValidation.message }}
       </div>
-
-      <!-- Spells by level (1–6) -->
-      <details class="rounded-lg border border-steel-dark p-3 mb-6">
-      <summary class="font-bold text-gold cursor-pointer">Repertório manual e exceções {{ canManage ? '(mestre)' : '(consulta)' }}</summary>
-      <p class="text-xs text-steel-light my-3">Para o repertório normal, use o editor com validação acima. Este registro preserva magias de campanha e entradas de fichas anteriores.</p>
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        <div v-for="lev in 6" :key="lev" class="bg-dark-bg/30 rounded-lg p-3">
-          <div class="flex items-center justify-between mb-2">
-            <span class="font-bold text-gold">Nível {{ lev }}</span>
-            <button v-if="canManage" type="button" @click="addSpell(lev)" :aria-label="`Adicionar magia de nível ${lev}`" class="text-gold hover:text-gold-light text-sm">+</button>
-          </div>
-          <div v-for="s in getSpellsByLevel(lev)" :key="s.id" class="flex items-center gap-1 mb-1 relative">
-            <input v-model="s.name" @change="saveSpellName(s)" :readonly="!canManage" class="inp-table min-w-0 flex-1 text-sm" placeholder="Nome da magia" :aria-label="`Magia de nível ${lev}`" :list="'acks-spell-compendium-' + lev" />
-            <HelpTooltip v-if="getSpellTooltip(s.name)" :label="s.name">{{ getSpellTooltip(s.name) }}</HelpTooltip>
-            <button v-if="canManage" type="button" @click="removeSpell(s.id)" :aria-label="`Remover magia ${s.name || 'sem nome'}`" class="text-crimson-light hover:text-crimson text-xs font-bold pl-1">X</button>
-          </div>
-        </div>
-      </div>
-      </details>
 
       <!-- Rituals known -->
       <div class="mb-6">
@@ -199,7 +201,8 @@
       <datalist v-for="l in 6" :key="'dl-'+l" :id="'acks-spell-compendium-' + l">
         <option v-for="entry in compendiumSpells.filter(s => s.level === l)" :key="entry.id" :value="entry.name" :label="entry.name" />
       </datalist>
-    </div>
+      </div>
+    </details>
   </div>
 </template>
 
@@ -234,6 +237,7 @@ function isRuleEnabled(key: string) {
 }
 
 const compendiumSpells = ref<any[]>([])
+const loadingDescriptions = ref(false), descriptionsError = ref('')
 const effectTypes = [
   ['MANUAL', 'Manual / projeto antigo'], ['ONE_USE', 'Uso único'], ['CHARGED', 'Por cargas'],
   ['WEEKLY', '1/semana'], ['THREE_WEEKLY', '3/semana (máx. 1/dia)'], ['DAILY', '1/dia'], ['THREE_DAILY', '3/dia (máx. 1/hora)'],
@@ -243,17 +247,16 @@ const effectTypes = [
   ['PERMANENT_CASTER_LEVEL', 'Permanente: duração por nível'], ['BONUS', 'Bônus de equipamento'],
 ]
 
-onMounted(async () => {
+async function loadSpellDescriptions() {
+  if (loadingDescriptions.value) return
+  loadingDescriptions.value = true; descriptionsError.value = ''
   try {
     const res = await api.get('/api/compendium/search', { params: { type: 'spell', limit: 500 } })
     compendiumSpells.value = res.data.entries || []
-  } catch (e) { notifyError(errorMessage(e, 'Não foi possível carregar as sugestões de magias. Reabra a aba para tentar novamente.')) }
-})
-
-function getSpellTooltip(name: string) {
-  const found = compendiumSpells.value.find((c: any) => c.name.toLowerCase() === String(name || '').trim().toLowerCase())
-  return found ? found.notes : ''
+  } catch (e) { descriptionsError.value = errorMessage(e, 'Não foi possível carregar as descrições das magias.') }
+  finally { loadingDescriptions.value = false }
 }
+onMounted(loadSpellDescriptions)
 
 const spellbookText = computed(() => {
   const list = Array.isArray(props.character?.spellbook) ? props.character.spellbook : []
@@ -269,6 +272,7 @@ const researchQueueText = computed(() => {
   const list = Array.isArray(props.character?.researchQueue) ? props.character.researchQueue : []
   return list.join('\n')
 })
+const hasResearchPlan = computed(() => Boolean(String(props.character.magicResearch || '').trim() || researchQueueText.value.trim() || Number(props.character.researchCostGp) > 0 || Number(props.character.researchTimeWeeks) > 0))
 
 const researchValidation = computed(() => {
   const workshop = Number(props.character?.workshopValue || 0)
