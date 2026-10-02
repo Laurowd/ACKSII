@@ -72,7 +72,9 @@ test('failed item edits survive switching tabs and retry from the sheet save but
   await page.getByRole('button', { name: 'Inventário & Tesouro', exact: true }).click()
   await expect(page.getByLabel('Quantidade de Session rope')).toHaveValue('3')
   await page.unroute(`**${path}`)
+  const retriedSave = page.waitForResponse(response => response.url().endsWith(path) && response.request().method() === 'PUT')
   await page.getByRole('button', { name: 'Salvar', exact: true }).click()
+  expect((await retriedSave).status()).toBe(200)
   await expect(page.getByText('Falha ao salvar', { exact: true })).toHaveCount(0)
   const persisted = (await (await page.request.get(`/api/characters/${character.id}`, { headers })).json()).character
   expect(persisted.items[0].quantity).toBe(3)
