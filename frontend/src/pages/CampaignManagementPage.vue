@@ -333,6 +333,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '../services/api'
+import { getResource } from '../services/resources'
 import { useAuthStore } from '../stores/auth'
 import { notifyError, notifyInfo, notifySuccess } from '../utils/toast'
 import { errorMessage, type CatalogClass } from '../utils/catalog'
@@ -535,7 +536,7 @@ async function loadSettings() {
   loadingSettings.value = true
   settingsError.value = ''
   try {
-    const res = await api.get(`/api/campaigns/${campaignId}/settings`)
+    const res = await getResource(`/api/campaigns/${campaignId}/settings`)
     settings.value = {
       currentYear: res.data.currentYear || 1,
       currentMonth: res.data.currentMonth || 1,
@@ -741,7 +742,7 @@ async function loadClasses() {
   try {
     const res = await api.get(`/api/classes/${campaignId}`)
     customClasses.value = res.data
-    catalogClasses.value = (await api.get('/api/classes/catalog')).data
+    catalogClasses.value = (await getResource('/api/classes/catalog')).data
     if (route.query.baseClass && !templateOpened) {
       templateOpened = true
       baseToCopy.value = String(route.query.baseClass)

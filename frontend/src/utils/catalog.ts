@@ -39,7 +39,10 @@ export function selectedClass(classes: CatalogClass[], character: { classKey?: s
 
 export function errorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && !(error as any).isAxiosError) return error.message || fallback
-  const e = error as { response?: { data?: { error?: string; message?: string } } }
+  const e = error as { code?: string; config?: { method?: string }; response?: { data?: { error?: string; message?: string } } }
+  if (['ECONNABORTED', 'ETIMEDOUT', 'ERR_NETWORK'].includes(e?.code || '') && ['post', 'put', 'patch', 'delete'].includes(e?.config?.method || '')) return 'Não foi possível confirmar a resposta do servidor. A ação pode ter sido registrada. Confira os dados antes de repetir; as edições locais foram preservadas.'
+  if (['ECONNABORTED', 'ETIMEDOUT'].includes(e?.code || '')) return 'O servidor demorou para responder. Confira a conexão e tente novamente. As alterações pendentes continuam no editor.'
+  if (e?.code === 'ERR_NETWORK') return 'Não foi possível conectar ao servidor. Confira sua conexão e tente novamente. As alterações pendentes continuam no editor.'
   return e.response?.data?.message || e.response?.data?.error || fallback
 }
 

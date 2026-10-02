@@ -2,6 +2,11 @@
   <main class="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
     <router-link to="/dashboard" class="text-gold">← Meus personagens</router-link>
     <h1 class="text-3xl font-bold text-gold">Criar personagem</h1>
+    <div v-if="recovery" role="status" class="rounded-xl border border-gold/30 bg-dark-card p-4 space-y-2">
+      <p>Há escolhas de criação guardadas neste navegador ({{ new Date(recovery.savedAt).toLocaleString('pt-BR') }}).</p>
+      <div class="flex flex-wrap gap-4"><button type="button" @click="restoreCreation" :disabled="initializing || loadingClasses" class="text-gold underline disabled:opacity-40">Recuperar criação</button><button type="button" @click="discardCreation" class="text-steel-light underline">Descartar rascunho</button></div>
+    </div>
+    <p v-if="storageWarning" role="alert" class="text-gold">O navegador não conseguiu guardar o rascunho. Mantenha esta página aberta até concluir a criação.</p>
     <ol class="flex flex-wrap gap-3" aria-label="Etapas de criação"><li v-for="(label, i) in steps" :key="label" :aria-current="step === i ? 'step' : undefined" :class="step === i ? 'text-gold font-bold' : 'text-steel-light'">{{ i + 1 }}. {{ label }}</li></ol>
     <p class="mt-3 text-sm text-steel-light">Criação sem templates (Rulebook p. 13). As listas e quantidades são conferidas; o mestre define disponibilidade de equipamento, especializações e repertórios religiosos.</p>
     <label>Modo de criação<select v-model="draft.rulesMode" :disabled="submitting" class="inp"><option value="standard">Regras do livro</option><option value="manual">Ajustes aprovados pelo mestre</option></select></label>
@@ -125,11 +130,14 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
+import { getResource } from '../services/resources'
 import { classRows, errorMessage, proficiencyOptions, type CatalogClass } from '../utils/catalog'
 import { formatMod, getModifier } from '../utils/mechanics'
 import { getClassFeats } from '../utils/classFeats'
 import { creationSettings, purchaseSummary } from '../utils/creation'
 import { choiceMagicPools, proficiencyValidation, spellValidation, traditionName } from '../utils/ruleChoices'
+import { useAuthStore } from '../stores/auth'
+import { createLocalDraft } from '../utils/localDrafts'
 const route = useRoute(), router = useRouter()
 const steps = ['Atributos', 'Classe', 'Identidade', 'Equipamento', 'Revisão']
 const attributes = [{ key: 'str', label: 'Força' }, { key: 'int', label: 'Intelecto' }, { key: 'dex', label: 'Destreza' }, { key: 'wil', label: 'Vontade' }, { key: 'con', label: 'Constituição' }, { key: 'cha', label: 'Carisma' }] as const
@@ -153,6 +161,33 @@ const klass = computed(() => classes.value.find(c => c.id === draft.value.classK
 const priorities = ref(['str', 'dex', 'con'])
 const chosenRules = computed(() => creationSettings(klass.value))
 const choicesReviewed = ref(false)
+type CreationDraft = { draft: typeof draft.value; step: number; useBudget: boolean; startingGold: number; priorities: string[]; rollLog: string }
+const localDraft = createLocalDraft<CreationDraft>(useAuthStore().user?.id || '', `creation:${String(route.query.campaignId || '')}:${String(route.query.classKey || '')}`)
+const recovery = ref(localDraft.read())
+const storageWarning = ref(false)
+let restoring = false
+function persistCreation() {
+  if (!loaded || created || recovery.value || !dirty) return
+  storageWarning.value = !localDraft.write({ draft: JSON.parse(JSON.stringify(draft.value)), step: step.value, useBudget: useBudget.value, startingGold: startingGold.value, priorities: priorities.value, rollLog: rollLog.value })
+}
+function discardCreation() { recovery.value = null; localDraft.remove(); persistCreation() }
+async function restoreCreation() {
+  const saved = recovery.value?.data
+  if (!saved || !saved.draft || !['proficiencies', 'items', 'spells', 'purchases'].every(key => Array.isArray((saved.draft as any)[key]))) { discardCreation(); return }
+  restoring = true
+  try {
+    const copy = saved.draft
+    draft.value.campaignId = campaigns.value.some(c => c.id === copy.campaignId) ? copy.campaignId : ''
+    await nextTick(); await loadClasses()
+    for (const key of Object.keys(draft.value)) if (key !== 'campaignId' && key in copy) (draft.value as any)[key] = (copy as any)[key]
+    if (!klass.value) { draft.value.classKey = ''; error.value = 'A classe guardada não está disponível. Escolha uma classe e confira as escolhas recuperadas.' }
+    step.value = Math.max(0, Math.min(4, Number(saved.step) || 0)); useBudget.value = saved.useBudget === true
+    startingGold.value = Number.isFinite(saved.startingGold) ? saved.startingGold : 100
+    if (Array.isArray(saved.priorities) && saved.priorities.length === 3 && saved.priorities.every(key => attributes.some(a => a.key === key))) priorities.value = saved.priorities
+    rollLog.value = typeof saved.rollLog === 'string' ? saved.rollLog : ''
+    await nextTick(); recovery.value = null; dirty = true
+  } finally { restoring = false; persistCreation() }
+}
 const magic = computed(() => choiceMagicPools(chosenRules.value.rules, draft.value.int))
 const availableMagic = computed(() => magic.value.filter(pool => pool.slots[0]))
 const proficiencyCheck = computed(() => draft.value.rulesMode === 'standard' && chosenRules.value.rules ? proficiencyValidation(chosenRules.value.rules, draft.value.int, draft.value.proficiencies, metadata.value.generalProficiencies) : { rows: [] as string[], issues: [] as string[], limits: { class: 0, general: 0 } })
@@ -167,19 +202,20 @@ const requirementErrors = computed(() => {
 })
 const subclasses = computed(() => {const base=klass.value?.source==='catalog'?klass.value:classes.value.find(c=>c.source==='catalog'&&c.id===klass.value?.baseClassKey);return base ? getClassFeats(base.name,1).availableSubclasses || [] : []})
 let loaded = false, dirty = false, created = false, sequence = 0
-watch(draft, () => { if (loaded) dirty = true }, { deep: true })
-watch(() => draft.value.campaignId, () => { draft.value.classKey = ''; void loadClasses() })
+watch([draft, step, useBudget, startingGold, priorities], () => { if (loaded && !restoring) { dirty = true; persistCreation() } }, { deep: true })
+watch(() => draft.value.campaignId, () => { if (!restoring) { draft.value.classKey = ''; void loadClasses() } })
 watch(klass, (value) => {
+  if (restoring) return
   draft.value.subclass = ''
   draft.value.isSpellcaster = chosenRules.value?.spellcaster ?? false
   if (value) draft.value.hpMax = Math.max(1, 4 + (value.conBonus ? getModifier(draft.value.con) : 0)) + Number(chosenRules.value.rules?.levels[0]?.hitDice.match(/\+(\d+)/)?.[1] || 0)
 })
-watch(() => draft.value.rulesMode, mode => { if (mode === 'standard') draft.value.isSpellcaster = chosenRules.value.spellcaster ?? false })
+watch(() => draft.value.rulesMode, mode => { if (!restoring && mode === 'standard') draft.value.isSpellcaster = chosenRules.value.spellcaster ?? false })
 async function loadClasses() {
   const id = ++sequence
   loadingClasses.value = true; error.value = ''
   try {
-    const res = await api.get('/api/classes/catalog', { params: { campaignId: draft.value.campaignId || undefined } })
+    const res = await getResource('/api/classes/catalog', { params: { campaignId: draft.value.campaignId || undefined } })
     if (id === sequence) { classes.value = res.data; if (!klass.value) draft.value.classKey = '' }
   } catch(e) { if (id === sequence) { classes.value = []; error.value = errorMessage(e, 'Não foi possível carregar classes.') } }
   finally { if (id === sequence) loadingClasses.value = false }
@@ -242,6 +278,7 @@ async function next() {
   try {
     const res = await api.post('/api/characters/guided', { ...draft.value, purchases:useBudget.value ? draft.value.purchases : [], ...(useBudget.value ? {startingGoldGp:startingGold.value}:{}), campaignId: draft.value.campaignId || null })
     created = true
+    localDraft.remove()
     await router.push(`/character/${res.data.character.id}`)
   } catch (e) {
     error.value = errorMessage(e, 'Não foi possível criar a ficha. Suas escolhas foram preservadas.')
@@ -250,17 +287,17 @@ async function next() {
   }
   finally { submitting.value = false }
 }
-function confirmDiscard(){return created || !dirty || window.confirm('Sair e descartar as escolhas deste personagem?')}
+function confirmDiscard(){const allowed = created || !dirty || window.confirm('Sair e descartar as escolhas deste personagem?'); if (allowed && dirty) localDraft.remove(); return allowed}
 onBeforeRouteLeave(confirmDiscard)
 onBeforeRouteUpdate((to,from)=>to.fullPath.split('#')[0]===from.fullPath.split('#')[0] || confirmDiscard())
-function beforeUnload(event: BeforeUnloadEvent) { if (dirty && !created) { event.preventDefault(); event.returnValue = '' } }
+function beforeUnload(event: BeforeUnloadEvent) { persistCreation(); if (dirty && !created) { event.preventDefault(); event.returnValue = '' } }
 onMounted(() => window.addEventListener('beforeunload', beforeUnload))
 onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 async function loadResources() {
   loadingResources.value = true; resourceError.value = ''
   try {
     const [rules, items, weapons] = await Promise.all([
-      api.get('/api/game-rules/metadata'),
+      getResource('/api/game-rules/metadata'),
       api.get('/api/compendium/search', { params: { type: 'item', limit: 500 } }),
       api.get('/api/compendium/search', { params: { type: 'weapon', limit: 500 } }),
     ])

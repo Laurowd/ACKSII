@@ -1,4 +1,4 @@
-import Fastify, { FastifyError } from 'fastify'
+import Fastify, { FastifyError, LogController } from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import prisma from './lib/prisma'
@@ -15,17 +15,38 @@ import { campaignRuleRoutes } from './routes/campaignRules'
 import { classBuilderRoutes } from './routes/classBuilder'
 import { sessionRoutes } from './routes/session'
 import { characterImportRoutes } from './routes/characterImport'
+import { requestMetrics, newRequestMetrics, metricsFields, type RequestMetrics } from './lib/requestMetrics'
 
 export function buildApp(config = readConfig(), logger = true) {
   const app = Fastify({
+    logController: new LogController({ disableRequestLogging: true }),
     logger: logger ? { redact: ['req.headers.authorization', 'req.headers.cookie'], level: process.env.LOG_LEVEL || 'info' } : false,
     trustProxy: config.trustProxy, bodyLimit: 256 * 1024, requestTimeout: 30_000, connectionTimeout: 10_000,
     ajv: { customOptions: { coerceTypes: false } },
   })
   app.register(cors, { origin: config.origin })
   app.register(jwt, { secret: config.secret })
-  app.addHook('onSend', async (_request, reply) => {
+  const measurements = new WeakMap<object, RequestMetrics>()
+  app.addHook('onRequest', (request, _reply, done) => {
+    const metrics = newRequestMetrics()
+    measurements.set(request, metrics)
+    requestMetrics.run(metrics, done)
+  })
+  app.addHook('onSend', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff').header('Cache-Control', 'no-store')
+    const metrics = measurements.get(request)
+    if (metrics) {
+      const { durationMs, databaseMs } = metricsFields(metrics)
+      reply.header('Server-Timing', `app;dur=${durationMs}, db;dur=${databaseMs}`)
+    }
+  })
+  app.addHook('onResponse', async (request, reply) => {
+    const metrics = measurements.get(request)
+    if (!metrics) return
+    const fields = { event: 'request_metrics', route: request.routeOptions.url || 'unmatched', method: request.method, statusCode: reply.statusCode, requestId: request.id, ...metricsFields(metrics) }
+    if (fields.durationMs >= 1000 || fields.statusCode >= 500) request.log.warn(fields, 'slow or failed request')
+    else request.log.info(fields, 'request metrics')
+    measurements.delete(request)
   })
   app.setErrorHandler<FastifyError>((error, request, reply) => {
     if (error.code === 'P2034') return reply.code(409).send({ code: 'CHARACTER_CONFLICT', error:'Houve uma alteração concorrente. Atualize a ficha e tente novamente.' })

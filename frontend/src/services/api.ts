@@ -1,8 +1,11 @@
 import axios from 'axios'
 import { notifyError } from '../utils/toast'
+import { referenceCache } from './resourceCache'
+import { mutationStarted, mutationSucceeded } from './mutationJournal'
 
 const api = axios.create({
   baseURL: '',
+  timeout: 15_000,
   headers: { 'Content-Type': 'application/json' }
 })
 
@@ -11,13 +14,19 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  mutationStarted(config)
   return config
 })
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    mutationSucceeded(response.config)
+    if (response.config.method !== 'get' && /^\/api\/(auth\/|classes|class-builder|campaigns)/.test(response.config.url || '')) referenceCache.clear()
+    return response
+  },
   (error) => {
     if (error.response?.status === 401 && !['/api/auth/login', '/api/auth/register'].includes(error.config?.url)) {
+      referenceCache.clear()
       notifyError('Sua sessao expirou. Faca login novamente.')
       localStorage.removeItem('token')
       localStorage.removeItem('user')

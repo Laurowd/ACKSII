@@ -45,6 +45,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import api from '../services/api'
+import { getResource } from '../services/resources'
 import { useAuthStore } from '../stores/auth'
 import { classRows, errorMessage, type CatalogClass } from '../utils/catalog'
 import ClassPointBuilder from '../components/ClassPointBuilder.vue'
@@ -71,7 +72,7 @@ async function load() {
   const id = ++requestId
   loading.value = true; error.value = ''; chosen.value = null
   try {
-    const res = await api.get('/api/classes/catalog', { params: { campaignId: campaignId.value || undefined } })
+    const res = await getResource('/api/classes/catalog', { params: { campaignId: campaignId.value || undefined } })
     if (id === requestId) classes.value = res.data
   } catch (e) { if (id === requestId) { classes.value = []; error.value = errorMessage(e, 'Não foi possível carregar o catálogo.') } }
   finally { if (id === requestId) loading.value = false }

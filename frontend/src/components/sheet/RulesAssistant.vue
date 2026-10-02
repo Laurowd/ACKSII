@@ -61,6 +61,7 @@
 <script setup lang="ts">
 import {ref,onMounted,onBeforeUnmount,watch,computed} from 'vue'
 import api from '../../services/api'
+import { getResource } from '../../services/resources'
 import {errorMessage,proficiencyOptions} from '../../utils/catalog'
 import { proficiencyValidation } from '../../utils/ruleChoices'
 import CampaignWorkflows from './CampaignWorkflows.vue'
@@ -81,7 +82,7 @@ function checkPreview(revision:number){if(revision!==previewRevision)throw Error
 onBeforeUnmount(invalidatePreviews)
 const url=()=>`/api/game-rules/characters/${props.character.id}`
 async function run(work:()=>Promise<void>){if(busy.value)return;busy.value=true;error.value='';notice.value='';try{await work()}catch(e){error.value=errorMessage(e,'Não foi possível concluir a operação.')}finally{busy.value=false}}
-async function load(){await run(async()=>{const [r,m,c]=await Promise.all([api.get(url()),api.get('/api/game-rules/metadata'),api.get('/api/characters')]);info.value=r.data;metadata.value=m.data;participants.value=c.data.characters.filter((p:any)=>p.campaignId===props.character.campaignId).map((p:any)=>({id:p.id,name:p.characterName,version:p.version,share:1,selected:p.id===props.character.id}))})}
+async function load(){await run(async()=>{const [r,m,c]=await Promise.all([api.get(url()),getResource('/api/game-rules/metadata'),api.get('/api/characters', { params: { view: 'summary' } })]);info.value=r.data;metadata.value=m.data;participants.value=c.data.characters.filter((p:any)=>p.campaignId===props.character.campaignId).map((p:any)=>({id:p.id,name:p.characterName,version:p.version,share:1,selected:p.id===props.character.id}))})}
 async function prepared(){if(!await props.prepare() || !await operations.retryPending())throw Error('Salve ou resolva o conflito da ficha antes de continuar.');const r=await api.get(url());info.value=r.data;return props.character.version}
 async function complete(message:string){
   advancePreview.value=null;xpPreview.value=null;notice.value=message

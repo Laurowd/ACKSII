@@ -27,3 +27,10 @@ jobs:
           ACKS_CHECK_BACKUP: 'true'
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/monitor-production.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-monitor-${{ github.run_id }}
+          path: test-results/production-monitor.json
+          if-no-files-found: ignore
+          retention-days: 30

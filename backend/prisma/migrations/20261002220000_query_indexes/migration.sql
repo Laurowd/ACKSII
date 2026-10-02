@@ -1,0 +1,22 @@
+-- Add lookup indexes; existing rows and permissions are unchanged.
+CREATE INDEX "Campaign_masterId_idx" ON "Campaign"("masterId");
+CREATE INDEX "CampaignMember_userId_status_idx" ON "CampaignMember"("userId", "status");
+CREATE INDEX "CustomClass_campaignId_name_idx" ON "CustomClass"("campaignId", "name");
+CREATE INDEX "Character_userId_updatedAt_idx" ON "Character"("userId", "updatedAt");
+CREATE INDEX "Character_campaignId_updatedAt_idx" ON "Character"("campaignId", "updatedAt");
+CREATE INDEX "MagicItemResearch_characterId_idx" ON "MagicItemResearch"("characterId");
+CREATE INDEX "MercantileVenture_characterId_idx" ON "MercantileVenture"("characterId");
+CREATE INDEX "Weapon_characterId_idx" ON "Weapon"("characterId");
+CREATE INDEX "Proficiency_characterId_idx" ON "Proficiency"("characterId");
+CREATE INDEX "Item_characterId_idx" ON "Item"("characterId");
+CREATE INDEX "Spell_characterId_idx" ON "Spell"("characterId");
+CREATE INDEX "Ritual_characterId_idx" ON "Ritual"("characterId");
+CREATE INDEX "MagicFormula_characterId_idx" ON "MagicFormula"("characterId");
+CREATE INDEX "Henchman_characterId_idx" ON "Henchman"("characterId");
+CREATE INDEX "CampaignActivity_campaignId_idx" ON "CampaignActivity"("campaignId");
+CREATE INDEX "Scar_characterId_idx" ON "Scar"("characterId");
+CREATE INDEX "AuditLog_campaignId_createdAt_idx" ON "AuditLog"("campaignId", "createdAt");
+CREATE INDEX "AuditLog_characterId_action_idx" ON "AuditLog"("characterId", "action");
+CREATE INDEX "AuditLog_userId_idx" ON "AuditLog"("userId");
+CREATE INDEX "CharacterActivity_characterId_idx" ON "CharacterActivity"("characterId");
+CREATE INDEX "ArmyUnit_characterId_idx" ON "ArmyUnit"("characterId");

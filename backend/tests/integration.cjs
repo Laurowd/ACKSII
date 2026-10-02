@@ -39,7 +39,9 @@ before(async () => {
 after(async () => { if (app) await app.close(); else await db.$disconnect(); });
 
 test('real database readiness and account session', async () => {
-  assert.equal((await request('GET', '/api/ready')).statusCode, 200);
+  const ready = await request('GET', '/api/ready');
+  assert.equal(ready.statusCode, 200);
+  assert.ok(Number(ready.headers['server-timing'].match(/db;dur=([\d.]+)/)?.[1]) > 0, 'A real DB readiness query must be measured.');
   assert.equal((await request('GET', '/api/auth/me')).statusCode, 200);
 });
 test('guided creation persists initial choices atomically', async () => {
@@ -48,6 +50,24 @@ test('guided creation persists initial choices atomically', async () => {
   character = response.json().character;
   assert.equal(character.version, 0);
   assert.equal((await db.item.count({ where: { characterId: character.id } })), 1);
+});
+
+test('lightweight character list omits relations and retains access controls and timing metrics', async () => {
+  const response = await request('GET', '/api/characters?view=summary');
+  assert.equal(response.statusCode, 200, response.body);
+  const listed = response.json().characters.find(c => c.id === character.id);
+  assert.equal(listed.characterName, character.characterName);
+  assert.equal(listed.user.username, user.username);
+  assert.equal(listed.version, character.version);
+  assert.equal('items' in listed, false);
+  assert.equal('notes' in listed, false);
+  assert.match(response.headers['server-timing'], /app;dur=[\d.]+, db;dur=[\d.]+/);
+  const outsider = (await request('POST', '/api/auth/register', { username: `outsider_${suffix}`, email: `outsider_${suffix}@test.invalid`, password, role: 'PLAYER' }, null)).json();
+  const denied = await request('GET', '/api/characters?view=summary', undefined, outsider.token);
+  assert.equal(denied.statusCode, 200);
+  assert.equal(denied.json().characters.some(c => c.id === character.id), false);
+  assert.equal((await request('GET', '/api/characters?view=summary', undefined, null)).statusCode, 401);
+  assert.ok((await request('GET', '/api/characters')).json().characters.find(c => c.id === character.id).items.length);
 });
 
 test('book-mode creation validates proficiencies and magic before creating any records', async () => {

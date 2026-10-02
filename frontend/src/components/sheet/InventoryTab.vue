@@ -4,15 +4,15 @@
     <div class="bg-dark-card border border-gold/20 rounded-xl p-5 mb-4">
       <h3 class="text-lg font-bold text-gold mb-3">Moedas, gemas e joias</h3>
       <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-3">
-        <div><label class="lbl">PP</label><input v-model.number="character.coinPP" @change="emit('save')" type="number" min="0" class="inp text-center" /></div>
-        <div><label class="lbl">EP</label><input v-model.number="character.coinEP" @change="emit('save')" type="number" min="0" class="inp text-center" /></div>
-        <div><label class="lbl">GP</label><input v-model.number="character.coinGP" @change="emit('save')" type="number" min="0" class="inp text-center" /></div>
-        <div><label class="lbl">SP</label><input v-model.number="character.coinSP" @change="emit('save')" type="number" min="0" class="inp text-center" /></div>
-        <div><label class="lbl">CP</label><input v-model.number="character.coinCP" @change="emit('save')" type="number" min="0" class="inp text-center" /></div>
+        <div><label class="lbl">PP</label><input v-model.number="character.coinPP" @input="emit('save')" @change="emit('save')" type="number" min="0" class="inp text-center" /></div>
+        <div><label class="lbl">EP</label><input v-model.number="character.coinEP" @input="emit('save')" @change="emit('save')" type="number" min="0" class="inp text-center" /></div>
+        <div><label class="lbl">GP</label><input v-model.number="character.coinGP" @input="emit('save')" @change="emit('save')" type="number" min="0" class="inp text-center" /></div>
+        <div><label class="lbl">SP</label><input v-model.number="character.coinSP" @input="emit('save')" @change="emit('save')" type="number" min="0" class="inp text-center" /></div>
+        <div><label class="lbl">CP</label><input v-model.number="character.coinCP" @input="emit('save')" @change="emit('save')" type="number" min="0" class="inp text-center" /></div>
       </div>
       <div>
         <label for="inventory-gems" class="lbl">Gemas e joias</label>
-        <textarea id="inventory-gems" v-model="character.gemsJewelry" @change="emit('save')" rows="3"
+        <textarea id="inventory-gems" v-model="character.gemsJewelry" @input="emit('save')" @change="emit('save')" rows="3"
           class="w-full inp resize-y text-sm" placeholder="Descreva as gemas, joias e seus valores..."></textarea>
       </div>
     </div>

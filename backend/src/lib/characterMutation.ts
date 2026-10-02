@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import prisma from './prisma';
+import prisma, { type TransactionClient } from './prisma';
 
 const versionProperty = { type: 'integer', minimum: 0, maximum: 2147483647 } as const;
 
@@ -43,7 +43,7 @@ const conflict = {
 export async function mutateCharacter(
   request: FastifyRequest,
   reply: FastifyReply,
-  mutation: (tx: Prisma.TransactionClient) => Promise<MutationResult | Record<string, any>>,
+  mutation: (tx: TransactionClient) => Promise<MutationResult | Record<string, any>>,
 ) {
   const { characterId } = request.params as { characterId: string };
   const { version } = request.body as { version: number };

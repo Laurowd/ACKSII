@@ -43,8 +43,17 @@ export async function customClassesRoutes(app: FastifyInstance) {
     const { id } = request.user as { id: string }
     if (campaignId && !(await canReadCampaign(campaignId, id))) return reply.code(403).send({ message: 'Sem acesso à campanha.' })
     const custom = campaignId ? await prisma.customClass.findMany({ where: { campaignId }, orderBy: { name: 'asc' } }) : []
-    return [...CLASS_CATALOG.map(c => ({ ...c, legacyIds: custom.filter(old => legacyBaseName(old) === c.name).map(old => old.id) })),
-      ...custom.filter(c => !legacyBaseName(c)).map(c => ({ ...c, ...readState(c.creationRules), source: 'campaign' }))]
+    const legacy = new Map<string, string[]>()
+    const distinct = []
+    for (const old of custom) {
+      const name = legacyBaseName(old)
+      if (name) {
+        const ids = legacy.get(name) || []
+        ids.push(old.id); legacy.set(name, ids)
+      }
+      else distinct.push({ ...old, ...readState(old.creationRules), source: 'campaign' })
+    }
+    return [...CLASS_CATALOG.map(c => ({ ...c, legacyIds: legacy.get(c.name) || [] })), ...distinct]
   })
 
   app.get('/:campaignId', async (request, reply) => {

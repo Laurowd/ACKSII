@@ -24,6 +24,15 @@ test('refuses insecure or malformed monitor origins before making requests', asy
   const failFetch = () => { throw new Error('Should not request'); };
   for (const url of ['http://acksii.vercel.app', 'https://acksii.vercel.app/', 'https://user:secret@acksii.vercel.app']) await assert.rejects(checkApplication(url, failFetch), /HTTPS origin/);
 });
+
+test('returns endpoint latencies and rejects sustained slow responses', async () => {
+  let time = 0;
+  const measurements = await checkApplication('https://acksii.vercel.app', applicationFetch(), { clock: () => (time += 25), maxDurationMs: 100 });
+  assert.equal(measurements.length, 4);
+  assert.equal(measurements[1].pathname, '/api/ready');
+  assert.equal(measurements[1].durationMs, 25);
+  await assert.rejects(checkApplication('https://acksii.vercel.app', applicationFetch(), { clock: () => (time += 101), maxDurationMs: 100 }), /limit 100 ms/);
+});
 test('accepts a recent verified backup but rejects stale runs, expired artifacts and unavailable metadata', async () => {
   const now = Date.parse('2026-10-01T12:00:00Z');
   const env = { GITHUB_TOKEN: 'test-token', GITHUB_REPOSITORY: 'Laurowd/ACKSII' };

@@ -69,6 +69,7 @@
 import {ref,onMounted,watch,computed} from 'vue'
 import {onBeforeRouteLeave} from 'vue-router'
 import api from '../services/api'
+import { getResource } from '../services/resources'
 import {errorMessage,proficiencyOptions} from '../utils/catalog'
 import ClassPowerChoice from './ClassPowerChoice.vue'
 import HelpTooltip from './HelpTooltip.vue'
@@ -111,7 +112,7 @@ watch(()=>form.value.race,()=>{if(form.value.race==='human')form.value.racial=0;
 watch(()=>form.value.fighting,()=>{if(form.value.fighting<2)form.value.damageTrade='none'})
 watch(()=>form.value.startingProficiency,()=>{form.value.startingDescription=''})
 watch(divineValue,value=>{if(!value)form.value.tradeRebuking=false})
-async function loadMetadata(){await run(async()=>{const results=await Promise.allSettled([api.get('/api/game-rules/metadata'),api.get('/api/class-builder/metadata')]);const failed=results.find(r=>r.status==='rejected');if(failed?.status==='rejected')throw failed.reason;const data=(results[0] as PromiseFulfilledResult<any>).value.data;metadata.value=(results[1] as PromiseFulfilledResult<any>).value.data;general.value=data.generalProficiencies;spells.value=data.spells;if(!proficienciesText.value)proficienciesText.value=proficiencyOptions(data.classes.Fighter.proficiencies).join('\n');ready.value=true})}
+async function loadMetadata(){await run(async()=>{const results=await Promise.allSettled([getResource('/api/game-rules/metadata'),getResource('/api/class-builder/metadata')]);const failed=results.find(r=>r.status==='rejected');if(failed?.status==='rejected')throw failed.reason;const data=(results[0] as PromiseFulfilledResult<any>).value.data;metadata.value=(results[1] as PromiseFulfilledResult<any>).value.data;general.value=data.generalProficiencies;spells.value=data.spells;if(!proficienciesText.value)proficienciesText.value=proficiencyOptions(data.classes.Fighter.proficiencies).join('\n');ready.value=true})}
 onMounted(loadMetadata)
 </script>
 <style scoped>label .inp{display:block;width:100%;margin-top:.25rem}th,td{text-align:left;padding:.5rem;white-space:nowrap}tbody tr{border-top:1px solid var(--color-steel-dark)}</style>

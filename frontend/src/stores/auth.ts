@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '../services/api'
 import { readStoredSession, type User } from '../utils/session'
+import { referenceCache } from '../services/resourceCache'
 
 export const useAuthStore = defineStore('auth', () => {
   const initial = readStoredSession(localStorage)
@@ -10,6 +11,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   function syncFromStorage() {
     const session = readStoredSession(localStorage)
+    if (session.token !== token.value) referenceCache.clear()
     token.value = session.token
     user.value = session.user
   }
@@ -34,6 +36,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function clearSession() {
+    referenceCache.clear()
     token.value = null
     user.value = null
     localStorage.removeItem('token')

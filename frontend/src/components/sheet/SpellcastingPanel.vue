@@ -86,6 +86,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import HelpTooltip from '../HelpTooltip.vue'
 import api from '../../services/api'
+import { getResource } from '../../services/resources'
 import { errorMessage } from '../../utils/catalog'
 import { useCharacterOperations } from '../../composables/characterOperations'
 import { remainingSpellUses, spellTradition, repertoireHasChanges, repertoireSnapshot, type RepertoireDraft } from '../../utils/spellcasting'
@@ -129,7 +130,7 @@ async function load() {
   error.value = ''
   try {
     if (!await props.prepare() || !await operations.retryPending()) throw new Error('Salve ou corrija as alterações pendentes da ficha antes de atualizar os usos.')
-    const [rules, catalog] = await Promise.all([api.get(url()), api.get('/api/game-rules/metadata')])
+    const [rules, catalog] = await Promise.all([api.get(url()), getResource('/api/game-rules/metadata')])
     info.value = rules.data
     metadata.value = catalog.data
     restDay.value = Math.max(restDay.value, (rules.data.lastRestDay ?? -1) + 1)

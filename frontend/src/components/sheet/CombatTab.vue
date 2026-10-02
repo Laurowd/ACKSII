@@ -21,11 +21,11 @@
         </div>
         <div class="col-span-2 md:col-span-4 lg:col-span-2">
           <label class="lbl">Character Name</label>
-          <input v-model="character.characterName" @change="emit('save')" class="inp text-lg font-bold text-gold" />
+          <input v-model="character.characterName" @input="emit('save')" @change="emit('save')" class="inp text-lg font-bold text-gold" />
         </div>
         <div>
           <label class="lbl">Local de origem</label>
-          <input v-model="character.birthplace" @change="emit('save')" class="inp" />
+          <input v-model="character.birthplace" @input="emit('save')" @change="emit('save')" class="inp" />
         </div>
         <div>
           <label class="lbl">Classe</label>
@@ -34,24 +34,24 @@
             <option v-else value="" disabled>Selecione uma classe</option>
             <option v-for="c in customClasses" :key="c.id" :value="c.id">{{ c.name }} — {{ c.source === 'catalog' ? 'base' : 'campanha' }}</option>
           </select>
-          <input v-else v-model="character.className" @change="emit('save')" class="inp" />
+          <input v-else v-model="character.className" @input="emit('save')" @change="emit('save')" class="inp" />
         </div>
         <div v-if="levelFeats?.availableSubclasses && levelFeats.availableSubclasses.length > 0">
           <label class="lbl" v-if="character.className.toLowerCase() === 'warlock'">Dark Path</label>
           <label class="lbl" v-else-if="character.className.toLowerCase() === 'witch'">Tradition</label>
           <label class="lbl" v-else>Subclass</label>
-          <select v-model="character.subclass" @change="emit('save')" class="inp">
+          <select v-model="character.subclass" @input="emit('save')" @change="emit('save')" class="inp">
             <option value="">(Select)</option>
             <option v-for="sub in levelFeats.availableSubclasses" :key="sub" :value="sub">{{ sub }}</option>
           </select>
         </div>
         <div>
           <label class="lbl">Título</label>
-          <input v-model="character.title" @change="emit('save')" class="inp" />
+          <input v-model="character.title" @input="emit('save')" @change="emit('save')" class="inp" />
         </div>
         <div>
           <label class="lbl">Alinhamento</label>
-          <select v-model="character.alignment" @change="emit('save')" class="inp">
+          <select v-model="character.alignment" @input="emit('save')" @change="emit('save')" class="inp">
             <option value="">-</option>
             <option value="Lawful">Ordeiro</option>
             <option value="Neutral">Neutro</option>
@@ -60,11 +60,11 @@
         </div>
         <div>
           <label class="lbl">Idade</label>
-          <input v-model.number="character.age" @change="emit('save')" type="number" class="inp" />
+          <input v-model.number="character.age" @input="emit('save')" @change="emit('save')" type="number" class="inp" />
         </div>
         <div>
           <label class="lbl">Tamanho</label>
-          <select v-model="character.size" @change="emit('save')" class="inp">
+          <select v-model="character.size" @input="emit('save')" @change="emit('save')" class="inp">
             <option value="Small">Pequeno</option>
             <option value="Medium">Médio</option>
             <option value="Large">Grande</option>
@@ -72,11 +72,11 @@
         </div>
         <div>
           <label class="lbl">Gênero</label>
-          <input v-model="character.gender" @change="emit('save')" class="inp" />
+          <input v-model="character.gender" @input="emit('save')" @change="emit('save')" class="inp" />
         </div>
         <div>
           <label class="lbl">Dados de vida</label>
-          <input v-model="character.hitDice" @change="emit('save')" class="inp" placeholder="1d8" />
+          <input v-model="character.hitDice" @input="emit('save')" @change="emit('save')" class="inp" placeholder="1d8" />
         </div>
       </div>
     </div>
@@ -98,11 +98,11 @@
       </div>
       <div class="stat-box">
         <label class="lbl">HP Máx</label>
-        <input v-model.number="character.hpMax" @change="emit('save')" type="number" class="inp text-center text-xl font-bold text-green-400" />
+        <input v-model.number="character.hpMax" @input="emit('save')" @change="emit('save')" type="number" class="inp text-center text-xl font-bold text-green-400" />
       </div>
       <div class="stat-box">
         <label class="lbl">HP Atual</label>
-        <input v-model.number="character.hpCurr" @change="emit('save')" type="number" class="inp text-center text-xl font-bold"
+        <input v-model.number="character.hpCurr" @input="emit('save')" @change="emit('save')" type="number" class="inp text-center text-xl font-bold"
           :class="hpPercent > 50 ? 'text-green-400' : hpPercent > 25 ? 'text-yellow-400' : 'text-red-400'" />
       </div>
     </div>
@@ -113,7 +113,7 @@
       <div class="grid grid-cols-3 md:grid-cols-6 gap-4">
         <div v-for="attr in ATTRS" :key="attr.key" class="text-center">
           <label class="text-xs font-bold uppercase tracking-wider" :class="attr.color">{{ attr.label }}</label>
-          <input v-model.number="character[attr.key]" @change="emit('save')" :aria-label="attr.label" type="number" min="3" max="18"
+          <input v-model.number="character[attr.key]" @input="emit('save')" @change="emit('save')" :aria-label="attr.label" type="number" min="3" max="18"
             class="inp text-center text-2xl font-bold mt-1" />
           <div class="mt-1 text-sm font-bold px-2 py-0.5 rounded"
             :class="getModifier(character[attr.key]) >= 0 ? 'text-green-400 bg-green-400/10' : 'text-red-400 bg-red-400/10'">
@@ -152,17 +152,17 @@
         <div class="grid grid-cols-2 gap-2 mb-4 border-b border-steel-dark pb-4">
           <div class="col-span-2">
             <label class="lbl">Armadura equipada</label>
-            <input v-model="character.armorName" @change="emit('save')" class="inp" placeholder="e.g. Chainmail" />
+            <input v-model="character.armorName" @input="emit('save')" @change="emit('save')" class="inp" placeholder="e.g. Chainmail" />
           </div>
           <div>
             <label class="lbl" title="Inclua aqui a armadura e outros bônus permanentes. DES e escudo são somados automaticamente.">Bônus da armadura/efeitos</label>
-            <input v-model.number="character.armorAcBonus" @change="emit('save')" type="number" class="inp text-center" />
+            <input v-model.number="character.armorAcBonus" @input="emit('save')" @change="emit('save')" type="number" class="inp text-center" />
             <label class="lbl mt-2">Ajuste de CA (poderes, magia, mestre)</label>
-            <input v-model.number="character.acAdjustment" @change="emit('save')" type="number" class="inp text-center" />
+            <input v-model.number="character.acAdjustment" @input="emit('save')" @change="emit('save')" type="number" class="inp text-center" />
           </div>
           <div>
             <label class="lbl">Peso (stone)</label>
-            <input v-model.number="character.armorWeight" @change="emit('save')" type="number" step="0.1" class="inp text-center" />
+            <input v-model.number="character.armorWeight" @input="emit('save')" @change="emit('save')" type="number" step="0.1" class="inp text-center" />
           </div>
         </div>
         <div class="grid grid-cols-1 gap-2 mb-2">
@@ -186,7 +186,7 @@
         <div class="grid grid-cols-1 gap-2">
           <div v-for="save in SAVES" :key="save.key" class="flex items-center justify-between bg-dark-bg/35 border border-steel-dark/50 rounded-lg px-3 py-2 hover:bg-dark-bg/50 transition-colors">
             <label class="text-xs uppercase tracking-wider text-steel-light shrink-0 font-semibold">{{ save.label }}</label>
-            <input v-model.number="character[save.key]" @change="emit('save')" :aria-label="`Salvamento: ${save.label}`" type="number"
+            <input v-model.number="character[save.key]" @input="emit('save')" @change="emit('save')" :aria-label="`Salvamento: ${save.label}`" type="number"
               class="w-16 py-1 px-2 text-center text-sm font-bold bg-dark-bg border border-steel-dark rounded-lg text-gold focus:outline-none focus:border-gold transition-all shrink-0" />
           </div>
         </div>
@@ -204,15 +204,15 @@
           </div>
           <div>
             <label class="lbl">Surpresa (ajuste)</label>
-            <input v-model.number="character.surprise" @change="emit('save')" type="number" class="inp text-center" />
+            <input v-model.number="character.surprise" @input="emit('save')" @change="emit('save')" type="number" class="inp text-center" />
           </div>
           <div>
             <label class="lbl">Surpreender outros</label>
-            <input v-model.number="character.surpriseOthers" @change="emit('save')" type="number" class="inp text-center" />
+            <input v-model.number="character.surpriseOthers" @input="emit('save')" @change="emit('save')" type="number" class="inp text-center" />
           </div>
           <div>
             <label class="lbl">Evitar surpresa</label>
-            <input v-model.number="character.avoidSurprise" @change="emit('save')" type="number" class="inp text-center" />
+            <input v-model.number="character.avoidSurprise" @input="emit('save')" @change="emit('save')" type="number" class="inp text-center" />
             <p class="text-xs text-steel-light">Bônus de classe/proficiências: {{ formatMod(effects.avoidSurprise) }}. Campo acima: total manual.</p>
           </div>
           <div>
@@ -225,11 +225,11 @@
           </div>
           <div>
             <label class="lbl">Mortal Wounds</label>
-            <input v-model.number="character.mortalWounds" @change="emit('save')" type="number" class="inp text-center" />
+            <input v-model.number="character.mortalWounds" @input="emit('save')" @change="emit('save')" type="number" class="inp text-center" />
           </div>
           <div>
             <label class="lbl">Cleaves</label>
-            <input v-model.number="character.cleaves" @change="emit('save')" type="number" class="inp text-center" />
+            <input v-model.number="character.cleaves" @input="emit('save')" @change="emit('save')" type="number" class="inp text-center" />
             <button type="button" class="text-xs text-gold underline" @click="character.cleaves = effects.cleaves; emit('save')">Usar limite {{ effects.cleaves }}</button>
           </div>
         </div>
@@ -439,17 +439,17 @@
       <div class="bg-dark-card border border-gold/20 rounded-xl p-5">
         <h3 class="text-lg font-bold text-gold mb-3">Características de classe</h3>
         <details v-if="selectedCustomClass?.classFeatures" class="mb-3 text-sm"><summary class="text-gold cursor-pointer">Poderes cadastrados na classe</summary><p class="whitespace-pre-wrap mt-2">{{ selectedCustomClass.classFeatures }}</p></details>
-        <textarea v-model="character.classFeatures" @change="emit('save')" rows="5"
+        <textarea v-model="character.classFeatures" @input="emit('save')" @change="emit('save')" rows="5"
           class="w-full inp resize-y" placeholder="Class abilities and features..."></textarea>
       </div>
       <div class="bg-dark-card border border-gold/20 rounded-xl p-5">
         <h3 class="text-lg font-bold text-gold mb-3">Idiomas conhecidos</h3>
-        <textarea v-model="character.languagesKnown" @change="emit('save')" rows="5"
+        <textarea v-model="character.languagesKnown" @input="emit('save')" @change="emit('save')" rows="5"
           class="w-full inp resize-y" placeholder="Languages..."></textarea>
       </div>
       <div class="bg-dark-card border border-gold/20 rounded-xl p-5 md:col-span-2">
         <h3 class="text-lg font-bold text-gold mb-3">Notas</h3>
-        <textarea v-model="character.notes" @change="emit('save')" rows="6"
+        <textarea v-model="character.notes" @input="emit('save')" @change="emit('save')" rows="6"
           class="w-full inp resize-y" placeholder="Anotações do personagem..."></textarea>
       </div>
     </div>

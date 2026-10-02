@@ -14,7 +14,7 @@
           <div class="grid grid-cols-3 gap-2">
             <div v-for="lev in 6" :key="lev" class="text-center">
               <label class="lbl">Nível {{ lev }}</label>
-              <input v-model.number="character['spellSlotsLevel' + lev]" @change="emit('save')" type="number" min="0" class="inp text-center font-bold w-full" />
+              <input v-model.number="character['spellSlotsLevel' + lev]" @input="emit('save')" @change="emit('save')" type="number" min="0" class="inp text-center font-bold w-full" />
             </div>
           </div>
         </details>
@@ -49,7 +49,7 @@
                   Valor total da biblioteca arcana disponível para aprendizado e pesquisa de magia.
                 </HelpTooltip>
               </div>
-              <input id="magic-library" v-model.number="character.libraryValue" @change="emit('save')" type="number" min="0" class="inp" />
+              <input id="magic-library" v-model.number="character.libraryValue" @input="emit('save')" @change="emit('save')" type="number" min="0" class="inp" />
             </div>
             <div>
               <div class="mb-1 flex items-center gap-1"><label for="magic-workshop" class="lbl">Valor da oficina</label>
@@ -57,7 +57,7 @@
                   Estrutura material/laboratório para criação e desenvolvimento de fórmulas e itens mágicos.
                 </HelpTooltip>
               </div>
-              <input id="magic-workshop" v-model.number="character.workshopValue" @change="emit('save')" type="number" min="0" class="inp" />
+              <input id="magic-workshop" v-model.number="character.workshopValue" @input="emit('save')" @change="emit('save')" type="number" min="0" class="inp" />
             </div>
             <div>
               <div class="mb-1 flex items-center gap-1"><label for="magic-congregants" class="lbl">Congregantes</label>
@@ -65,11 +65,11 @@
                   Seguidores, aprendizes e assistentes ligados ao seu círculo mágico/templo.
                 </HelpTooltip>
               </div>
-              <input id="magic-congregants" v-model.number="character.congregants" @change="emit('save')" type="number" min="0" class="inp" />
+              <input id="magic-congregants" v-model.number="character.congregants" @input="emit('save')" @change="emit('save')" type="number" min="0" class="inp" />
             </div>
             <div class="col-span-2">
               <label for="magic-research-summary" class="lbl">Pesquisa de magia</label>
-              <input id="magic-research-summary" v-model="character.magicResearch" @change="emit('save')" class="inp" placeholder="Pesquisa em andamento..." />
+              <input id="magic-research-summary" v-model="character.magicResearch" @input="emit('save')" @change="emit('save')" class="inp" placeholder="Pesquisa em andamento..." />
             </div>
           </div>
         </div>
@@ -91,11 +91,11 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="lbl">Tempo de Pesquisa (semanas)</label>
-            <input v-model.number="character.researchTimeWeeks" @change="emit('save')" type="number" min="0" class="inp" />
+            <input v-model.number="character.researchTimeWeeks" @input="emit('save')" @change="emit('save')" type="number" min="0" class="inp" />
           </div>
           <div>
             <label class="lbl">Custo de Pesquisa (GP)</label>
-            <input v-model.number="character.researchCostGp" @change="emit('save')" type="number" min="0" class="inp" />
+            <input v-model.number="character.researchCostGp" @input="emit('save')" @change="emit('save')" type="number" min="0" class="inp" />
           </div>
         </div>
       </div>

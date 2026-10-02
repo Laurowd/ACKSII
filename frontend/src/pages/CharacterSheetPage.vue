@@ -11,6 +11,14 @@
       <router-link to="/dashboard" class="text-gold underline">Voltar aos personagens</router-link>
     </div>
     <template v-else-if="char">
+      <div v-if="recovery" role="status" class="mb-4 rounded-xl border border-gold/30 bg-dark-card p-4 space-y-2">
+        <p>Há um rascunho desta ficha guardado neste navegador ({{ new Date(recovery.savedAt).toLocaleString('pt-BR') }}).</p>
+        <p v-if="recovery.data.character?.version !== char.version" class="text-sm text-steel-light">A ficha mudou no servidor. Baixe o rascunho para comparar com a versão atual.</p>
+        <p v-else class="text-sm text-steel-light">Recupere as edições e confira os dados antes de salvar. Nenhuma ação será reenviada ao abrir a página.</p>
+        <div class="flex flex-wrap gap-4"><button v-if="recovery.data.character?.version === char.version" @click="restoreSheetDraft" type="button" class="text-gold underline">Recuperar rascunho</button><button @click="downloadLocalDraft" type="button" class="text-gold underline">Baixar rascunho</button><button @click="discardSheetDraft" type="button" class="text-steel-light underline">Descartar rascunho local</button></div>
+      </div>
+      <p v-if="storageWarning" role="alert" class="mb-4 text-gold">Não foi possível guardar as alterações neste navegador. Exporte o JSON e mantenha a página aberta até salvar.</p>
+      <p v-if="recoveredMutations.length" role="status" class="mb-4 rounded-xl border border-gold/30 p-4 text-sm">{{ recoveredMutations.length }} alteração(ões) recuperada(s) aguardam confirmação. Use Salvar para reenviar com a versão original.</p>
       <div v-if="contextLoading" role="status" class="mb-4 rounded-xl border border-steel-dark p-4 text-steel-light">Carregando catálogo e regras da campanha…</div>
       <div v-else-if="contextError" role="alert" class="mb-4 rounded-xl border border-red-400/50 p-4 space-y-2">
         <p>{{ contextError }}</p>
@@ -153,16 +161,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount, onMounted, provide } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted, provide, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import api from '../services/api'
+import { getResource } from '../services/resources'
 import { calculateCharacterMetrics } from '../utils/characterMetrics'
-import { createCharacterOperations, characterOperationsKey, mergeUnchangedDraft, type OperationState } from '../composables/characterOperations'
+import { createCharacterOperations, characterOperationsKey, mergeUnchangedDraft, mergeCharacterMutation, type OperationState } from '../composables/characterOperations'
 import { notifyError } from '../utils/toast'
 import { errorMessage, selectedClass, type CatalogClass } from '../utils/catalog'
 import { characterExport, characterPrintHtml, downloadCharacter } from '../utils/characterExport'
-import { emptyRepertoireDraft, repertoireHasChanges } from '../utils/spellcasting'
+import { emptyRepertoireDraft, repertoireHasChanges, repertoireSnapshot } from '../utils/spellcasting'
+import { createLocalDraft, type LocalDraft } from '../utils/localDrafts'
+import { recentCharacters } from '../utils/characterList'
+import { observeMutations, type SavedMutation } from '../services/mutationJournal'
+import { belongsToCharacter, canReplayMutation, isCorrectedEditor, restoreEditableFields } from '../utils/sheetRecovery'
 
 
 import CombatTab from '../components/sheet/CombatTab.vue';
@@ -187,15 +200,95 @@ const hasPendingChanges = ref(false)
 const repertoireDraft = ref(emptyRepertoireDraft())
 const repertoirePending = computed(() => repertoireHasChanges(repertoireDraft.value))
 const operationState = ref<OperationState>({ pending: 0, busy: false, error: null, conflict: false })
+type SheetDraft = { character: any; scalarPending: boolean; repertoire: ReturnType<typeof emptyRepertoireDraft>; mutations: SavedMutation[] }
+const recovery = ref<LocalDraft<SheetDraft> | null>(null)
+const storageWarning = ref(false)
+const recoveredMutations = ref<SavedMutation[]>([])
+const mutationDrafts = new Map<string, { mutation: SavedMutation; requestId: number }>()
+let replayingRecovered = false
+const draftOwner = authStore.user?.id || ''
+const localDraftFor = (id: string) => createLocalDraft<SheetDraft>(draftOwner, `sheet:${id}`)
+function persistSheetDraft() {
+  if (!char.value || loading.value || recovery.value) return
+  const local = localDraftFor(char.value.id)
+  if (!anyPendingChanges.value && !anySaving.value && !mutationDrafts.size) { local.remove(); storageWarning.value = false; return }
+  storageWarning.value = !local.write({ character: JSON.parse(JSON.stringify(char.value)), scalarPending: hasPendingChanges.value || saving.value, repertoire: repertoireDraft.value, mutations: [...mutationDrafts.values()].map(entry => entry.mutation) })
+}
+const stopMutationObserver = observeMutations(({ phase, mutation, requestId }) => {
+  if (!char.value || !belongsToCharacter(mutation.url, char.value.id)) return
+  if (phase === 'start') {
+    if (!replayingRecovered) recoveredMutations.value = recoveredMutations.value.filter(entry => entry.key !== mutation.key)
+    mutationDrafts.set(mutation.key, { mutation, requestId })
+  }
+  else if (mutationDrafts.get(mutation.key)?.requestId === requestId) mutationDrafts.delete(mutation.key)
+  persistSheetDraft()
+})
+function downloadLocalDraft() {
+  if (recovery.value) downloadCharacter(JSON.stringify(recovery.value.data, null, 2), `${char.value.characterName || 'personagem'}-rascunho`, 'json')
+}
+function discardSheetDraft() { localDraftFor(char.value.id).remove(); recovery.value = null; persistSheetDraft() }
+function restoreSheetDraft() {
+  const saved = recovery.value ? JSON.parse(JSON.stringify(recovery.value.data)) as SheetDraft : null
+  if (!saved || saved.character?.id !== char.value.id || saved.character.version !== char.value.version || !Array.isArray(saved.mutations)) return
+  // Commands without a version cannot be replayed safely; retain the downloadable record.
+  if (saved.mutations.some(mutation => !canReplayMutation(mutation, char.value.id))) { notifyError('Este rascunho contém uma ação sem versão. Baixe o rascunho e confira a ação com o mestre antes de refazê-la.'); return }
+  if (anyPendingChanges.value && !window.confirm('Substituir as edições atuais pelo rascunho guardado?')) return
+  restoreEditableFields(char.value, saved.character, characterPayload())
+  // Restore existing rows for review. Their writes remain explicit and versioned.
+  for (const field of ['weapons', 'proficiencies', 'items', 'spells', 'rituals', 'magicFormulae', 'henchmen', 'scars', 'activities', 'armyUnits', 'magicItemResearch', 'mercantileVentures']) {
+    if (!Array.isArray(saved.character[field]) || !Array.isArray(char.value[field])) continue
+    const drafts = new Map(saved.character[field].map((entry: any) => [entry.id, entry]))
+    char.value[field] = char.value[field].map((entry: any) => drafts.has(entry.id) ? structuredClone(drafts.get(entry.id)) : entry)
+  }
+  if (saved.character.domain && char.value.domain?.id === saved.character.domain.id) char.value.domain = structuredClone(saved.character.domain)
+  if (saved.repertoire && (saved.repertoire.spells === null || Array.isArray(saved.repertoire.spells))) repertoireDraft.value = saved.repertoire
+  recoveredMutations.value = saved.mutations
+  for (const mutation of saved.mutations) mutationDrafts.set(mutation.key, { mutation, requestId: 0 })
+  hasPendingChanges.value = saved.scalarPending
+  recovery.value = null; persistSheetDraft()
+}
+async function replayRecoveredMutations() {
+  if (!recoveredMutations.value.length) return true
+  if (anySaving.value || anyConflict.value || !contextReady.value) return false
+  saving.value = true
+  replayingRecovered = true
+  try {
+    while (recoveredMutations.value.length) {
+      const mutation = recoveredMutations.value[0]!
+      if (!canReplayMutation(mutation, char.value.id)) return false
+      const before = JSON.parse(JSON.stringify(char.value))
+      const response = await api.request({ url: mutation.url, method: mutation.method, data: mutation.data })
+      recoveredMutations.value = recoveredMutations.value.filter(entry => entry.key !== mutation.key); mutationDrafts.delete(mutation.key)
+      if (response.data.character) mergeCharacterMutation(char.value, before, response.data.character)
+      // Reload relations after an acknowledged operation; never replay it if reload fails.
+      try {
+        const returned = (await api.get(`/api/characters/${char.value.id}`)).data.character
+        mergeCharacterMutation(char.value, before, returned); normalizeLoadedCharacter()
+        if (mutation.url.endsWith('/repertoire')) repertoireDraft.value.original = repertoireSnapshot(repertoireDraft.value)
+      } catch (error) {
+        saveConflict.value = true
+        throw new Error('A alteração foi registrada, mas a conferência falhou. Exporte as edições locais e carregue a versão atual antes de continuar.')
+      }
+    }
+    saveError.value = false
+    showSavedNotice()
+    return true
+  } catch (error) {
+    saveError.value = true
+    if ((error as any).response?.data?.code === 'CHARACTER_CONFLICT') saveConflict.value = true
+    notifyError(errorMessage(error, 'Não foi possível confirmar a alteração recuperada. Confira a ficha antes de tentar novamente.'))
+    return false
+  } finally { replayingRecovered = false; saving.value = false; persistSheetDraft() }
+}
 const operations = createCharacterOperations({ getCharacter: () => char.value, prepare: saveCharacter, onState: (state) => { operationState.value = state } })
 provide(characterOperationsKey, operations)
-const anyPendingChanges = computed(() => hasPendingChanges.value || operationState.value.pending > 0 || repertoirePending.value)
+const anyPendingChanges = computed(() => hasPendingChanges.value || operationState.value.pending > 0 || repertoirePending.value || recoveredMutations.value.length > 0)
 const anyConflict = computed(() => saveConflict.value || operationState.value.conflict)
 const anySaveError = computed(() => saveError.value || Boolean(operationState.value.error))
 const anySaving = computed(() => saving.value || operationState.value.busy)
-async function saveAllChanges() { return await saveCharacter() && await operations.retryPending() }
+async function saveAllChanges() { return await replayRecoveredMutations() && await saveCharacter() && await operations.retryPending() }
 async function manualSave() {
-  if (repertoirePending.value && !hasPendingChanges.value && !operationState.value.pending) { currentTab.value = 'magic'; return false }
+  if (repertoirePending.value && !hasPendingChanges.value && !operationState.value.pending && !recoveredMutations.value.length) { currentTab.value = 'magic'; return false }
   if (!anyPendingChanges.value) hasPendingChanges.value = true
   return saveAllChanges()
 }
@@ -204,6 +297,11 @@ let saveTimeout: ReturnType<typeof setTimeout> | null = null
 let savedNoticeTimeout: ReturnType<typeof setTimeout> | null = null
 let saveInFlight: Promise<boolean> | null = null
 let saveQueued = false
+function showSavedNotice() {
+  lastSaved.value = true
+  if (savedNoticeTimeout) clearTimeout(savedNoticeTimeout)
+  savedNoticeTimeout = setTimeout(() => (lastSaved.value = false), 3000)
+}
 
 const campaigns = ref<any[]>([])
 const customClasses = ref<CatalogClass[]>([])
@@ -292,8 +390,8 @@ async function loadCampaignContext() {
   const campaignId = char.value.campaignId
   try {
     const results = await Promise.allSettled([
-      api.get('/api/classes/catalog', { params: { campaignId: campaignId || undefined } }),
-      campaignId ? api.get(`/api/campaigns/${campaignId}/settings`) : Promise.resolve({ data: { optionalRules: {} } }),
+      getResource('/api/classes/catalog', { params: { campaignId: campaignId || undefined } }),
+      campaignId ? getResource(`/api/campaigns/${campaignId}/settings`) : Promise.resolve({ data: { optionalRules: {} } }),
     ])
     const [catalog, settings] = results
     const issues: string[] = []
@@ -397,8 +495,9 @@ function characterPayload() {
   }
 }
 
-async function saveCharacter(): Promise<boolean> {
+async function saveCharacter(operationKey?: string): Promise<boolean> {
   if (!char.value) return true
+  if (recoveredMutations.value.length && !(recoveredMutations.value.length === 1 && isCorrectedEditor(recoveredMutations.value[0]!, char.value.id, operationKey))) return false
   if (!contextReady.value) return !hasPendingChanges.value
   if (anyConflict.value) return false
   await operations.waitForActive()
@@ -455,9 +554,7 @@ async function saveCharacter(): Promise<boolean> {
     } while (saveQueued || hasPendingChanges.value)
 
     if (succeeded) {
-      lastSaved.value = true
-      if (savedNoticeTimeout) clearTimeout(savedNoticeTimeout)
-      savedNoticeTimeout = setTimeout(() => (lastSaved.value = false), 3000)
+      showSavedNotice()
     }
     return succeeded
   })()
@@ -481,6 +578,8 @@ async function reloadAfterConflict() {
     saveError.value = false
     hasPendingChanges.value = false
     repertoireDraft.value = emptyRepertoireDraft()
+    recoveredMutations.value = []; mutationDrafts.clear(); recovery.value = null
+    localDraftFor(char.value.id).remove()
     saveQueued = false
     if (saveTimeout) { clearTimeout(saveTimeout); saveTimeout = null }
     await loadCampaignContext()
@@ -498,12 +597,14 @@ function normalizeLoadedCharacter() {
 }
 
 function warnAboutPendingChanges(event: BeforeUnloadEvent) {
+  persistSheetDraft()
   if (!anyPendingChanges.value && !saveInFlight && !operationState.value.busy) return
   event.preventDefault()
   event.returnValue = ''
 }
 
 async function saveBeforeNavigation() {
+  if (recoveredMutations.value.length) { notifyError('Confira as alterações recuperadas e use Salvar antes de sair.'); return false }
   if (!anyPendingChanges.value && !saveInFlight && !operationState.value.busy) return true
   if (!await saveAllChanges()) return false
   return !repertoirePending.value || window.confirm('O repertório tem alterações ainda não enviadas. Sair e descartar esse rascunho? Para salvá-lo, permaneça e use Salvar repertório na aba Magia.')
@@ -523,6 +624,8 @@ async function loadCharacter() {
     char.value = res.data.character
     normalizeLoadedCharacter()
     await loadCampaignContext()
+    recovery.value = localDraftFor(char.value.id).read()
+    recentCharacters(authStore.user?.id || '').visit(char.value.id)
   } catch (e) {
     loadError.value = errorMessage(e, 'Não foi possível carregar a ficha. Verifique a conexão e tente novamente.')
   } finally {
@@ -535,9 +638,17 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  persistSheetDraft(); stopMutationObserver()
   window.removeEventListener('beforeunload', warnAboutPendingChanges)
   if (saveTimeout) clearTimeout(saveTimeout)
   if (savedNoticeTimeout) clearTimeout(savedNoticeTimeout)
+})
+watch([char, repertoireDraft, anyPendingChanges, anySaving], persistSheetDraft, { deep: true })
+watch(() => route.params.id, () => {
+  operations.clearPending(); mutationDrafts.clear(); recoveredMutations.value = []; recovery.value = null
+  hasPendingChanges.value = false; saveError.value = false; saveConflict.value = false; repertoireDraft.value = emptyRepertoireDraft()
+  if (saveTimeout) { clearTimeout(saveTimeout); saveTimeout = null }
+  void loadCharacter()
 })
 </script>
 

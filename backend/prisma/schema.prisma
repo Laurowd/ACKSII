@@ -46,6 +46,7 @@ model Campaign {
   economy       CampaignEconomy?
   activities    CampaignActivity[]
   auditLogs     AuditLog[]
+  @@index([masterId])
 }
 
 model CampaignMember {
@@ -58,6 +59,7 @@ model CampaignMember {
   createdAt  DateTime @default(now())
 
   @@unique([campaignId, userId])
+  @@index([userId, status])
 }
 
 model CustomClass {
@@ -78,6 +80,7 @@ model CustomClass {
   thiefSkills    String   @default("[]") // JSON array of thief skill objects per level
   rebukingUndead String   @default("[]") // JSON array of rebuking undead rows per level
   createdAt      DateTime @default(now())
+  @@index([campaignId, name])
 }
 
 model Character {
@@ -205,6 +208,8 @@ model Character {
   auditLogs          AuditLog[]
   magicItemResearch  MagicItemResearch[]
   mercantileVentures MercantileVenture[]
+  @@index([userId, updatedAt])
+  @@index([campaignId, updatedAt])
 }
 
 model MagicItemResearch {
@@ -231,6 +236,7 @@ model MagicItemResearch {
   status        String  @default("QUEUED") // QUEUED, IN_PROGRESS, COMPLETED
 
   createdAt DateTime @default(now())
+  @@index([characterId])
 }
 
 model MercantileVenture {
@@ -248,6 +254,7 @@ model MercantileVenture {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@index([characterId])
 }
 
 model Weapon {
@@ -267,6 +274,7 @@ model Weapon {
   encumbrance Float  @default(0.0)
   catalogId String @default("")
   automaticDamage Boolean @default(false)
+  @@index([characterId])
 }
 
 model Proficiency {
@@ -277,6 +285,7 @@ model Proficiency {
   name        String
   throwTarget Int    @default(11)
   category    String @default("general") // "adventuring", "class", "general"
+  @@index([characterId])
 }
 
 model Item {
@@ -290,6 +299,7 @@ model Item {
   slot     String @default("backpack") // "backpack", "worn", "belt", "pouch", "sack", "hand_right", "hand_left", "head", "hidden"
   notes    String @default("")
   magicDetails String @default("{}")
+  @@index([characterId])
 }
 
 model Spell {
@@ -299,6 +309,7 @@ model Spell {
   level       Int // 1-6
   name        String    @default("")
   tradition   String    @default("") // arcane or divine; blank preserves legacy records
+  @@index([characterId])
 }
 
 model Ritual {
@@ -306,6 +317,7 @@ model Ritual {
   characterId String
   character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
   name        String    @default("")
+  @@index([characterId])
 }
 
 model MagicFormula {
@@ -313,6 +325,7 @@ model MagicFormula {
   characterId String
   character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
   name        String    @default("")
+  @@index([characterId])
 }
 
 // ======= ACKS II EXTENSION: HENCHMEN, DOMAIN, AND SCARS =======
@@ -336,6 +349,7 @@ model Henchman {
   domainImpact      Int    @default(0)
   treasureShare     Float  @default(0.0)
   notes             String @default("")
+  @@index([characterId])
 }
 
 model Domain {
@@ -403,6 +417,7 @@ model CampaignActivity {
   impactSummary  String   @default("")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  @@index([campaignId])
 }
 
 model Scar {
@@ -413,6 +428,7 @@ model Scar {
   description String @default("")
   daysToRest  Int    @default(0)
   debuff      String @default("")
+  @@index([characterId])
 }
 
 // =============================================================
@@ -428,6 +444,9 @@ model AuditLog {
   user        User?      @relation(fields: [userId], references: [id])
   character   Character? @relation(fields: [characterId], references: [id])
   campaign    Campaign?  @relation(fields: [campaignId], references: [id])
+  @@index([campaignId, createdAt])
+  @@index([characterId, action])
+  @@index([userId])
 }
 
 model CharacterActivity {
@@ -443,6 +462,7 @@ model CharacterActivity {
   status         String    @default("QUEUED") // QUEUED, ACTIVE, COMPLETED, CANCELLED
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+  @@index([characterId])
 }
 
 model ArmyUnit {
@@ -463,6 +483,7 @@ model ArmyUnit {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@index([characterId])
 }
 model PasswordReset {
   tokenHash String   @id

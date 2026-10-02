@@ -37,9 +37,25 @@
     </div>
 
     <CharacterImportDialog v-if="showImport" :campaigns="campaigns" :initial-campaign-id="globalCampaignFilter === 'ALL' ? '' : globalCampaignFilter" @close="showImport = false" @imported="onImported" />
+    <div class="mb-6 grid gap-3 sm:grid-cols-[1fr_auto] rounded-xl border border-gold/15 bg-dark-card p-4">
+      <label class="text-sm text-steel-light">Buscar personagens
+        <input v-model="search" type="search" placeholder="Nome, classe ou jogador" class="mt-1 w-full rounded-lg border border-steel-dark bg-dark-bg px-3 py-2 text-dark-text focus:border-gold" />
+      </label>
+      <label class="text-sm text-steel-light">Ordenar personagens
+        <select v-model="sort" class="mt-1 w-full rounded-lg border border-steel-dark bg-dark-bg px-3 py-2 text-dark-text">
+          <option value="updated">Atualizados recentemente</option><option value="name">Nome (A–Z)</option><option value="level">Maior nível</option>
+        </select>
+      </label>
+      <p v-if="!loading && !loadError" role="status" class="text-xs text-steel-light sm:col-span-2">{{ filteredCharacters.length }} de {{ characters.length }} personagens</p>
+    </div>
+    <nav v-if="!loading && !loadError && recent.length && !search" aria-label="Personagens recentes" class="mb-6">
+      <p class="mb-2 text-xs uppercase tracking-wider text-steel-light">Abertos recentemente</p>
+      <div class="flex flex-wrap gap-2"><router-link v-for="character in recent" :key="character.id" :to="`/character/${character.id}`" class="rounded-full border border-gold/20 bg-dark-card px-3 py-2 text-sm text-gold hover:border-gold focus-visible:outline-2">{{ character.characterName || 'Sem nome' }}</router-link></div>
+    </nav>
     <!-- Loading -->
-    <div v-if="loading" role="status" aria-label="Carregando personagens" class="flex justify-center py-20">
-      <div class="animate-spin h-12 w-12 border-4 border-gold border-t-transparent rounded-full"></div>
+    <div v-if="loading" role="status" aria-label="Carregando personagens" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <span class="sr-only">Carregando personagens…</span>
+      <div v-for="n in 6" :key="n" aria-hidden="true" class="rounded-xl border border-steel-dark bg-dark-card p-5 motion-safe:animate-pulse"><div class="h-5 w-2/3 rounded bg-steel-dark/50 mb-3"></div><div class="h-3 w-1/2 rounded bg-steel-dark/40 mb-6"></div><div class="h-12 rounded bg-steel-dark/30"></div></div>
     </div>
 
     <div v-else-if="loadError" role="alert" class="rounded-lg border border-red-400 p-4 mb-6">
@@ -50,7 +66,8 @@
     <div v-else-if="filteredCharacters.length === 0" class="text-center py-20">
       <div class="text-6xl mb-4 opacity-50">#</div>
       <h3 class="text-xl text-steel-light mb-2">Nenhum personagem encontrado {{ globalCampaignFilter && globalCampaignFilter !== 'ALL' ? 'nesta campanha' : '' }}</h3>
-      <p class="text-steel mb-6">Crie seu primeiro personagem para começar a aventura!</p>
+      <p class="text-steel mb-6">{{ characters.length ? 'Experimente outro nome, classe ou campanha.' : 'Crie seu primeiro personagem para começar a aventura!' }}</p>
+      <button v-if="characters.length" @click="search = ''; globalCampaignFilter = 'ALL'" class="text-gold underline mr-4">Limpar filtros</button>
       <button @click="createCharacter"
         class="px-6 py-3 bg-linear-to-r from-gold-dark to-gold text-dark-bg font-bold rounded-lg
                hover:from-gold hover:to-gold-light transition-all">
@@ -158,7 +175,7 @@
 
         <!-- Footer -->
         <div class="flex items-center justify-between text-xs text-steel">
-          <span>HP: {{ char.hpCurr }}/{{ char.hpMax }}</span>
+              <span>PV: {{ char.hpCurr }}/{{ char.hpMax }}</span>
           <span>XP: {{ (char.xp ?? 0).toLocaleString() }}</span>
         </div>
       </div>
@@ -174,6 +191,7 @@ import api from '../services/api'
 import { errorMessage } from '../utils/catalog'
 import { notifyError, notifySuccess } from '../utils/toast'
 import CharacterImportDialog from '../components/CharacterImportDialog.vue'
+import { filterCharacters, recentCharacters, type CharacterSort } from '../utils/characterList'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -188,6 +206,10 @@ const campaigns = ref<any[]>([])
 const globalCampaignFilter = ref<string | 'ALL'>('ALL')
 const loading = ref(true)
 const loadError = ref('')
+const search = ref('')
+const sort = ref<CharacterSort>('updated')
+const visits = recentCharacters(authStore.user?.id || '')
+const recent = computed(() => visits.read().map(id => filteredCharacters.value.find(c => c.id === id)).filter(Boolean))
 const deleting = ref(new Set<string>())
 
 const showAuditLog = ref(false)
@@ -220,13 +242,7 @@ async function loadAudit() {
   }
 }
 
-const filteredCharacters = computed(() => {
-  if (globalCampaignFilter.value === 'ALL') return characters.value
-  return characters.value.filter(char => {
-    if (globalCampaignFilter.value === '') return char.campaignId === null
-    return char.campaignId === globalCampaignFilter.value
-  })
-})
+const filteredCharacters = computed(() => filterCharacters(characters.value, globalCampaignFilter.value, search.value, sort.value))
 
 const groupedCharacters = computed(() => {
   const groups: Record<string, any[]> = Object.create(null)
@@ -265,7 +281,7 @@ async function loadCharacters() {
   loading.value = true
   loadError.value = ''
   try {
-    const res = await api.get('/api/characters')
+    const res = await api.get('/api/characters', { params: { view: 'summary' } })
     characters.value = res.data.characters
   } catch (e) {
     loadError.value = errorMessage(e, 'Não foi possível carregar os personagens. Tente novamente.')

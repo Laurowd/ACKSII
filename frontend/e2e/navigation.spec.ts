@@ -80,11 +80,12 @@ test('master can filter unassigned sheets and open cards using the keyboard', as
 
 test('failed lists show retry instead of claiming there are no records', async ({ page }) => {
   await signIn(page)
-  await page.route('**/api/characters', route => route.fulfill({ status: 503, json: { error: 'Falha ao carregar fichas.' } }))
+  const listUrl = (url: URL) => url.pathname === '/api/characters'
+  await page.route(listUrl, route => route.fulfill({ status: 503, json: { error: 'Falha ao carregar fichas.' } }))
   await page.goto('/dashboard')
   await expect(page.getByRole('alert')).toContainText('Falha ao carregar fichas.')
   await expect(page.getByText(/Nenhum personagem encontrado/)).toHaveCount(0)
-  await page.unroute('**/api/characters')
+  await page.unroute(listUrl)
   await page.getByRole('button', { name: 'Tentar novamente' }).click()
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect(page.getByRole('status', { name: 'Carregando personagens' })).toHaveCount(0)

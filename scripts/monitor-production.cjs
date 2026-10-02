@@ -1,9 +1,14 @@
 const { setTimeout: delay } = require('node:timers/promises');
+const fs = require('node:fs');
+const { performance } = require('node:perf_hooks');
 
-async function checkApplication(origin, fetcher = fetch) {
+async function checkApplication(origin, fetcher = fetch, { maxDurationMs = 5000, clock = () => performance.now() } = {}) {
+  if (!Number.isFinite(maxDurationMs) || maxDurationMs < 1 || maxDurationMs > 20_000) throw new Error('Monitor latency limit must be between 1 and 20000 ms.');
   const base = new URL(origin);
   if (base.protocol !== 'https:' || base.origin !== origin || base.username || base.password) throw new Error('Use the exact public HTTPS origin.');
+  const measurements = [];
   for (const [pathname, expected] of [['/api/health', 200], ['/api/ready', 200], ['/api/characters', 401], ['/login', 200]]) {
+    const started = clock();
     const response = await fetcher(new URL(pathname, base), { signal: AbortSignal.timeout(20_000), redirect: 'error' });
     if (response.status !== expected) throw new Error(`${pathname}: expected HTTP ${expected}, got ${response.status}.`);
     if (response.headers.get('x-content-type-options') !== 'nosniff') throw new Error(`${pathname}: missing security header.`);
@@ -13,7 +18,11 @@ async function checkApplication(origin, fetcher = fetch) {
       const body = await response.json();
       if (expected === 200 && body.status !== 'ok') throw new Error(`${pathname}: service is not ready.`);
     } else if (!(await response.text()).includes('<div id="app">')) throw new Error('Frontend document is unavailable.');
+    const durationMs = Math.round(clock() - started);
+    measurements.push({ pathname, status: response.status, durationMs, serverTiming: response.headers.get('server-timing') });
+    if (durationMs > maxDurationMs) throw new Error(`${pathname}: response took ${durationMs} ms (limit ${maxDurationMs} ms).`);
   }
+  return measurements;
 }
 async function checkBackup(env = process.env, fetcher = fetch, now = Date.now()) {
   if (!env.GITHUB_TOKEN || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(env.GITHUB_REPOSITORY || '')) throw new Error('Configure the GitHub token and repository for backup freshness checks.');
@@ -33,7 +42,11 @@ async function main(env = process.env) {
   let lastError;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      await checkApplication(env.ACKS_MONITOR_URL || 'https://acksii.vercel.app');
+      const measurements = await checkApplication(env.ACKS_MONITOR_URL || 'https://acksii.vercel.app', fetch, { maxDurationMs: Number(env.ACKS_MONITOR_MAX_MS || 5000) });
+      for (const measurement of measurements) console.log(JSON.stringify({ event: 'production_probe', ...measurement }));
+      if (env.GITHUB_STEP_SUMMARY) fs.appendFileSync(env.GITHUB_STEP_SUMMARY, `| Endpoint | HTTP | Tempo (ms) |\n| --- | --- | --- |\n${measurements.map(m => `| ${m.pathname} | ${m.status} | ${m.durationMs} |`).join('\n')}\n`);
+      fs.mkdirSync('test-results', { recursive: true });
+      fs.writeFileSync('test-results/production-monitor.json', JSON.stringify({ checkedAt: new Date().toISOString(), measurements }, null, 2));
       if (env.ACKS_CHECK_BACKUP === 'true') await checkBackup(env);
       console.log('Production API, Neon connection, anonymous access guard and frontend: OK.');
       if (env.ACKS_CHECK_BACKUP === 'true') console.log('Encrypted, verified backup available from the last 36 hours.');
@@ -44,6 +57,8 @@ async function main(env = process.env) {
       if (attempt < 3) await delay(15_000);
     }
   }
+  fs.mkdirSync('test-results', { recursive: true });
+  fs.writeFileSync('test-results/production-monitor.json', JSON.stringify({ checkedAt: new Date().toISOString(), status: 'failed', attempts: 3, error: lastError?.message }, null, 2));
   throw lastError;
 }
 if (require.main === module) main().catch(() => { console.error('Production monitoring failed after three consecutive checks.'); process.exitCode = 1; });

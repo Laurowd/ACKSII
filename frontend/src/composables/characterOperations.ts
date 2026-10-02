@@ -9,7 +9,7 @@ export interface OperationState {
 
 interface Options {
   getCharacter: () => any
-  prepare: () => Promise<boolean>
+  prepare: (key?: string) => Promise<boolean>
   onState?: (state: OperationState) => void
 }
 
@@ -41,7 +41,7 @@ export function createCharacterOperations(options: Options) {
       const started = generation
       let received = false
       try {
-        if (!await options.prepare()) throw new Error('Salve ou resolva o conflito da ficha antes de continuar.')
+        if (!await options.prepare(task.key)) throw new Error('Salve ou resolva o conflito da ficha antes de continuar.')
         if (started !== generation) break
         activeKey = task.key
         active = new Promise<void>((resolve) => { finishActive = resolve })

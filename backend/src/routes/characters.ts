@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { mutateCharacter, mutationResponse, relationFields, versionedBody } from '../lib/characterMutation';
 import { scalarBody, characterUpdateBody, characterCreateBody } from '../lib/inputSchemas';
 import { FastifyInstance } from 'fastify';
-import prisma from '../lib/prisma';
+import prisma, { type TransactionClient } from '../lib/prisma';
 import { authGuard } from '../middleware/auth';
 import { rateLimitByIp } from '../lib/rateLimit';
 import { resolveClass, progressionFields } from '../lib/classCatalog';
@@ -23,7 +23,7 @@ function parseJsonSafe<T>(value: string | null | undefined, fallback: T): T {
   }
 }
 
-async function applyClassProgression(characterId: string, db: Prisma.TransactionClient = prisma) {
+async function applyClassProgression(characterId: string, db: TransactionClient = prisma) {
   const character = await db.character.findUnique({ where: { id: characterId } });
   if (!character || !character.className) return character;
   if (character.campaignId) {
@@ -145,7 +145,7 @@ export async function characterRoutes(app: FastifyInstance) {
     character: { userId: string; campaignId: string | null },
     userId: string,
     role: string,
-    db: Prisma.TransactionClient = prisma,
+    db: TransactionClient = prisma,
   ) {
     if (character.userId === userId) return true;
     if (role !== 'MASTER' || !character.campaignId) return false;
@@ -157,7 +157,7 @@ export async function characterRoutes(app: FastifyInstance) {
     return campaign?.masterId === userId;
   }
 
-  async function ensureCharacterAccess(characterId: string, userId: string, role: string, db: Prisma.TransactionClient = prisma) {
+  async function ensureCharacterAccess(characterId: string, userId: string, role: string, db: TransactionClient = prisma) {
     const character = await db.character.findUnique({ where: { id: characterId } })
     if (!character) return { error: 'not_found' as const, character: null }
     if (!(await canAccessCharacter(character, userId, role, db))) {
@@ -166,7 +166,7 @@ export async function characterRoutes(app: FastifyInstance) {
     return { error: null, character }
   }
 
-  async function canAdjustProficiencies(character: { campaignId: string | null }, userId: string, role: string, tx: Prisma.TransactionClient) {
+  async function canAdjustProficiencies(character: { campaignId: string | null }, userId: string, role: string, tx: TransactionClient) {
     if (role !== 'MASTER') return false;
     if (!character.campaignId) return true;
     return (await tx.campaign.findUnique({ where: { id: character.campaignId }, select: { masterId: true } }))?.masterId === userId;
@@ -180,7 +180,7 @@ export async function characterRoutes(app: FastifyInstance) {
   }
 
   // List characters (MASTER sees own + campaigns they master, PLAYER sees own)
-  app.get('/', { preHandler: [authGuard] }, async (request, reply) => {
+  app.get('/', { preHandler: [authGuard], schema: { querystring: { type: 'object', additionalProperties: false, properties: { view: { type: 'string', enum: ['summary', 'full'] } } } } }, async (request, reply) => {
     const { id, role } = request.user as any;
     const where = role === 'MASTER' 
       ? {
@@ -198,7 +198,9 @@ export async function characterRoutes(app: FastifyInstance) {
         };
     const characters = await prisma.character.findMany({
       where,
-      include: { user: { select: { username: true } }, weapons: true, proficiencies: true, items: true, spells: true, rituals: true, magicFormulae: true, henchmen: true, domain: true, scars: true, activities: true, armyUnits: true, magicItemResearch: true, mercantileVentures: true },
+      ...((request.query as { view?: string }).view === 'summary'
+        ? { select: { id: true, userId: true, campaignId: true, characterName: true, className: true, level: true, hpCurr: true, hpMax: true, xp: true, version: true, updatedAt: true, str: true, int: true, dex: true, wil: true, con: true, cha: true, user: { select: { username: true } } } }
+        : { include: { user: { select: { username: true } }, weapons: true, proficiencies: true, items: true, spells: true, rituals: true, magicFormulae: true, henchmen: true, domain: true, scars: true, activities: true, armyUnits: true, magicItemResearch: true, mercantileVentures: true } }),
       orderBy: { updatedAt: 'desc' }
     });
     return reply.send({ characters });

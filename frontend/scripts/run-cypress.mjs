@@ -10,6 +10,11 @@ const root = fileURLToPath(new URL('../../', import.meta.url))
 // Editors built on Electron may export this; Cypress needs Electron's browser mode.
 delete process.env.ELECTRON_RUN_AS_NODE
 const { default: cypress } = await import('cypress')
+let finished = false
+// A premature native browser exit must not report a successful test run.
+process.once('exit', () => {
+  if (!finished) { console.error('Cypress encerrou antes de confirmar os testes e a limpeza.'); process.exitCode = 1 }
+})
 const frontend = resolve(root, 'frontend')
 const requireBackend = createRequire(resolve(root, 'backend/package.json'))
 const database = new URL(process.env.TEST_DATABASE_URL || 'http://missing')
@@ -76,4 +81,5 @@ try {
   if (app) await app.close()
   await new Promise(resolve => smtp.close(resolve))
   rmSync(mailboxPath, { force: true })
+  finished = true
 }
