@@ -36,6 +36,13 @@
         <p v-if="woundedCount" class="session-warning">{{ woundedCount }} {{ woundedCount === 1 ? 'precisa' : 'precisam' }} de atenção nos PV</p>
         <p v-else-if="rows.length" class="text-steel">Todos acima da metade dos PV</p>
       </div>
+      <div v-if="characters.length" class="mb-4 space-y-3">
+        <button type="button" @click="showRewards = !showRewards" class="session-refresh-button">{{ showRewards ? 'Fechar distribuição de recompensas' : 'Distribuir XP e ouro' }}</button>
+        <template v-if="showRewards">
+          <RewardsPanel v-if="campaignId" :key="campaignId" :campaign-id="campaignId === 'unassigned' ? null : campaignId" :characters="characters.filter(character => character.campaignId === (campaignId === 'unassigned' ? null : campaignId))" :refresh="loadSession" />
+          <p v-else class="text-sm text-gold">Selecione uma campanha acima para distribuir as recompensas do grupo.</p>
+        </template>
+      </div>
       <div v-if="!rows.length" class="session-empty">
         <h2 class="text-xl text-gold">{{ search ? 'Nenhum personagem encontrado' : 'O grupo ainda está vazio' }}</h2>
         <p class="max-w-md text-sm text-steel-light">{{ search ? 'Tente outro nome ou selecione uma campanha diferente.' : 'Crie uma ficha ou aceite jogadores em sua campanha para acompanhar seus personagens aqui.' }}</p>
@@ -80,6 +87,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import api from '../services/api'
+import RewardsPanel from './RewardsPanel.vue'
 import { errorMessage } from '../utils/catalog'
 import { calculateCharacterMetrics } from '../utils/characterMetrics'
 import { magicTraditionName, sessionHpRatio, sessionHpStatus, sessionMagicResources, type SessionMagic } from '../utils/judgeSession'
@@ -93,6 +101,7 @@ interface SessionCharacter {
 const campaigns = ref<Array<{ id: string; name: string }>>([])
 const characters = ref<SessionCharacter[]>([])
 const campaignId = ref('')
+const showRewards = ref(false)
 const search = ref('')
 const loading = ref(false)
 const loaded = ref(false)

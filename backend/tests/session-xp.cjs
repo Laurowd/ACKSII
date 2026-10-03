@@ -51,6 +51,77 @@ test('adventure settlement rejects duplicate participants and blank identifiers'
   assert.equal((await request(master, 'POST', '/api/game-rules/adventures/apply', { ...payload, awardId: ' ', participants: [participant] })).statusCode, 400);
   assert.equal((await request(player, 'POST', '/api/game-rules/adventures/apply', { ...payload, participants: [participant] })).statusCode, 403);
 });
+
+test('master rewards keep final XP separate from gold and audit each participant exactly once', async () => {
+  const a = await db.character.findUniqueOrThrow({ where: { id: character.id } });
+  const b = await db.character.create({ data: { userId: player.user.id, campaignId: campaign.id, characterName: 'Reward fighter', classKey: 'catalog:fighter', className: 'Fighter', str: 18, xp: 500, coinGP: 20 } });
+  const payload = { awardId: `rewards_${suffix}`, campaignId: campaign.id, reason: 'Return from the ruins', participants: [
+    { id: a.id, version: a.version, xp: 300, gold: 75 }, { id: b.id, version: b.version, xp: 2000, gold: 0 },
+  ] };
+  assert.equal((await request(player, 'POST', '/api/game-rules/rewards/apply', payload)).statusCode, 403);
+  assert.equal((await request(other, 'POST', '/api/game-rules/rewards/apply', payload)).statusCode, 403);
+  const preview = await request(master, 'POST', '/api/game-rules/rewards/preview', payload);
+  assert.equal(preview.statusCode, 200, preview.body);
+  assert.equal(preview.json().awards.find(row => row.id === b.id).xp, 2500); // No second prime-requisite bonus.
+  assert.equal((await db.character.findUniqueOrThrow({ where: { id: a.id } })).xp, a.xp);
+  const applied = await request(master, 'POST', '/api/game-rules/rewards/apply', payload);
+  assert.equal(applied.statusCode, 200, applied.body);
+  const aa = await db.character.findUniqueOrThrow({ where: { id: a.id } }), bb = await db.character.findUniqueOrThrow({ where: { id: b.id } });
+  assert.equal(aa.xp, a.xp + 300); assert.equal(aa.coinGP, a.coinGP + 75); assert.equal(aa.version, a.version + 1);
+  assert.equal(bb.xp, 2500); assert.equal(bb.coinGP, 20); assert.equal(bb.level, 1);
+  const duplicate = await request(master, 'POST', '/api/game-rules/rewards/apply', payload);
+  assert.equal(duplicate.statusCode, 409); assert.equal(duplicate.json().code, 'REWARD_ALREADY_RECORDED');
+  assert.equal(await db.auditLog.count({ where: { characterId: a.id, action: 'REWARD_RECEIVED' } }), 1);
+  const oldWorkflow = { awardId: payload.awardId, campaignId: campaign.id, treasureGp: 300, participants: [{ id: a.id, version: aa.version, share: 1 }] };
+  assert.equal((await request(master, 'POST', '/api/game-rules/adventures/apply', oldWorkflow)).statusCode, 409);
+  assert.equal((await db.character.findUniqueOrThrow({ where: { id: a.id } })).xp, aa.xp);
+});
+
+test('reward conflicts and invalid recipients roll back all participant updates', async () => {
+  const a = await db.character.findUniqueOrThrow({ where: { id: character.id } });
+  const b = await db.character.create({ data: { userId: player.user.id, campaignId: campaign.id, characterName: 'Concurrent recipient' } });
+  const payload = { awardId: `conflict_${suffix}`, campaignId: campaign.id, reason: 'Session', participants: [{ id: a.id, version: a.version, xp: 100, gold: 10 }, { id: b.id, version: b.version + 1, xp: 100, gold: 10 }] };
+  const conflict = await request(master, 'POST', '/api/game-rules/rewards/apply', payload);
+  assert.equal(conflict.statusCode, 409); assert.equal(conflict.json().code, 'CHARACTER_CONFLICT');
+  assert.equal((await db.character.findUniqueOrThrow({ where: { id: a.id } })).xp, a.xp);
+  const outsider = await db.character.findFirstOrThrow({ where: { userId: other.user.id, campaignId: null } });
+  assert.equal((await request(master, 'POST', '/api/game-rules/rewards/apply', { ...payload, participants: [payload.participants[0], { id: outsider.id, version: outsider.version, xp: 100, gold: 10 }] })).statusCode, 403);
+  assert.equal((await db.character.findUniqueOrThrow({ where: { id: a.id } })).coinGP, a.coinGP);
+  assert.equal((await request(master, 'POST', '/api/game-rules/rewards/apply', { ...payload, participants: [payload.participants[0], payload.participants[0]] })).statusCode, 400);
+  for (const values of [{ xp: -1, gold: 0 }, { xp: 1.5, gold: 0 }, { xp: 0, gold: 0 }, { xp: 0, gold: -1 }, { xp: 0, gold: 1.5 }]) {
+    assert.equal((await request(master, 'POST', '/api/game-rules/rewards/apply', { ...payload, participants: [{ ...payload.participants[0], ...values }] })).statusCode, 400);
+  }
+});
+
+test('gold-only rewards preserve XP and cannot overflow a character balance', async () => {
+  const a = await db.character.findUniqueOrThrow({ where: { id: character.id } });
+  const payload = { awardId: `gold_${suffix}`, campaignId: campaign.id, reason: 'Treasure share', participants: [{ id: a.id, version: a.version, xp: 0, gold: 12 }] };
+  assert.equal((await request(master, 'POST', '/api/game-rules/rewards/apply', payload)).statusCode, 200);
+  const updated = await db.character.findUniqueOrThrow({ where: { id: a.id } });
+  assert.equal(updated.xp, a.xp); assert.equal(updated.coinGP, a.coinGP + 12);
+  const overflow = { ...payload, awardId: `overflow_${suffix}`, participants: [{ id: a.id, version: updated.version, xp: 2147483647, gold: 0 }] };
+  assert.equal((await request(master, 'POST', '/api/game-rules/rewards/apply', overflow)).statusCode, 400);
+  assert.equal((await db.character.findUniqueOrThrow({ where: { id: a.id } })).xp, a.xp);
+});
+
+test('unassigned reward recipients must belong to the master and book receipts cannot be reused', async () => {
+  const a = await db.character.create({ data: { userId: master.user.id, characterName: 'Master standalone', classKey: 'catalog:fighter', className: 'Fighter' } });
+  const playerStandalone = await db.character.create({ data: { userId: player.user.id, characterName: 'Player standalone' } });
+  const payload = { awardId: `standalone_${suffix}`, reason: 'Session', participants: [{ id: a.id, version: a.version, xp: 20, gold: 1 }] };
+  assert.equal((await request(master, 'POST', '/api/game-rules/rewards/preview', payload)).statusCode, 200);
+  assert.equal((await request(master, 'POST', '/api/game-rules/rewards/apply', { ...payload, participants: [{ id: playerStandalone.id, version: playerStandalone.version, xp: 20, gold: 1 }] })).statusCode, 403);
+  assert.equal((await request(master, 'POST', '/api/game-rules/adventures/apply', { awardId: payload.awardId, treasureGp: 5, participants: [{ id: a.id, version: a.version, share: 1 }] })).statusCode, 200);
+  assert.equal((await request(master, 'POST', '/api/game-rules/rewards/apply', payload)).json().code, 'REWARD_ALREADY_RECORDED');
+});
+test('simultaneous reward confirmations credit XP and gold at most once', async () => {
+  const current = await db.character.findUniqueOrThrow({ where: { id: character.id } });
+  const payload = { awardId: `simultaneous_${suffix}`, campaignId: campaign.id, reason: 'Session', participants: [{ id: current.id, version: current.version, xp: 10, gold: 1 }] };
+  const responses = await Promise.all([request(master, 'POST', '/api/game-rules/rewards/apply', payload), request(master, 'POST', '/api/game-rules/rewards/apply', payload)]);
+  assert.deepEqual(responses.map(r => r.statusCode).sort(), [200, 409]);
+  const after = await db.character.findUniqueOrThrow({ where: { id: current.id } });
+  assert.equal(after.xp, current.xp + 10); assert.equal(after.coinGP, current.coinGP + 1); assert.equal(after.version, current.version + 1);
+});
+
 test('session custom class profiles match the catalog representation used by the sheet', async () => {
   const custom = await db.customClass.create({ data: { campaignId: campaign.id, name: 'Initiative specialist', creationRules: JSON.stringify({ ruleProfile: { initiative: 2, initiativeSource: 'Campaign power' } }) } });
   const added = await db.character.create({ data: { userId: player.user.id, campaignId: campaign.id, characterName: 'Campaign specialist', className: custom.name, classKey: custom.id } });

@@ -90,7 +90,7 @@
       <div class="stat-box">
         <label class="lbl">XP</label>
         <input :value="character.xp" readonly type="number" aria-label="XP acumulado" class="inp text-center" />
-        <p class="text-[10px] text-steel-light mt-1">Atualizado ao fechar aventuras.</p>
+        <p class="text-[10px] text-steel-light mt-1">O mestre registra o XP da sessão.</p>
       </div>
       <div class="stat-box">
         <label class="lbl">XP Próx. Nível</label>

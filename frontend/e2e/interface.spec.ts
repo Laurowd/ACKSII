@@ -61,6 +61,8 @@ test('help opens only at its trigger and works with hover, keyboard and Escape',
   await expect(page.getByRole('tooltip')).toContainText('biblioteca arcana')
   await page.getByRole('tooltip').hover()
   await expect(page.getByRole('tooltip')).toBeVisible()
+  await page.evaluate(() => window.scrollBy(0, 100))
+  await expect(page.getByRole('tooltip')).toHaveCount(0)
   await page.getByLabel('Valor da biblioteca', { exact: true }).hover()
   await expect(page.getByRole('tooltip')).toHaveCount(0)
   await page.getByLabel('Valor da biblioteca', { exact: true }).focus()

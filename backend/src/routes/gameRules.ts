@@ -152,6 +152,49 @@ export async function gameRulesRoutes(app: FastifyInstance) {
     }, { isolationLevel: 'Serializable' })
   })
 
+  const rewardBody = body({
+    awardId: text, campaignId: text, reason: { type: 'string', minLength: 1, maxLength: 1000 },
+    participants: { type: 'array', minItems: 1, maxItems: 100, items: body({ id: text, version, xp: integer(), gold: integer() }, ['id', 'version', 'xp', 'gold']) },
+  }, ['awardId', 'reason', 'participants'])
+  for (const action of ['preview', 'apply']) app.post(`/rewards/${action}`, { schema: { body: rewardBody } }, async request => {
+    const input = request.body as any, user = request.user as any
+    if (user.role !== 'MASTER') throw operationError('Somente o mestre pode distribuir XP e ouro.', 403)
+    if (!input.awardId.trim() || !input.reason.trim()) throw operationError('Informe o nome da sessão ou o motivo da recompensa.')
+    if (new Set(input.participants.map((p: any) => p.id)).size !== input.participants.length) throw operationError('Cada personagem deve aparecer uma única vez.')
+    if (!input.participants.some((p: any) => p.xp || p.gold)) throw operationError('Informe XP ou ouro para pelo menos um personagem.')
+    return prisma.$transaction(async tx => {
+      if (input.campaignId) {
+        const campaign = await tx.campaign.findUnique({ where: { id: input.campaignId } })
+        if (!campaign || campaign.masterId !== user.id) throw operationError('Somente o mestre responsável pela campanha pode distribuir recompensas.', 403)
+      }
+      const characters = await tx.character.findMany({ where: {
+        id: { in: input.participants.map((p: any) => p.id) }, campaignId: input.campaignId || null,
+        ...(!input.campaignId && { userId: user.id }),
+      }, orderBy: { id: 'asc' } })
+      if (characters.length !== input.participants.length) throw operationError('Todos os personagens devem pertencer à campanha escolhida e estar sob sua responsabilidade.', 403)
+      // The same receipt cannot be credited through both the simple and book workflows.
+      const id = createHash('sha256').update(`adventure:${input.campaignId || user.id}:${input.awardId.trim().toLowerCase()}`).digest('hex')
+      if (await tx.auditLog.findUnique({ where: { id } })) throw Object.assign(operationError('Esta recompensa já foi registrada. Atualize o grupo para conferir os saldos.', 409), { code: 'REWARD_ALREADY_RECORDED' })
+      const awards = characters.map(character => {
+        const participant = input.participants.find((p: any) => p.id === character.id)
+        if (character.version !== participant.version) throw Object.assign(operationError('Uma ficha mudou. Confira os valores novamente antes de confirmar.', 409), { code: 'CHARACTER_CONFLICT' })
+        const xp = character.xp + participant.xp, coinGP = character.coinGP + participant.gold
+        if (xp > 2147483647 || coinGP > 2147483647) throw operationError('O saldo resultante excede o limite permitido.')
+        return { id: character.id, name: character.characterName, version: character.version, gained: participant.xp, gold: participant.gold, beforeXp: character.xp, xp, beforeGold: character.coinGP, coinGP }
+      })
+      const preview = { awardId: input.awardId, reason: input.reason.trim(), awards }
+      if (action === 'preview') return preview
+      for (const award of awards) {
+        if (!award.gained && !award.gold) continue
+        const character = characters.find(c => c.id === award.id)!
+        await updateVersion(tx, character, award.version, { xp: award.xp, coinGP: award.coinGP })
+        await tx.auditLog.create({ data: { userId: user.id, campaignId: input.campaignId || null, characterId: award.id, action: 'REWARD_RECEIVED', details: JSON.stringify({ awardId: input.awardId, reason: preview.reason, ...award }) } })
+      }
+      await tx.auditLog.create({ data: { id, userId: user.id, campaignId: input.campaignId || null, action: 'REWARD_SETTLEMENT', details: JSON.stringify(preview) } })
+      return { ...preview, characters: await tx.character.findMany({ where: { id: { in: characters.map(c => c.id) } }, select: { id: true, version: true, xp: true, coinGP: true } }) }
+    }, { isolationLevel: 'Serializable', timeout: 15000 })
+  })
+
   const adventureBody=body({awardId:text,campaignId:{type:'string',maxLength:100},treasureGp:{type:'number',minimum:0,maximum:1e9},
     monsters:{type:'array',maxItems:100,items:body({hd:integer(100),bonusHd:{type:'boolean'},abilities:integer(100),count:{type:'integer',minimum:1,maximum:10000}},['hd','abilities','count'])},
     participants:{type:'array',minItems:1,maxItems:100,items:body({id:text,version,share:{type:'number',enum:[0.5,1]}},['id','version','share'])}},['awardId','treasureGp','participants'])

@@ -38,6 +38,7 @@ describe('Class identity and portable sheets', () => {
     expect(html).toContain('&quot;&lt;b&gt;Corda&lt;/b&gt;')
     expect(html).toContain('Torre')
     expect(html).toContain('Não')
-    expect(html).toContain('window.print()')
+    expect(html).toContain('Ctrl+P')
+    expect(html).not.toMatch(/<script\b|\sonclick=/i)
   })
 })

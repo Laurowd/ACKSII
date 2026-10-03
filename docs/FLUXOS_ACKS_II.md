@@ -28,13 +28,23 @@ Repertórios religiosos dependem da ordem definida pelo mestre. Magias de campan
 
 **Aprendizado e pesquisa de magia** reúne grimório, anotações de aprendizado, recursos e projetos em uma seção recolhida. Esses registros não substituem nem sincronizam automaticamente o repertório. O aviso de custo/tempo incompleto só aparece quando há uma pesquisa preenchida.
 
-## Fechamento de aventura
+## Distribuir XP e ouro
+
+O caminho principal fica em **Painel do Mestre → Sessão da campanha → Distribuir XP e ouro** (selecione a campanha) e **Ficha → Evolução & Regras → Distribuir XP e ouro**. Somente o mestre responsável pode registrar recompensas; jogadores consultam os valores recebidos.
+
+Selecione os personagens e preencha o XP final e o ouro (GP) de cada um. **Preencher o mesmo valor para os selecionados** agiliza recompensas iguais. O campo de sessão/motivo é opcional. **Conferir recompensas** mostra os saldos anteriores, os ganhos e os saldos resultantes; só **Confirmar XP e ouro** altera as fichas. O registro inteiro é atômico e confere a versão de cada participante.
+
+O mestre informa XP já ajustado conforme a decisão da mesa. Não há conversão implícita entre XP e ouro, reaplicação de bônus, limite automático de ganho nesta opção nem avanço automático de nível. Use o cálculo abaixo quando quiser que o sistema calcule os bônus e os limites do livro.
+
+Um identificador interno acompanha o lançamento e é guardado no navegador antes da conferência. Se a resposta de confirmação se perder, recupere o lançamento: o sistema verifica se ele já foi registrado e atualiza os saldos sem creditar novamente. A prévia não registra recompensas. Há histórico individual de recebimento e histórico de distribuição para o mestre.
+
+## Calcular XP pelo livro (avançado)
 
 Reúne tesouro elegível e monstros derrotados (HD, HD+ e habilidades especiais), divide cotas inteiras/meias, aplica ajuste de atributos-chave e limita XP ao ponto anterior ao segundo avanço na mesma aventura (pp. 310–311).
 
-O mestre fecha aventuras de campanha; fichas avulsas podem ser fechadas pelo proprietário. O identificador da aventura é único. Todos os participantes são atualizados juntos, sem movimentar moedas. Henchmen precisam de ficha própria para participar; o cadastro simples de seguidores não tem XP individual.
+O mestre fecha aventuras de suas campanhas e de suas próprias fichas avulsas. O identificador da aventura é único e usa a mesma proteção do lançamento simplificado. Todos os participantes são atualizados juntos, sem movimentar moedas. Henchmen precisam de ficha própria para participar; o cadastro simples de seguidores não tem XP individual.
 
-**Inventário & Tesouro → Fechar aventura** leva a este fluxo. A antiga conversão direta de tesouro em XP foi desativada, para que um tesouro não seja premiado em dois registros independentes. XP acumulado na aba Geral & Combate é somente leitura. Correções excepcionais usam **Evolução & Regras → Ajuste excepcional de XP (mestre)**, com valor positivo/negativo e justificativa registrada no histórico.
+**Inventário & Tesouro → Ver XP e recompensas** leva a Evolução & Regras. A antiga conversão direta de tesouro em XP continua desativada. XP acumulado na aba Geral & Combate é somente leitura. Correções excepcionais usam **Evolução & Regras → Ajuste excepcional de XP (mestre)**, com valor positivo/negativo e justificativa registrada no histórico.
 
 ## Domínio, pesquisa e itens
 

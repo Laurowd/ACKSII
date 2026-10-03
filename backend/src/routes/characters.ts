@@ -461,7 +461,7 @@ export async function characterRoutes(app: FastifyInstance) {
         ? await prisma.campaign.findUnique({ where: { id: existing.campaignId }, select: { masterId: true } })
         : null;
       if (role !== 'MASTER' || (existing.campaignId && campaign?.masterId !== id)) {
-        return reply.code(403).send({ code: 'MASTER_XP_REQUIRED', error: 'Somente o mestre responsável pode ajustar XP. Use Fechar aventura para distribuir a experiência.' });
+        return reply.code(403).send({ code: 'MASTER_XP_REQUIRED', error: 'Somente o mestre responsável pode ajustar XP. Use Distribuir XP e ouro para registrar as recompensas.' });
       }
     }
 
@@ -609,7 +609,7 @@ export async function characterRoutes(app: FastifyInstance) {
     schema: { body: treasureConversionBodySchema },
   }, async (_request, reply) => reply.code(409).send({
     code: 'USE_ADVENTURE_SETTLEMENT',
-    error: 'Use Fechar aventura para distribuir XP e evitar registrar o mesmo tesouro duas vezes.',
+    error: 'Use Distribuir XP e ouro ou o cálculo de aventura para registrar recompensas e evitar duplicação.',
   }));
 
   // Recalculate monthly maintenance from domain + retainers

@@ -43,6 +43,7 @@ describe('Regras, magia e pesquisa', () => {
       mutateCharacter(this.account, 'PUT', `/characters/${c.id}/domain`, { peasantFamilies: 100, treasury: 1000, garrisonCost: 200, liturgiesCost: 100, titheCost: 100 })
       cy.signIn(this.account, `/character/${c.id}`)
       cy.button('Evolução & Regras').click()
+      cy.contains('summary', 'Calcular XP pelo livro (avançado)').click()
       cy.field('Identificador único da aventura').should('be.enabled').type('cypress-adventure')
       cy.field('Valor do tesouro elegível (GP)').clear().type('2000')
       cy.button('Conferir distribuição de XP').click()

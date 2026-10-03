@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, useId } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 
 defineProps<{ label: string }>()
 const id = useId()
@@ -26,6 +26,7 @@ const position = ref<Record<string, string>>({})
 let pinned = false
 let keyboardFocus = false
 let timer: ReturnType<typeof setTimeout> | undefined
+const scrollPositions = new Map<Element, { top: number; left: number }>()
 
 function cancelClose() { clearTimeout(timer) }
 function place() {
@@ -44,7 +45,16 @@ function place() {
     ...(useBelow ? { top: `${rect.bottom + 8}px` } : { bottom: `${viewportHeight - rect.top + 8}px` }),
   }
 }
-function show() { cancelClose(); open.value = true; void nextTick(place) }
+function show() {
+  cancelClose(); scrollPositions.clear()
+  // Automatic scrolling can finish before pointerenter but dispatch its event
+  // afterwards. Capture the already-current positions so that event does not
+  // dismiss help which has just opened at the visible trigger.
+  for (let element = trigger.value?.parentElement; element; element = element.parentElement) {
+    scrollPositions.set(element, { top: element.scrollTop, left: element.scrollLeft })
+  }
+  open.value = true; void nextTick(place)
+}
 function close() { cancelClose(); open.value = false; pinned = false }
 function enter(event: PointerEvent) { if (event.pointerType === 'mouse') show() }
 function leave() { cancelClose(); if (!pinned && !keyboardFocus) timer = setTimeout(close, 150) }
@@ -62,15 +72,20 @@ function escape(event: KeyboardEvent) { if (event.key === 'Escape') close() }
 function scroll(event: Event) {
   // Let long descriptions scroll without dismissing the help.
   if (!open.value || panel.value?.contains(event.target as Node)) return
-  const rect = trigger.value?.getBoundingClientRect()
-  if (!rect || rect.bottom < 0 || rect.top > document.documentElement.clientHeight) close()
-  else place()
+  const target = event.target === document ? document.scrollingElement : event.target as Element
+  const original = target && scrollPositions.get(target)
+  if (target && original && (target.scrollTop !== original.top || target.scrollLeft !== original.left)) close()
 }
+watch(open, visible => {
+  // Only observe scrolling while help is visible; page scrolling dismisses it
+  // instead of repositioning a fixed panel on every scroll event.
+  if (visible) window.addEventListener('scroll', scroll, { capture: true, passive: true })
+  else window.removeEventListener('scroll', scroll, true)
+}, { flush: 'sync' })
 onMounted(() => {
   document.addEventListener('pointerdown', outside)
   document.addEventListener('keydown', escape)
   window.addEventListener('resize', place)
-  window.addEventListener('scroll', scroll, true)
 })
 onBeforeUnmount(() => {
   cancelClose()

@@ -2,7 +2,7 @@
 
 ## Exportar os valores atuais
 
-Abra uma ficha e use **Exportar JSON** para guardar seus dados em um arquivo. **Ficha para impressão/PDF** baixa um HTML independente: abra esse arquivo no navegador e use **Imprimir / salvar em PDF**.
+Abra uma ficha e use **Exportar JSON** para guardar seus dados em um arquivo. **Ficha para impressão/PDF** baixa um HTML independente e sem scripts: abra esse arquivo no navegador e pressione **Ctrl+P** (⌘+P no Mac), ou use **Imprimir** no menu do navegador, para salvar em PDF.
 
 As duas exportações usam os atributos e os equipamentos atuais para calcular CA, iniciativa e movimento, como a tela da ficha. Também refletem as edições locais ainda pendentes de salvamento. Exportar não confirma essas alterações no servidor; **Salvar** informa se elas foram persistidas.
 

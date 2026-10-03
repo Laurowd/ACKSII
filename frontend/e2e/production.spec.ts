@@ -100,6 +100,7 @@ test('rule assistant awards XP, advances HP and settles a domain month',async({p
   await page.evaluate(({token,user})=>{localStorage.setItem('token',token);localStorage.setItem('user',JSON.stringify(user))},{token,user})
   await page.goto(`/character/${id}`)
   await page.getByRole('button',{name:'Evolução & Regras',exact:true}).click()
+  await page.getByText('Calcular XP pelo livro (avançado)', { exact: true }).click()
   await page.getByLabel('Identificador único da aventura').fill('browser-adventure')
   await page.getByLabel('Valor do tesouro elegível (GP)').fill('2000')
   await page.getByRole('button',{name:'Conferir distribuição de XP'}).click()

@@ -87,9 +87,9 @@
 
     <div v-if="showTreasureOrMaintenance" class="bg-dark-card border border-gold/20 rounded-xl p-5 mb-4">
       <h3 class="text-lg font-bold text-gold mb-3">Tesouro, XP e manutenção</h3>
-      <p v-if="isRuleEnabled('enableTreasureToXp')" class="text-sm text-steel-light mb-3">Registre aqui as moedas e os itens encontrados. Ao retornar à civilização, use <strong class="text-gold">Fechar aventura</strong> para reunir tesouro e monstros e distribuir o XP entre os participantes.</p>
+      <p v-if="isRuleEnabled('enableTreasureToXp')" class="text-sm text-steel-light mb-3">O mestre pode distribuir XP e ouro diretamente nas fichas. Use esta aba para consultar o saldo e registrar compras, gastos e itens. O cálculo de XP por tesouro e monstros fica em Evolução & Regras.</p>
       <div class="flex flex-wrap items-center gap-2">
-        <button v-if="isRuleEnabled('enableTreasureToXp')" type="button" @click="emit('open-adventure')" class="text-sm px-4 py-2 bg-gold text-dark-bg font-bold rounded-lg">Fechar aventura</button>
+        <button v-if="isRuleEnabled('enableTreasureToXp')" type="button" @click="emit('open-adventure')" class="text-sm px-4 py-2 bg-gold text-dark-bg font-bold rounded-lg">Ver XP e recompensas</button>
         <button v-if="isRuleEnabled('enableMonthlyMaintenance')" type="button" @click="recalculateMaintenance" class="text-sm px-3 py-2 bg-steel-dark text-gold rounded-lg">Recalcular manutenção mensal</button>
       </div>
       <div class="mt-3 text-xs text-steel-light">

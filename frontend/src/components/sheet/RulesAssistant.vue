@@ -5,6 +5,8 @@
     <p v-if="notice" role="status" class="text-green-400">{{ notice }}</p>
     <fieldset :disabled="busy" class="min-w-0 space-y-6">
     <button @click="load" :disabled="busy" class="text-gold underline">Atualizar conferência</button>
+    <RewardsPanel v-if="canCloseAdventure" :key="`${character.id}:${character.campaignId || 'unassigned'}`" :characters="participants" :campaign-id="character.campaignId" :selected-id="character.id" :prepare="prepare" :refresh="refresh" />
+    <p v-else class="rounded-lg border border-gold/20 p-4 text-sm text-steel-light">O mestre registra o XP e o ouro da sessão. As recompensas aparecem automaticamente nesta ficha.</p>
     <template v-if="info.supported">
       <details v-if="info.issues?.length" class="border border-gold/30 rounded p-3"><summary>Escolhas para conferir com o mestre ({{ info.issues.length }})</summary><ul class="list-disc pl-5"><li v-for="issue in info.issues" :key="issue">{{ issue }}</li></ul></details>
       <section class="bg-dark-card border border-steel-dark rounded-xl p-5 space-y-3">
@@ -31,7 +33,9 @@
       <div v-if="info.magic?.length" class="bg-dark-card border border-gold/20 rounded-xl p-4 flex flex-wrap gap-3 justify-between items-center"><p class="text-sm text-steel-light">Conjuração, repertório e descanso ficam na aba Magia.</p><button type="button" @click="emit('open-magic')" class="btn">Abrir Magia</button></div>
     </template><p v-else-if="info.reason">{{ info.reason }}</p>
 
-    <section id="adventure-settlement" class="bg-dark-card border border-steel-dark rounded-xl p-4 sm:p-5 space-y-3" aria-labelledby="adventure-title">
+    <details v-if="canCloseAdventure" id="adventure-settlement" class="bg-dark-card border border-steel-dark rounded-xl p-4 sm:p-5 space-y-3">
+      <summary class="text-gold font-bold cursor-pointer">Calcular XP pelo livro (avançado)</summary>
+      <section class="space-y-3 mt-4" aria-labelledby="adventure-title">
       <h2 id="adventure-title" class="text-xl text-gold">Fechar aventura</h2>
       <p class="text-sm">O mestre fecha aventuras de campanha. Selecione quem retornou à civilização e informe apenas tesouro elegível para XP. Moedas não serão gastas ou creditadas por esta operação.</p>
       <p v-if="!canCloseAdventure" class="text-sm text-gold">O mestre da campanha registra o fechamento e distribui o XP para os participantes.</p>
@@ -40,15 +44,16 @@
       <label>Valor do tesouro elegível (GP)<input v-model.number="treasureGp" type="number" min="0" step="0.01" class="inp" /></label>
       <div v-for="(m,i) in monsters" :key="i" class="flex flex-wrap gap-2"><label>HD (0 = menos de 1)<input v-model.number="m.hd" type="number" min="0" max="100" class="inp w-24" /></label><label><input v-model="m.bonusHd" type="checkbox" /> HD+</label><label>Habilidades (*)<input v-model.number="m.abilities" type="number" min="0" class="inp w-24" /></label><label>Quantidade<input v-model.number="m.count" type="number" min="1" class="inp w-24" /></label><button @click="monsters.splice(i,1)" class="text-red-400">Remover</button></div>
       <button @click="monsters.push({hd:1,bonusHd:false,abilities:0,count:1})" class="text-gold">+ Grupo de monstros derrotados</button>
-      <div v-for="p in participants" :key="p.id" class="flex gap-3 items-center"><label><input v-model="p.selected" type="checkbox"/> {{ p.name }}</label><select v-model.number="p.share" class="inp"><option :value="1">Personagem: 1 cota</option><option :value="0.5">Henchman com ficha: ½ cota</option></select></div>
+      <div v-for="p in participants" :key="p.id" class="grid min-w-0 gap-3 rounded-lg border border-steel-dark p-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,1fr)] sm:items-center"><label class="flex items-start gap-3 min-w-0"><input v-model="p.selected" type="checkbox" class="shrink-0 mt-1"/><span class="min-w-0 break-words"><strong class="block">{{ p.name }}</strong><span class="text-xs text-steel-light">{{ p.user?.username || 'Sem jogador' }} · {{ p.className }} · Nível {{ p.level }}</span></span></label><select v-model.number="p.share" :aria-label="`Cota de ${p.name}`" class="inp"><option :value="1">Personagem: 1 cota</option><option :value="0.5">Henchman com ficha: ½ cota</option></select></div>
       <button @click="previewAdventure" :disabled="busy || !awardId.trim()" class="btn">Conferir distribuição de XP</button>
-      <div v-if="xpPreview" class="border border-gold/40 p-3 space-y-2"><p>Tesouro: {{ xpPreview.treasureGp }} XP · monstros: {{ xpPreview.monsterXp }} XP</p><table class="w-full text-sm"><thead><tr><th>Personagem</th><th>Cota bruta</th><th>Atributos</th><th>XP ganho</th><th>Excesso limitado</th></tr></thead><tbody><tr v-for="a in xpPreview.awards" :key="a.id"><td>{{ a.name }}</td><td>{{ a.base.toFixed(2) }}</td><td>+{{ a.adjustment }}%</td><td>{{ a.gained }}</td><td>{{ a.capped }}</td></tr></tbody></table><button @click="applyAdventure" :disabled="busy" class="btn">Confirmar concessão de XP</button></div>
+      <div v-if="xpPreview" class="border border-gold/40 p-3 space-y-2"><p>Tesouro: {{ xpPreview.treasureGp }} XP · monstros: {{ xpPreview.monsterXp }} XP</p><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr><th>Personagem</th><th>Cota bruta</th><th>Atributos</th><th>XP ganho</th><th>Excesso limitado</th></tr></thead><tbody><tr v-for="a in xpPreview.awards" :key="a.id"><td>{{ a.name }}</td><td>{{ a.base.toFixed(2) }}</td><td>+{{ a.adjustment }}%</td><td>{{ a.gained }}</td><td>{{ a.capped }}</td></tr></tbody></table></div><button @click="applyAdventure" :disabled="busy" class="btn">Confirmar concessão de XP</button></div>
       </fieldset>
-    </section>
-    <details v-if="authStore.isMaster" class="bg-dark-card border border-steel-dark rounded-xl p-4">
+      </section>
+    </details>
+    <details v-if="canCloseAdventure" class="bg-dark-card border border-steel-dark rounded-xl p-4">
       <summary class="text-gold font-bold cursor-pointer">Ajuste excepcional de XP (mestre)</summary>
       <div class="space-y-3 mt-3">
-        <p class="text-sm text-steel-light">Use para corrigir um lançamento anterior ou registrar uma decisão da mesa. A justificativa fica no histórico. Para tesouro e monstros, use Fechar aventura.</p>
+        <p class="text-sm text-steel-light">Use para corrigir um lançamento anterior ou retirar XP. A justificativa fica no histórico. Para os ganhos da sessão, use Distribuir XP e ouro acima.</p>
         <label class="block text-sm">Ajuste de XP (positivo ou negativo)<input v-model.number="xpAdjustment.delta" type="number" step="1" class="inp mt-1" /></label>
         <label class="block text-sm">Justificativa<textarea v-model="xpAdjustment.reason" rows="2" maxlength="1000" class="inp w-full mt-1" /></label>
         <button type="button" @click="adjustXp" :disabled="busy || !xpAdjustment.reason.trim() || !xpAdjustment.delta" class="btn">Registrar ajuste de XP</button>
@@ -65,13 +70,14 @@ import { getResource } from '../../services/resources'
 import {errorMessage,proficiencyOptions} from '../../utils/catalog'
 import { proficiencyValidation } from '../../utils/ruleChoices'
 import CampaignWorkflows from './CampaignWorkflows.vue'
+import RewardsPanel from '../RewardsPanel.vue'
 import { useAuthStore } from '../../stores/auth'
 import { useCharacterOperations } from '../../composables/characterOperations'
 const props=defineProps<{character:any;prepare:()=>Promise<boolean>;refresh:()=>Promise<void>;canManage?:boolean}>()
 const emit=defineEmits(['open-magic'])
 const authStore=useAuthStore()
 const operations=useCharacterOperations()
-const canCloseAdventure=computed(()=>!props.character.campaignId || props.canManage === true)
+const canCloseAdventure=computed(()=>authStore.isMaster && (!props.character.campaignId || props.canManage === true))
 const info=ref<any>({}),metadata=ref<any>({}),busy=ref(false),error=ref(''),notice=ref('')
 const diceText=ref(''),advancePreview=ref<any>(null),advanceInput=ref<any>(null),choice=ref({name:'',category:'class'})
 const awardId=ref(''),treasureGp=ref(0),monsters=ref<any[]>([]),participants=ref<any[]>([]),xpPreview=ref<any>(null),xpInput=ref<any>(null)
@@ -82,7 +88,7 @@ function checkPreview(revision:number){if(revision!==previewRevision)throw Error
 onBeforeUnmount(invalidatePreviews)
 const url=()=>`/api/game-rules/characters/${props.character.id}`
 async function run(work:()=>Promise<void>){if(busy.value)return;busy.value=true;error.value='';notice.value='';try{await work()}catch(e){error.value=errorMessage(e,'Não foi possível concluir a operação.')}finally{busy.value=false}}
-async function load(){await run(async()=>{const [r,m,c]=await Promise.all([api.get(url()),getResource('/api/game-rules/metadata'),api.get('/api/characters', { params: { view: 'summary' } })]);info.value=r.data;metadata.value=m.data;participants.value=c.data.characters.filter((p:any)=>p.campaignId===props.character.campaignId).map((p:any)=>({id:p.id,name:p.characterName,version:p.version,share:1,selected:p.id===props.character.id}))})}
+async function load(){await run(async()=>{const [r,m,c]=await Promise.all([api.get(url()),getResource('/api/game-rules/metadata'),api.get('/api/characters', { params: { view: 'summary' } })]);info.value=r.data;metadata.value=m.data;participants.value=c.data.characters.filter((p:any)=>p.campaignId===props.character.campaignId).map((p:any)=>({...p,name:p.characterName,share:1,selected:p.id===props.character.id}))})}
 async function prepared(){if(!await props.prepare() || !await operations.retryPending())throw Error('Salve ou resolva o conflito da ficha antes de continuar.');const r=await api.get(url());info.value=r.data;return props.character.version}
 async function complete(message:string){
   advancePreview.value=null;xpPreview.value=null;notice.value=message
@@ -118,7 +124,7 @@ async function addProficiency(){await run(async()=>{
 })}
 async function previewAdventure(){await run(async()=>{
   xpPreview.value=null
-  await prepared();const revision=previewRevision,current=(await api.get('/api/characters')).data.characters
+  await prepared();const revision=previewRevision,current=(await api.get('/api/characters', { params: { view: 'summary' } })).data.characters
   xpInput.value={awardId:awardId.value,treasureGp:treasureGp.value,monsters:monsters.value.map(m=>({...m})),...(props.character.campaignId?{campaignId:props.character.campaignId}:{}),participants:participants.value.filter(p=>p.selected).map(p=>({id:p.id,share:p.share,version:current.find((c:any)=>c.id===p.id)?.version}))}
   const data=(await api.post('/api/game-rules/adventures/preview',xpInput.value)).data
   checkPreview(revision);xpPreview.value=data

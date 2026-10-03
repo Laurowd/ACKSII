@@ -366,6 +366,7 @@ async function navigateInApp(page: Page, path: string) {
 test('adventure previews disable edits and ignore responses for changed values', async ({ page }) => {
   const { character, headers }=await fixture(page)
   await page.getByRole('button',{name:'Evolução & Regras',exact:true}).click()
+  await page.getByText('Calcular XP pelo livro (avançado)', { exact: true }).click()
   await page.getByLabel('Identificador único da aventura').fill('conferencia-concorrente')
   await page.getByLabel('Valor do tesouro elegível (GP)').fill('2000')
   let release!:()=>void
