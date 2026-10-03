@@ -159,6 +159,8 @@ test('players consult descriptions in the main spell list without opening an edi
   await page.keyboard.press('Escape')
   await expect(page.getByRole('tooltip')).toHaveCount(0)
   await help.focus()
+  await page.keyboard.press('Tab')
+  await page.keyboard.press('Shift+Tab')
   await expect(page.getByRole('tooltip')).toBeVisible()
   await page.keyboard.press('Escape')
   await list.getByRole('button', { name: 'Conjurar Slumber', exact: true }).hover()
