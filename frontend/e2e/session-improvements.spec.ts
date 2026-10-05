@@ -4,8 +4,19 @@ const accounts: Record<string, any> = {}
 async function fixture(page: Page, kind = 'mage', campaignId?: string) {
   if (!accounts.master) {
     const name = `session_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
-    const response = await page.request.post('/api/auth/register', { data: { username: name, email: `${name}@test.invalid`, password: 'browser-test-password', role: 'MASTER' } })
-    expect(response.status()).toBe(201); accounts.master = await response.json()
+    const data = { username: name, email: `${name}@test.invalid`, password: 'browser-test-password', role: 'MASTER' }
+    let response = await page.request.post('/api/auth/register', { data })
+    if (response.status() === 429) {
+      // The full suite shares one IP. Respect the real limiter's retry window;
+      // do not disable or raise production limits to create fixture accounts.
+      const retryAfter = Number(response.headers()['retry-after'])
+      expect(retryAfter).toBeGreaterThanOrEqual(1)
+      expect(retryAfter).toBeLessThanOrEqual(60)
+      test.setTimeout(90_000)
+      await new Promise(resolve => setTimeout(resolve, retryAfter * 1000 + 250))
+      response = await page.request.post('/api/auth/register', { data })
+    }
+    expect(response.status(), await response.text()).toBe(201); accounts.master = await response.json()
   }
   const account = accounts.master, headers = { authorization: `Bearer ${account.token}` }
   const response = await page.request.post('/api/characters/guided', { headers, data: { characterName: `Session ${Date.now()}`, classKey: `catalog:${kind}`, str: 10, int: 16, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 4, ...(campaignId && { campaignId }) } })
