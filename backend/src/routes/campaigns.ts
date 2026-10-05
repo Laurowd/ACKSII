@@ -199,6 +199,7 @@ export async function campaignsRoutes(app: FastifyInstance) {
       currentYear: campaign.currentYear,
       currentMonth: campaign.currentMonth,
       currentWeek: campaign.currentWeek,
+      updatedAt: campaign.updatedAt,
       optionalRules: parseJsonSafe<Record<string, boolean>>(campaign.optionalRules, {}),
       economy: campaign.economy
     }
@@ -600,20 +601,28 @@ export async function campaignsRoutes(app: FastifyInstance) {
   })
 
   // GET CAMPAIGN AUDIT LOGS
-  app.get('/:id/audit', async (request, reply) => {
+  app.get('/:id/audit', { schema: { querystring: { type: 'object', additionalProperties: false, properties: {
+    page: { type: 'string', pattern: '^(?:[1-9][0-9]{0,2}|1000)$' }, action: { type: 'string', pattern: '^[A-Z_]+$', maxLength: 80 },
+  } } } }, async (request, reply) => {
     const { id: campaignId } = request.params as { id: string };
     const { id } = request.user as any;
     const campaign = await prismaAny.campaign.findUnique({ where: { id: campaignId } });
     if (campaign?.masterId !== id) {
       return reply.status(403).send({ message: 'Only master can view logs' });
     }
+    const query = request.query as { page?: string; action?: string };
+    const page = query.page ? Number(query.page) : undefined;
+    const where = { campaignId, ...(query.action && { action: query.action }) };
     const logs = await prismaAny.auditLog.findMany({
-      where: { campaignId },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: page ? 25 : 50,
+      ...(page && { skip: (page - 1) * 25 }),
       include: { character: { select: { characterName: true } }, user: { select: { username: true } } }
     });
-    return logs;
+    if (!query.page) return logs;
+    const total = await prismaAny.auditLog.count({ where });
+    return { items: logs, total, page, pages: Math.max(1, Math.ceil(total / 25)) };
   });
 }
 

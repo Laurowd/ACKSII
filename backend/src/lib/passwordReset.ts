@@ -3,8 +3,9 @@ import nodemailer from 'nodemailer'
 import prisma from './prisma'
 
 export const hashResetToken = (token: string) => createHash('sha256').update(token).digest('hex')
+export const passwordResetConfigured = () => Boolean(process.env.SMTP_HOST && process.env.SMTP_FROM && process.env.PUBLIC_APP_URL && (!process.env.SMTP_USER || process.env.SMTP_PASS))
 export async function sendPasswordReset(userId: string, email: string) {
-  if (!process.env.SMTP_HOST || !process.env.SMTP_FROM || !process.env.PUBLIC_APP_URL) throw new Error('Password recovery SMTP is not configured.')
+  if (!passwordResetConfigured()) throw new Error('Password recovery SMTP is not configured.')
   const token = randomBytes(32).toString('hex')
   const tokenHash = hashResetToken(token)
   // Only the digest is stored. Reset links never appear in application logs.

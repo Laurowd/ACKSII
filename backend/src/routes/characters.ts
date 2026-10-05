@@ -207,6 +207,15 @@ export async function characterRoutes(app: FastifyInstance) {
   });
 
   // Get single character
+  app.get('/:characterId/revision', { preHandler: [authGuard] }, async (request, reply) => {
+    const { characterId } = request.params as { characterId: string };
+    const { id, role } = request.user;
+    const character = await prisma.character.findUnique({ where: { id: characterId }, select: { id: true, version: true, updatedAt: true, userId: true, campaignId: true, campaign: { select: { updatedAt: true } } } });
+    if (!character) return reply.status(404).send({ error: 'Ficha não encontrada.' });
+    if (!(await canAccessCharacter(character, id, role))) return reply.status(403).send({ error: 'Sem acesso a esta ficha.' });
+    return { version: character.version, updatedAt: character.updatedAt, campaignUpdatedAt: character.campaign?.updatedAt || null };
+  });
+
   app.get('/:characterId', { preHandler: [authGuard] }, async (request, reply) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;

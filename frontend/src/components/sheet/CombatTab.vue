@@ -198,8 +198,8 @@
           <div>
             <label class="lbl">Iniciativa</label>
             <div class="inp text-center text-lg font-bold bg-dark-bg/50 text-gold cursor-default">{{ formatMod(computedInitiative) }}</div>
-            <p class="text-xs text-steel-light">{{ effects.initiativeSources.map(e => `${e.source} ${formatMod(e.value)}`).join(' · ') }}</p>
-            <p class="text-xs text-steel-light">Ao conjurar: {{ formatMod(effects.castingInitiative) }}. Some ajustes situacionais aplicáveis.</p>
+            <p class="text-xs text-steel-light">{{ combatMetrics.initiativeSources.map(e => `${e.source} ${formatMod(e.value)}`).join(' · ') }}</p>
+            <p class="text-xs text-steel-light">Ao conjurar: {{ formatMod(combatMetrics.castingInitiative) }}. Some ajustes situacionais aplicáveis.</p>
             <p v-for="effect in effects.conditional" :key="effect" class="text-xs text-gold">{{ effect }}</p>
           </div>
           <div>
@@ -463,6 +463,7 @@ import api from '../../services/api'
 import { useCharacterRelations } from '../../composables/characterRelations'
 import HelpTooltip from '../HelpTooltip.vue'
 import { classEffects } from '../../utils/classEffects'
+import { calculateCharacterMetrics } from '../../utils/characterMetrics'
 import { getModifier, formatMod, calculateAttackThrow, getWeaponAbilityModifier } from '../../utils/mechanics'
 import { notifyError } from '../../utils/toast'
 import { errorMessage, selectedClass } from '../../utils/catalog'
@@ -532,6 +533,7 @@ function getProfsByCategory(cat: string) {
   return props.character?.proficiencies?.filter((p: any) => p.category === cat) || []
 }
 const effects = computed(() => classEffects(props.character, selectedCustomClass.value?.ruleProfile))
+const combatMetrics = computed(() => calculateCharacterMetrics(props.character, selectedCustomClass.value || undefined))
 
 function attackThrowForWeaponAC(w: any, ac: number): string {
   if (!w || w.attackThrow == null) return '—'

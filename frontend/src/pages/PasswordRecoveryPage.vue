@@ -4,6 +4,9 @@
       <h1 class="text-2xl text-gold">{{ resetting ? 'Redefinir senha' : 'Recuperar acesso' }}</h1>
       <p v-if="message" role="status" class="text-steel-light">{{ message }}</p>
       <p v-if="error" role="alert" class="text-red-400">{{ error }}</p>
+      <p v-if="!resetting && checkingAvailability" role="status" class="text-steel-light text-sm">Verificando recuperação por e-mail…</p>
+      <p v-if="!resetting && !checkingAvailability && !recoveryAvailable" role="status" class="text-steel-light text-sm">A recuperação por e-mail está temporariamente indisponível. Entre em contato com o responsável pela campanha para obter ajuda com o acesso.</p>
+      <button v-if="availabilityError" type="button" @click="checkAvailability" class="text-gold underline text-sm">Tentar verificar recuperação novamente</button>
       <label v-if="!resetting" class="block text-steel-light">E-mail
         <input v-model="email" type="email" required autocomplete="email" class="block w-full rounded bg-dark-bg p-3 mt-2" />
       </label>
@@ -15,13 +18,13 @@
           <input v-model="confirmation" type="password" required autocomplete="new-password" class="block w-full rounded bg-dark-bg p-3 mt-2" />
         </label>
       </template>
-      <button v-if="!done" :disabled="busy" class="bg-gold text-dark-bg rounded px-4 py-3 disabled:opacity-50">{{ busy ? 'Aguarde…' : resetting ? 'Salvar nova senha' : 'Enviar link' }}</button>
+      <button v-if="!done" :disabled="busy || (!resetting && (checkingAvailability || !recoveryAvailable))" class="bg-gold text-dark-bg rounded px-4 py-3 disabled:opacity-50">{{ busy ? 'Aguarde…' : resetting ? 'Salvar nova senha' : 'Enviar link' }}</button>
       <router-link to="/login" class="block text-gold underline">Voltar para entrar</router-link>
     </form>
   </div>
 </template>
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '../services/api'
 const route = useRoute()
@@ -30,8 +33,11 @@ const token = route.hash.slice(1)
 if (resetting) window.history.replaceState(window.history.state, '', window.location.pathname)
 const email = ref(''), password = ref(''), confirmation = ref(''), message = ref(''), error = ref('')
 const busy = ref(false), done = ref(false)
+const checkingAvailability = ref(!resetting), recoveryAvailable = ref(false), availabilityError = ref(false)
+async function checkAvailability() { checkingAvailability.value = true; availabilityError.value = false; try { recoveryAvailable.value = (await api.get('/api/auth/capabilities')).data.passwordRecovery === true } catch { recoveryAvailable.value = false; availabilityError.value = true } finally { checkingAvailability.value = false } }
+onMounted(() => { if (!resetting) void checkAvailability() })
 async function submit() {
-  if (busy.value || done.value) return
+  if (busy.value || done.value || (!resetting && (checkingAvailability.value || !recoveryAvailable.value))) return
   error.value = ''
   if (resetting && password.value !== confirmation.value) { error.value = 'As senhas precisam ser iguais.'; return }
   if (resetting && !token) { error.value = 'Abra o link recebido por e-mail.'; return }

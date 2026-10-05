@@ -5,6 +5,8 @@ import { authGuard } from '../middleware/auth'
 import { resolveClass, progressionFields } from '../lib/classCatalog'
 import { GENERAL_PROFICIENCIES, RULE_CLASSES, SPELL_LIST, rulesFor, proficiencyBudget, proficiencyIssues, spellIssues, magicPools, readState, advancement, allocateAdventure, xpAdjustment, monsterXp } from '../lib/gameRules'
 import { initialAdventuring } from '../lib/creationRules'
+import { combatConfigurationSchema, validateCombatConfiguration } from '../lib/combatConfiguration'
+import { formulaKey, studyPlan } from '../lib/spellLearning'
 
 const integer = (max = 2147483647) => ({ type: 'integer', minimum: 0, maximum: max })
 const text = { type: 'string', minLength: 1, maxLength: 160 }
@@ -41,6 +43,79 @@ const overview = (c: any, klass: any) => {
 
 export async function gameRulesRoutes(app: FastifyInstance) {
   app.addHook('preHandler',authGuard)
+  app.post('/characters/:id/magic/formulas', { schema: { body: body({ version, spell: spellSchema, source: { type: 'string', minLength: 1, maxLength: 300 }, available: { const: true } }, ['version', 'spell', 'source', 'available']) } }, async req => {
+    const input = req.body as any
+    if (!input.source.trim()) throw operationError('Informe a origem da fórmula.')
+    return prisma.$transaction(async tx => {
+      const c = await accessibleCharacter((req.params as any).id, req.user, tx)
+      const rules = rulesFor(await resolveClass(c.classKey, c.campaignId, c.className))
+      if (!rules || !magicPools(rules, c).some(pool => pool.studious && pool.tradition === input.spell.tradition)) throw operationError('Este fluxo é para conjuradores que estudam fórmulas.')
+      const spell = SPELL_LIST.find(entry => formulaKey(entry) === formulaKey(input.spell))
+      if (!spell) throw operationError('Escolha uma fórmula válida no catálogo.')
+      const state = readState(c.rulesState)
+      state.formulas ||= []
+      if (state.formulas.some((entry: any) => formulaKey(entry) === formulaKey(spell))) throw operationError('Esta fórmula já foi registrada no grimório.', 409)
+      if (state.formulas.length >= 100) throw operationError('Limite de 100 fórmulas acompanhadas atingido; use as anotações do grimório para as demais.')
+      state.formulas.push({ ...input.spell, source: input.source.trim() })
+      let names: string[] = []; try { const value = JSON.parse(c.spellbook); if (Array.isArray(value)) names = value } catch { /* Preserve structured formulas separately. */ }
+      if (!names.some(name => typeof name === 'string' && name.toLowerCase() === spell.name.toLowerCase())) names.push(spell.name)
+      await updateVersion(tx, c, input.version, { rulesState: JSON.stringify(state), spellbook: JSON.stringify(names) })
+      await tx.auditLog.create({ data: { characterId: c.id, campaignId: c.campaignId, userId: (req.user as any).id, action: 'SPELL_FORMULA_ACQUIRED', details: JSON.stringify({ spell: input.spell, source: input.source.trim() }) } })
+      return { character: await mutationCharacter(tx, c.id) }
+    }, { isolationLevel: 'Serializable' })
+  })
+  app.post('/characters/:id/magic/study/start', { schema: { body: body({ version, studyId: text, formulaKey: text, day: integer(), replaceSpellId: text, available: { const: true } }, ['version', 'studyId', 'formulaKey', 'day', 'available']) } }, async req => {
+    const input = req.body as any
+    return prisma.$transaction(async tx => {
+      const c = await accessibleCharacter((req.params as any).id, req.user, tx), state = readState(c.rulesState)
+      if (state.study) throw operationError('Já existe um estudo em andamento. Confira o registro antes de iniciar outro.', 409)
+      const rules = rulesFor(await resolveClass(c.classKey, c.campaignId, c.className))
+      if (!rules) throw operationError('Classe sem aprendizado automático.')
+      let plan; try { plan = studyPlan(c, rules, input) } catch (error) { throw operationError((error as Error).message) }
+      const receipt = createHash('sha256').update(`study:${c.id}:${input.studyId}`).digest('hex')
+      if (await tx.auditLog.findUnique({ where: { id: receipt } })) throw operationError('Este estudo já foi registrado; atualize a ficha.', 409)
+      if (input.day > 2147483640) throw operationError('O dia de jogo está fora do intervalo permitido.')
+      state.study = { ...plan, id: input.studyId, startDay: input.day, earliestDay: input.day + 7 }
+      await updateVersion(tx, c, input.version, { rulesState: JSON.stringify(state) })
+      await tx.auditLog.create({ data: { id: receipt, characterId: c.id, campaignId: c.campaignId, userId: (req.user as any).id, action: 'SPELL_STUDY_STARTED', details: JSON.stringify(state.study) } })
+      return { character: await mutationCharacter(tx, c.id) }
+    }, { isolationLevel: 'Serializable' })
+  })
+  for (const action of ['complete', 'cancel']) app.post(`/characters/:id/magic/study/${action}`, { schema: { body: body({ version, studyId: text, day: integer(), requirementsMet: { const: true } }, action === 'complete' ? ['version', 'studyId', 'day', 'requirementsMet'] : ['version', 'studyId']) } }, async req => {
+    const input = req.body as any
+    return prisma.$transaction(async tx => {
+      const c = await accessibleCharacter((req.params as any).id, req.user, tx), state = readState(c.rulesState), study = state.study
+      if (!study || study.id !== input.studyId) throw operationError('O estudo mudou ou já foi concluído/cancelado. Atualize a ficha.', 409)
+      if (action === 'complete') {
+        if (input.day < study.earliestDay) throw operationError(`Conclua uma semana de estudo dedicado; primeiro dia de conclusão: ${study.earliestDay}.`)
+        const rules = rulesFor(await resolveClass(c.classKey, c.campaignId, c.className))
+        if (!rules) throw operationError('A classe mudou; confira o estudo com o mestre.')
+        try { studyPlan(c, rules, { formulaKey: formulaKey(study.spell), replaceSpellId: study.replaceSpellId }) } catch (error) { throw operationError((error as Error).message) }
+        if (study.replaceSpellId) await tx.spell.delete({ where: { id: study.replaceSpellId } })
+        await tx.spell.create({ data: { ...study.spell, characterId: c.id } })
+      }
+      delete state.study
+      await updateVersion(tx, c, input.version, { rulesState: JSON.stringify(state) })
+      await tx.auditLog.create({ data: { characterId: c.id, campaignId: c.campaignId, userId: (req.user as any).id, action: action === 'complete' ? 'SPELL_STUDY_COMPLETED' : 'SPELL_STUDY_CANCELLED', details: JSON.stringify({ ...study, day: input.day }) } })
+      return { character: await mutationCharacter(tx, c.id) }
+    }, { isolationLevel: 'Serializable' })
+  })
+  app.post('/characters/:id/combat/modifiers', { schema: { body: body({ version, configuration: combatConfigurationSchema }, ['version', 'configuration']) } }, async req => {
+    const input = req.body as any
+    try { validateCombatConfiguration(input.configuration) } catch (error) { throw operationError((error as Error).message) }
+    return prisma.$transaction(async tx => {
+      const c = await accessibleCharacter((req.params as any).id, req.user, tx)
+      for (const modifier of input.configuration.modifiers) if (modifier.itemId) {
+        const item = await tx.item.findFirst({ where: { id: modifier.itemId, characterId: c.id } })
+        if (!item || (modifier.active && !readState(item.magicDetails).identified)) throw operationError('Escolha um item desta ficha, identificado em jogo, para ativar seu bônus.')
+      }
+      const state = readState(c.rulesState), before = state.combat
+      state.combat = input.configuration
+      await updateVersion(tx, c, input.version, { rulesState: JSON.stringify(state) })
+      await tx.auditLog.create({ data: { characterId: c.id, campaignId: c.campaignId, userId: (req.user as any).id, action: 'COMBAT_MODIFIERS_UPDATED', details: JSON.stringify({ before, after: state.combat }) } })
+      return { character: await mutationCharacter(tx, c.id) }
+    }, { isolationLevel: 'Serializable' })
+  })
   app.get('/metadata', async () => ({ classes:RULE_CLASSES, generalProficiencies:GENERAL_PROFICIENCIES, spells:SPELL_LIST }))
   app.get('/characters/:id', async req => {
     const c=await accessibleCharacter((req.params as any).id,req.user)
@@ -70,7 +145,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       await updateVersion(tx,c,input.version,{level:result.level,hpMax:result.hpMax,hpCurr:result.hpCurr,hitDice:result.hitDice,xpNext:result.xpNext,title:after.title,...saves})
       await tx.weapon.updateMany({where:{characterId:c.id},data:{attackThrow:preview.attack}})
       if(additions.length)await tx.proficiency.createMany({data:additions.map((p:any)=>({...p,characterId:c.id}))})
-      await tx.auditLog.create({data:{characterId:c.id,userId:(req.user as any).id,action:'LEVEL_ADVANCEMENT',details:JSON.stringify({dice:input.dice,preview})}})
+      await tx.auditLog.create({data:{characterId:c.id,campaignId:c.campaignId,userId:(req.user as any).id,action:'LEVEL_ADVANCEMENT',details:JSON.stringify({dice:input.dice,preview})}})
       return {...preview, character: await mutationCharacter(tx,c.id)}
     }, {isolationLevel:'Serializable'})
   })
@@ -101,7 +176,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       await updateVersion(tx,c,input.version)
       await tx.spell.deleteMany({where:{characterId:c.id}})
       await tx.spell.createMany({data:input.spells.map((s:any)=>({...s,characterId:c.id}))})
-      await tx.auditLog.create({data:{characterId:c.id,userId:(req.user as any).id,action:'REPERTOIRE_REPLACED',details:JSON.stringify({before:c.spells,after:input.spells})}})
+      await tx.auditLog.create({data:{characterId:c.id,campaignId:c.campaignId,userId:(req.user as any).id,action:'REPERTOIRE_REPLACED',details:JSON.stringify({before:c.spells,after:input.spells})}})
       return {ok:true, character: await mutationCharacter(tx, c.id), spells: await tx.spell.findMany({ where: { characterId: c.id } })}
     }, {isolationLevel:'Serializable'})
   })
@@ -121,7 +196,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       if((state.used[key]||0)>=pool.slots[spell.level-1]!)throw operationError('Não restam usos deste nível hoje.')
       state.used[key]=(state.used[key]||0)+1
       await updateVersion(tx,c,input.version,{rulesState:JSON.stringify(state)})
-      await tx.auditLog.create({data:{characterId:c.id,userId:(req.user as any).id,action:'SPELL_CAST',details:JSON.stringify({name:spell.name,key})}})
+      await tx.auditLog.create({data:{characterId:c.id,campaignId:c.campaignId,userId:(req.user as any).id,action:'SPELL_CAST',details:JSON.stringify({name:spell.name,key})}})
       return {used:state.used, character: await mutationCharacter(tx, c.id)}
     }, {isolationLevel:'Serializable'})
   })
@@ -132,7 +207,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       if(state.lastRestDay!=null&&input.day<=state.lastRestDay)throw operationError('Já houve recuperação neste dia; avance o dia de jogo (mínimo 24 horas).')
       state.used={};state.lastRestDay=input.day
       await updateVersion(tx,c,input.version,{rulesState:JSON.stringify(state)})
-      await tx.auditLog.create({data:{characterId:c.id,userId:(req.user as any).id,action:'SPELL_REST',details:JSON.stringify(input)}})
+      await tx.auditLog.create({data:{characterId:c.id,campaignId:c.campaignId,userId:(req.user as any).id,action:'SPELL_REST',details:JSON.stringify(input)}})
       return {ok:true, character: await mutationCharacter(tx, c.id)}
     }, {isolationLevel:'Serializable'})
   })

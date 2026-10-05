@@ -14,6 +14,7 @@
         </label>
       </div>
       <div class="session-refresh-group">
+        <label class="text-xs text-steel-light flex items-center gap-2"><input v-model="autoRefresh" type="checkbox" /> Atualizar automaticamente</label>
         <p class="text-xs text-steel" aria-live="polite">{{ updatedAt ? `Atualizado às ${updatedAt}` : 'Aguardando dados da sessão' }}</p>
         <button @click="loadSession" :disabled="loading" class="session-refresh-button">{{ loading ? 'Atualizando…' : 'Atualizar grupo' }}</button>
       </div>
@@ -79,7 +80,7 @@
           </tbody>
         </table>
       </div>
-      <p v-if="rows.length" class="session-legend">CA sem escudo, calculada com a armadura e os atributos atuais; o valor com escudo aparece abaixo. Movimento em pés por rodada de combate. Salvamentos: Morte · Implementos · Paralisia · Explosão · Magias. Use <strong>Atualizar grupo</strong> após alterações dos jogadores.</p>
+      <p v-if="rows.length" class="session-legend">CA sem escudo; o valor com escudo aparece abaixo. Movimento em pés por rodada. Salvamentos: Morte · Implementos · Paralisia · Explosão · Magias. Atualização a cada 30 segundos enquanto esta página está visível; pausada durante a distribuição de recompensas.</p>
     </template>
   </section>
 </template>
@@ -88,6 +89,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import api from '../services/api'
 import RewardsPanel from './RewardsPanel.vue'
+import { useVisiblePolling } from '../composables/visiblePolling'
 import { errorMessage } from '../utils/catalog'
 import { calculateCharacterMetrics } from '../utils/characterMetrics'
 import { magicTraditionName, sessionHpRatio, sessionHpStatus, sessionMagicResources, type SessionMagic } from '../utils/judgeSession'
@@ -107,6 +109,7 @@ const loading = ref(false)
 const loaded = ref(false)
 const loadError = ref('')
 const updatedAt = ref('')
+const autoRefresh = ref(true)
 let requestId = 0
 
 const saves = [
@@ -132,13 +135,14 @@ const rows = computed(() => {
 const woundedCount = computed(() => rows.value.filter(row => row.hpStatus !== 'Pronto').length)
 function campaignName(id: string | null) { return campaigns.value.find(campaign => campaign.id === id)?.name || 'Avulso' }
 
-async function loadSession() {
+async function loadSession(signal?: AbortSignal | Event) {
   if (loading.value) return
   const id = ++requestId
   loading.value = true
   loadError.value = ''
   try {
-    const response = await api.get('/api/session')
+    const response = await api.get('/api/session', { signal: signal instanceof AbortSignal ? signal : undefined })
+    if (signal instanceof AbortSignal && (signal.aborted || showRewards.value)) return
     if (id !== requestId) return
     campaigns.value = response.data.campaigns
     characters.value = response.data.characters
@@ -153,5 +157,6 @@ async function loadSession() {
 }
 
 onMounted(loadSession)
+useVisiblePolling(signal => loadSession(signal), () => !autoRefresh.value || showRewards.value || loading.value)
 onBeforeUnmount(() => { requestId++ })
 </script>

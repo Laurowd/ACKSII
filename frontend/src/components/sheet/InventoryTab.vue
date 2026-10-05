@@ -56,6 +56,8 @@
         </div>
       </div>
       <p class="text-xs text-steel mb-3">6 itens leves = 1 stone. Capacidade da mochila: 4 stone.</p>
+      <label class="block text-sm text-steel-light mb-4">Buscar no inventário<input v-model="itemSearch" type="search" class="inp mt-1" placeholder="Nome ou anotação do item" /></label>
+      <p v-if="itemSearch && !visibleItems.length" role="status" class="text-sm text-steel-light mb-3">Nenhum item encontrado. <button type="button" @click="itemSearch = ''" class="text-gold underline">Limpar busca</button></p>
 
       <!-- Encumbrance bar -->
       <div class="w-full bg-dark-bg rounded-full h-3 mb-4 overflow-hidden">
@@ -65,7 +67,7 @@
       </div>
 
       <!-- Items by slot -->
-      <div v-for="slot in SLOTS" :key="slot.key" class="mb-4">
+      <div v-for="slot in SLOTS.filter(slot => !itemSearch || getItemsBySlot(slot.key).length)" :key="slot.key" class="mb-4">
         <h4 class="text-sm font-bold text-steel-light uppercase tracking-wider mb-2 flex items-center gap-1">
           {{ slot.label }}
         </h4>
@@ -123,6 +125,9 @@ const compendiumItems = ref<any[]>([])
 const shopItems = ref<any[]>([])
 const showShop = ref(false)
 const buying = ref(false)
+const itemSearch = ref('')
+const normalizedSearch = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR')
+const visibleItems = computed(() => (props.character.items || []).filter((item: any) => normalizedSearch(`${item.name} ${item.notes || ''}`).includes(normalizedSearch(itemSearch.value.trim()))))
 const availableGp = computed(() => Number(props.character.coinGP || 0) + Number(props.character.coinSP || 0) / 10 + Number(props.character.coinCP || 0) / 100)
 
 function isRuleEnabled(key: string) {
@@ -149,7 +154,7 @@ const SLOTS = [
 ]
 
 function getItemsBySlot(slot: string) {
-  return props.character?.items?.filter((i: any) => i.slot === slot) || []
+  return visibleItems.value.filter((i: any) => i.slot === slot)
 }
 
 onMounted(() => {

@@ -299,7 +299,7 @@ test('audit history belongs to the selected campaign and errors do not look like
   }
   let release!: () => void, fail = false
   const gate = new Promise<void>(resolve => { release = resolve })
-  await page.route('**/api/campaigns/*/audit', async route => {
+  await page.route('**/api/campaigns/*/audit?*', async route => {
     const older = route.request().url().includes(campaigns[0].id)
     if (older) await gate
     if (fail) return route.fulfill({ status: 503, json: { error: 'Histórico indisponível.' } })
@@ -308,17 +308,17 @@ test('audit history belongs to the selected campaign and errors do not look like
   await page.goto('/dashboard')
   const filter = page.getByRole('combobox', { name: 'Filtrar fichas por campanha' })
   await filter.selectOption(campaigns[0].id)
-  const requested = page.waitForRequest(r => r.url().endsWith(`${campaigns[0].id}/audit`))
-  await page.getByRole('button', { name: 'Log de Alterações', exact: true }).click(); await requested
+  const requested = page.waitForRequest(r => new URL(r.url()).pathname.endsWith(`${campaigns[0].id}/audit`))
+  await page.getByRole('button', { name: 'Histórico da campanha', exact: true }).click(); await requested
   await filter.selectOption(campaigns[1].id)
-  await page.getByRole('button', { name: 'Log de Alterações', exact: true }).click()
+  await page.getByRole('button', { name: 'Histórico da campanha', exact: true }).click()
   await expect(page.getByText('Registro atual', { exact: true })).toBeVisible()
-  const oldResponse = page.waitForResponse(r => r.url().endsWith(`${campaigns[0].id}/audit`))
+  const oldResponse = page.waitForResponse(r => new URL(r.url()).pathname.endsWith(`${campaigns[0].id}/audit`))
   release(); await oldResponse
   await expect(page.getByText('Registro antigo', { exact: true })).toHaveCount(0)
   await expect(page.getByText('Registro atual', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Ocultar Logs', exact: true }).click(); fail = true
-  await page.getByRole('button', { name: 'Log de Alterações', exact: true }).click()
+  await page.getByRole('button', { name: 'Ocultar histórico', exact: true }).click(); fail = true
+  await page.getByRole('button', { name: 'Histórico da campanha', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('Histórico indisponível.')
   await expect(page.getByText('Nenhuma alteração recente registrada.')).toHaveCount(0)
   await expect(page.getByText('Registro atual', { exact: true })).toHaveCount(0)
@@ -328,7 +328,7 @@ test('audit history belongs to the selected campaign and errors do not look like
   await page.route('**/api/campaigns', route => route.fulfill({ json: [{ ...campaigns[0], masterId: 'another-master' }] }))
   await page.reload()
   await filter.selectOption(campaigns[0].id)
-  await expect(page.getByRole('button', { name: 'Log de Alterações', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Histórico da campanha', exact: true })).toHaveCount(0)
 })
 
 test('replacing an import file ignores late results and imports the displayed document', async ({ page }) => {

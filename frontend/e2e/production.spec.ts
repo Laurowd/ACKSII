@@ -80,6 +80,7 @@ test('registration, campaign, creation, purchase, saving, conflict, export and l
 })
 
 test('password recovery presents a neutral confirmation', async ({ page }) => {
+  await page.route('**/api/auth/capabilities', route => route.fulfill({ json: { passwordRecovery: true } }))
   await page.goto('/login')
   await page.getByRole('link', { name: 'Esqueci minha senha' }).click()
   await page.getByLabel('E-mail').fill('unknown@test.invalid')

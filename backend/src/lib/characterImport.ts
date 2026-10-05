@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { scalarBody } from './inputSchemas';
+import { validateCombatConfiguration } from './combatConfiguration';
 import { abilityModifier } from './creationRules';
 
 export const importedRelations = {
@@ -56,7 +57,7 @@ export const characterImportBody = {
             characterName: { type: 'string', minLength: 1, maxLength: 1000 },
             // Older exports included the revision; it never belongs to the new sheet.
             version: { type: 'integer', minimum: 0, maximum: 2147483647 },
-            rulesState: jsonValue,
+            rulesState: { anyOf: [{ type: 'string', maxLength: 80000 }, { type: 'object', maxProperties: 100 }] },
             ...Object.fromEntries(Object.entries(importedRelations).map(([name, model]) => [name, { type: 'array', maxItems: 500, items: importScalarBody(model) }])),
             domain: { anyOf: [importScalarBody('Domain'), { type: 'null' }] },
           },
@@ -95,22 +96,32 @@ export function assertCharacterImportFields(body: unknown) {
   check(character.domain, importScalarBody('Domain').properties, 'Domínio');
 }
 
-function jsonObject(value: unknown, label: string): Record<string, any> {
+function jsonObject(value: unknown, label: string, maxLength = 20000): Record<string, any> {
   let parsed: unknown = value;
   if (typeof value === 'string') {
     try { parsed = JSON.parse(value); }
     catch { throw new CharacterImportError(`${label}: JSON inválido.`); }
   }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || JSON.stringify(parsed).length > 20000) {
-    throw new CharacterImportError(`${label}: informe um objeto JSON com até 20.000 caracteres.`);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || JSON.stringify(parsed).length > maxLength) {
+    throw new CharacterImportError(`${label}: informe um objeto JSON com até ${maxLength} caracteres.`);
   }
   return parsed as Record<string, any>;
 }
 
 function restoredRulesState(value: unknown, warnings: string[]) {
   if (value === undefined) return '{}';
-  const state = jsonObject(value, 'Estado de regras');
+  const state = jsonObject(value, 'Estado de regras', 80000);
   const restored: Record<string, any> = {};
+  if (state.formulas !== undefined) {
+    if (!Array.isArray(state.formulas) || state.formulas.length > 100 || state.formulas.some((entry: any) => !entry || typeof entry.name !== 'string' || !entry.name.trim() || entry.name.length > 160 || !Number.isInteger(entry.level) || entry.level < 1 || entry.level > 6 || !['arcane', 'divine'].includes(entry.tradition) || typeof entry.source !== 'string' || entry.source.length > 300)) throw new CharacterImportError('Fórmulas do grimório inválidas.');
+    restored.formulas = state.formulas.map((entry: any) => ({ name: entry.name, level: entry.level, tradition: entry.tradition, source: entry.source }));
+  }
+  if (state.study) warnings.push('O estudo em andamento foi preservado apenas na ficha original. Confira a semana de dedicação com o mestre e inicie um novo registro nesta cópia.');
+  if (state.combat !== undefined) {
+    let combat; try { combat = validateCombatConfiguration(state.combat); } catch (error) { throw new CharacterImportError((error as Error).message); }
+    restored.combat = { ...combat, modifiers: combat.modifiers.filter((entry: any) => !entry.itemId) };
+    if (combat.modifiers.some((entry: any) => entry.itemId)) warnings.push('Bônus vinculados a itens precisam ser associados novamente aos itens importados; não foram aplicados para evitar referências à ficha anterior.');
+  }
   if (state.used !== undefined) {
     const used = jsonObject(state.used, 'Usos de magia');
     for (const [key, amount] of Object.entries(used)) {
@@ -126,7 +137,7 @@ function restoredRulesState(value: unknown, warnings: string[]) {
     }
     restored.lastRestDay = state.lastRestDay;
   }
-  if (Object.keys(state).some(key => !['used', 'lastRestDay'].includes(key))) {
+  if (Object.keys(state).some(key => !['used', 'lastRestDay', 'combat', 'formulas', 'study'].includes(key))) {
     warnings.push('O histórico de aventuras, meses e projetos não foi importado; seus registros dependem dos identificadores da ficha original. Saldos e XP atuais foram preservados, sem reaplicar operações.');
   }
   return JSON.stringify(restored);
@@ -163,7 +174,7 @@ export function prepareCharacterImport(source: Record<string, any>) {
   const modifier = abilityModifier(fields.dex ?? 10), adjustment = fields.acAdjustment ?? 0, armor = fields.armorAcBonus ?? 0;
   Object.assign(fields, { acNoArmor: modifier + adjustment, acNoShield: armor + modifier + adjustment, acWithShield: armor + modifier + adjustment + 1 });
   if (source.rulesState !== undefined) {
-    const state = jsonObject(source.rulesState, 'Estado de regras');
+    const state = jsonObject(source.rulesState, 'Estado de regras', 80000);
     if (state.research && typeof state.research === 'object' && Object.keys(state.research).length && (source.magicItemResearch || []).some((project: any) => ['IN_PROGRESS', 'READY'].includes(project.status))) {
       warnings.push('Projetos acompanhados em andamento foram preservados como registros manuais, com seu estado e prazo atuais. Acompanhe a continuação com o mestre; materiais já pagos não foram cobrados novamente.');
     }

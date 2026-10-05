@@ -30,6 +30,10 @@
         <h3 id="character-spells-title" class="font-bold text-gold">Magias do personagem</h3>
         <p class="text-sm text-steel-light mt-1">Consulte o efeito na interrogação de cada magia. Conjurar registra o gasto de um uso diário.</p>
       </div>
+      <div class="flex flex-wrap items-end gap-3">
+        <label class="text-sm text-steel-light flex-1 min-w-40">Buscar magia<input v-model="spellSearch" type="search" class="inp mt-1" placeholder="Nome da magia" /></label>
+        <label class="text-sm text-steel-light flex items-center gap-2 py-2"><input v-model="favoritesOnly" type="checkbox" /> Apenas favoritas</label>
+      </div>
       <p v-if="descriptionsLoading" role="status" class="text-sm text-steel-light">Carregando descrições das magias...</p>
       <div v-if="descriptionsError" role="alert" class="text-sm text-red-400">
         <p>{{ descriptionsError }}</p><button type="button" @click="emit('retry-descriptions')" :disabled="descriptionsLoading" class="mt-2 text-gold underline">Tentar carregar descrições novamente</button>
@@ -40,6 +44,7 @@
           <ul class="space-y-2">
             <li v-for="spell in group.spells" :key="spell.id" class="flex flex-wrap gap-3 items-center justify-between rounded-lg bg-dark-card px-3 py-3">
               <div class="flex items-center gap-2 min-w-0 flex-1">
+                <button type="button" @click="toggleFavorite(spell)" :aria-label="`${isFavorite(spell) ? 'Remover dos favoritos' : 'Favoritar'} ${spell.name}`" :aria-pressed="isFavorite(spell)" class="text-gold text-lg shrink-0">{{ isFavorite(spell) ? '★' : '☆' }}</button>
                 <HelpTooltip :label="spell.name || 'Magia sem nome'">{{ spellDescription(spell) }}</HelpTooltip>
                 <div class="min-w-0"><strong class="block break-words text-dark-text">{{ spell.name || 'Magia sem nome' }}</strong><span class="block text-xs text-steel-light">{{ traditionName(spellTradition(info, spell)) }}</span></div>
               </div>
@@ -49,9 +54,10 @@
         </section>
       </div>
       <p v-if="!character.spells?.length" class="text-sm text-steel-light rounded-lg border border-dashed border-steel-dark p-4">Nenhuma magia registrada para este personagem.</p>
+      <p v-else-if="!spellGroups.length" role="status" class="text-sm text-steel-light">Nenhuma magia corresponde aos filtros. <button type="button" @click="spellSearch = ''; favoritesOnly = false" class="text-gold underline">Limpar filtros</button></p>
       <p v-if="info.supported && info.magic?.length" class="text-xs text-steel-light">O repertório é a lista de magias disponíveis para o personagem. Os usos diários são compartilhados entre as magias de cada nível e tradição.</p>
       <p v-if="info.supported && info.magic?.length" class="text-xs text-steel-light">Magias interrompidas também gastam um uso. Não há preparação prévia de magias.</p>
-      <details v-if="info.supported && info.magic?.length && !loading" :open="repertoireDraft.open" class="border border-steel-dark p-3 rounded-lg" @toggle="onEditorToggle">
+      <details v-if="!compact && info.supported && info.magic?.length && !loading" :open="repertoireDraft.open" class="border border-steel-dark p-3 rounded-lg" @toggle="onEditorToggle">
         <summary class="cursor-pointer font-bold text-gold">Editar repertório com validação</summary>
         <fieldset :disabled="busy || loading" class="min-w-0 space-y-3 mt-3">
           <div v-for="(spell, i) in repertoire" :key="i" class="grid grid-cols-[minmax(0,1fr)_4rem] sm:flex items-center gap-2">
@@ -91,12 +97,23 @@ import { errorMessage } from '../../utils/catalog'
 import { useCharacterOperations } from '../../composables/characterOperations'
 import { remainingSpellUses, spellTradition, repertoireHasChanges, repertoireSnapshot, type RepertoireDraft } from '../../utils/spellcasting'
 import { spellValidation } from '../../utils/ruleChoices'
+import { useAuthStore } from '../../stores/auth'
 
 const props = defineProps<{ character: any; prepare: () => Promise<boolean>; refresh: () => Promise<void>;
-  repertoireDraft: RepertoireDraft;
+  repertoireDraft: RepertoireDraft; compact?: boolean;
   spellDescriptions?: { name: string; level?: number; notes?: string }[]; descriptionsLoading?: boolean; descriptionsError?: string }>()
 const emit = defineEmits<{ 'retry-descriptions': [] }>()
 const operations = useCharacterOperations()
+const spellSearch = ref(''), favoritesOnly = ref(false), favorites = ref<string[]>([])
+const favoriteKey = () => `acks:spell-favorites:${useAuthStore().user?.id || ''}:${props.character.id}`
+const spellKey = (spell: any) => `${spell.tradition || ''}:${spell.level}:${String(spell.name).trim().toLowerCase()}`
+const isFavorite = (spell: any) => favorites.value.includes(spellKey(spell))
+function toggleFavorite(spell: any) {
+  const key = spellKey(spell)
+  favorites.value = isFavorite(spell) ? favorites.value.filter(entry => entry !== key) : [...favorites.value, key].slice(-500)
+  try { localStorage.setItem(favoriteKey(), JSON.stringify(favorites.value)) } catch { notice.value = 'Favoritos disponíveis nesta visita; o navegador não permitiu guardá-los.' }
+}
+watch(() => props.character.id, () => { try { const value = JSON.parse(localStorage.getItem(favoriteKey()) || '[]'); favorites.value = Array.isArray(value) ? value.filter(entry => typeof entry === 'string').slice(0, 500) : [] } catch { favorites.value = [] } }, { immediate: true })
 const info = ref<any>({}), metadata = ref<any>({}), busy = ref(false), loading = ref(true), error = ref(''), notice = ref('')
 const repertoire = computed({ get: () => props.repertoireDraft.spells || [], set: value => { props.repertoireDraft.spells = value } })
 const orderApproved = computed({ get: () => props.repertoireDraft.orderApproved, set: value => { props.repertoireDraft.orderApproved = value } })
@@ -109,6 +126,8 @@ const canCast = (spell: any) => remaining(spellTradition(info.value, spell), spe
 const spellGroups = computed(() => {
   const groups = new Map<number, any[]>()
   for (const spell of props.character.spells || []) {
+    const normalized = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    if (!normalized(String(spell.name || '')).includes(normalized(spellSearch.value.trim())) || (favoritesOnly.value && !isFavorite(spell))) continue
     const level = Number(spell.level) || 0
     if (!groups.has(level)) groups.set(level, [])
     groups.get(level)!.push(spell)

@@ -47,6 +47,6 @@ O menu **Painel do Mestre → Sessão da campanha** mostra personagens das campa
 
 A tabela reúne PV atuais/máximos, CA, movimento de combate e exploração, os cinco salvamentos e usos restantes de magia por tradição e nível. A CA principal é sem escudo; a referência com escudo aparece abaixo. Classes sem cálculo automático de magia são identificadas como controle manual.
 
-Use os filtros de campanha e nome do personagem/jogador para organizar o grupo. Clique no nome para abrir a ficha e em **Atualizar grupo** após alterações dos jogadores. O horário indica a última leitura concluída. Se a atualização falhar, a tela mantém os valores anteriores e informa que estão desatualizados.
+Use os filtros de campanha e nome do personagem/jogador para organizar o grupo. Clique no nome para abrir a ficha. A atualização automática ocorre a cada 30 segundos enquanto a página está visível e fica pausada durante a distribuição de recompensas; também pode ser desativada. **Atualizar grupo** solicita uma leitura imediata. O horário indica a última leitura concluída. Se a atualização falhar, a tela mantém os valores anteriores e informa que estão desatualizados.
 
 **Consultar regras** preserva a busca no compêndio e as tabelas do escudo. Em celulares, cada personagem aparece como um cartão; os temas escuro e pergaminho compartilham os mesmos dados e cálculos.

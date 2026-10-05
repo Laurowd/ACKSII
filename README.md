@@ -10,6 +10,8 @@ Para uma janela de carga explicitamente autorizada no site publicado, há um [ro
 
 As [melhorias de desempenho e recuperação](docs/MELHORIAS_DESEMPENHO_E_RASCUNHOS.md) incluem consultas mais leves, cache de catálogos, rascunhos locais, busca de personagens e métricas de latência.
 
+As [melhorias de sessão](docs/MELHORIAS_SESSAO.md) incluem a aba compacta Sessão, busca de inventário, magias favoritas, histórico legível e paginado, atualização do grupo, aviso de alterações externas, origens de bônus e aprendizado por uma semana de estudo.
+
 Para hospedar em servidor com Docker, consulte [Implantação e operação](docs/PRODUCAO.md): Docker Compose, HTTPS, migrações, backups, restauração, rollback e homologação.
 
 Para continuar usando o banco existente no Neon, siga [Produção com Neon](docs/PRODUCAO_NEON.md). Há um Compose sem banco local, conexões separadas para API/migrações e exportação com teste de restauração isolado.

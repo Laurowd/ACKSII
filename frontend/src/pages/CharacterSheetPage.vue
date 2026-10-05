@@ -18,6 +18,12 @@
         <div class="flex flex-wrap gap-4"><button v-if="recovery.data.character?.version === char.version" @click="restoreSheetDraft" type="button" class="text-gold underline">Recuperar rascunho</button><button @click="downloadLocalDraft" type="button" class="text-gold underline">Baixar rascunho</button><button @click="discardSheetDraft" type="button" class="text-steel-light underline">Descartar rascunho local</button></div>
       </div>
       <p v-if="storageWarning" role="alert" class="mb-4 text-gold">Não foi possível guardar as alterações neste navegador. Exporte o JSON e mantenha a página aberta até salvar.</p>
+      <div v-if="remoteVersion !== null" role="status" class="mb-4 rounded-xl border border-gold/30 bg-dark-card p-4 text-sm space-y-2">
+        <p>A ficha ou as regras da campanha foram alteradas em outra sessão. Suas edições locais continuam aqui.</p>
+        <button type="button" @click="loadRemoteVersion" :disabled="anySaving || anyPendingChanges || !!recovery" class="text-gold underline disabled:opacity-40">Atualizar ficha sem alterações pendentes</button>
+        <p v-if="anyPendingChanges || recovery" class="text-steel-light">Salve ou exporte suas alterações antes de carregar a versão atual.</p>
+      </div>
+      <p v-if="revisionError" role="status" class="mb-4 text-sm text-steel-light">{{ revisionError }}</p>
       <p v-if="recoveredMutations.length" role="status" class="mb-4 rounded-xl border border-gold/30 p-4 text-sm">{{ recoveredMutations.length }} alteração(ões) recuperada(s) aguardam confirmação. Use Salvar para reenviar com a versão original.</p>
       <div v-if="contextLoading" role="status" class="mb-4 rounded-xl border border-steel-dark p-4 text-steel-light">Carregando catálogo e regras da campanha…</div>
       <div v-else-if="contextError" role="alert" class="mb-4 rounded-xl border border-red-400/50 p-4 space-y-2">
@@ -86,6 +92,8 @@
 
       <!-- Tab Contents -->
       <div v-if="contextReady" role="tabpanel" :id="`sheet-${currentTab}`" :aria-labelledby="`tab-${currentTab}`" class="tab-content transition-all">
+        <SessionTab v-if="currentTab === 'session'" :character="char" :definition="selectedClass(customClasses, char)" :prepare="saveCharacter" :refresh="refreshRuleCharacter" :repertoire-draft="repertoireDraft" :busy="anySaving" @save="autoSave" />
+        <CombatModifiersPanel v-if="currentTab === 'combat'" :character="char" :definition="selectedClass(customClasses, char)" class="mb-4" />
         <RulesAssistant v-if="currentTab === 'rules'" :character="char" :prepare="saveCharacter" :refresh="refreshRuleCharacter" :can-manage="canManageRules" @open-magic="currentTab = 'magic'" />
         <CombatTab
           v-if="currentTab === 'combat'"
@@ -173,6 +181,9 @@ import { errorMessage, selectedClass, type CatalogClass } from '../utils/catalog
 import { characterExport, characterPrintHtml, downloadCharacter } from '../utils/characterExport'
 import { emptyRepertoireDraft, repertoireHasChanges, repertoireSnapshot } from '../utils/spellcasting'
 import { createLocalDraft, type LocalDraft } from '../utils/localDrafts'
+import { useVisiblePolling } from '../composables/visiblePolling'
+import CombatModifiersPanel from '../components/sheet/CombatModifiersPanel.vue'
+import SessionTab from '../components/sheet/SessionTab.vue'
 import { recentCharacters } from '../utils/characterList'
 import { observeMutations, type SavedMutation } from '../services/mutationJournal'
 import { belongsToCharacter, canReplayMutation, isCorrectedEditor, restoreEditableFields } from '../utils/sheetRecovery'
@@ -319,6 +330,7 @@ const defaultOptionalRules: Record<string, boolean> = {
 const campaignOptionalRules = ref({ ...defaultOptionalRules })
 
 const TABS = [
+  { id: 'session', label: 'Sessão' },
   { id: 'rules', label: 'Evolução & Regras' },
   { id: 'combat', label: 'Geral & Combate' },
   { id: 'inventory', label: 'Inventário & Tesouro' },
@@ -327,6 +339,23 @@ const TABS = [
   { id: 'activities', label: 'Atividades e Downtime' },
 ]
 const currentTab = ref('combat')
+const remoteVersion = ref<number | null>(null), revisionError = ref('')
+let observedCampaignRevision: string | null | undefined
+useVisiblePolling(async signal => {
+  if (!char.value) return
+  const id = char.value.id
+  try {
+    const { data } = await api.get(`/api/characters/${id}/revision`, { signal })
+    if (signal.aborted || char.value?.id !== id) return
+    revisionError.value = ''
+    if (data.version > char.value.version || (observedCampaignRevision !== undefined && data.campaignUpdatedAt !== observedCampaignRevision)) remoteVersion.value = data.version
+    observedCampaignRevision = data.campaignUpdatedAt
+  } catch { if (!signal.aborted) revisionError.value = 'Não foi possível verificar novas alterações. Seus dados permanecem na ficha; a verificação será repetida.' }
+}, () => loading.value || anySaving.value)
+async function loadRemoteVersion() {
+  if (anySaving.value || anyPendingChanges.value || recovery.value) return
+  if (await reloadAfterConflict()) { remoteVersion.value = null; revisionError.value = '' }
+}
 const canManageRules = computed(() => authStore.isMaster && (!char.value?.campaignId || campaigns.value.some(c => c.id === char.value.campaignId && c.masterId === authStore.user?.id)))
 async function refreshRuleCharacter() {
   const before = JSON.parse(JSON.stringify(char.value))
@@ -401,6 +430,7 @@ async function loadCampaignContext() {
     if (catalog!.status === 'fulfilled' && settings!.status === 'fulfilled') {
       customClasses.value = catalog!.value.data
       campaignOptionalRules.value = { ...defaultOptionalRules, ...settings!.value.data.optionalRules }
+      observedCampaignRevision = settings!.value.data.updatedAt || null
       const definition = selectedClass(customClasses.value, char.value)
       if (definition && (!char.value.classKey || definition.legacyIds?.includes(char.value.classKey))) char.value.classKey = definition.id
       contextReady.value = true
@@ -568,7 +598,7 @@ async function saveCharacter(operationKey?: string): Promise<boolean> {
 }
 
 async function reloadAfterConflict() {
-  if (!window.confirm('Descartar as alterações locais e carregar a ficha atual? Exporte o JSON primeiro se quiser guardá-las.')) return
+  if (!window.confirm('Carregar a ficha atual? Edições locais serão substituídas; exporte o JSON primeiro se quiser guardá-las.')) return false
   try {
     const res = await api.get(`/api/characters/${char.value.id}`)
     operations.clearPending()
@@ -583,7 +613,8 @@ async function reloadAfterConflict() {
     saveQueued = false
     if (saveTimeout) { clearTimeout(saveTimeout); saveTimeout = null }
     await loadCampaignContext()
-  } catch (error) { notifyError(errorMessage(error, 'Não foi possível carregar a ficha.')) }
+    return contextReady.value
+  } catch (error) { notifyError(errorMessage(error, 'Não foi possível carregar a ficha.')); return false }
 }
 
 function normalizeLoadedCharacter() {
@@ -645,6 +676,7 @@ onBeforeUnmount(() => {
 })
 watch([char, repertoireDraft, anyPendingChanges, anySaving], persistSheetDraft, { deep: true })
 watch(() => route.params.id, () => {
+  remoteVersion.value = null; observedCampaignRevision = undefined; revisionError.value = ''
   operations.clearPending(); mutationDrafts.clear(); recoveredMutations.value = []; recovery.value = null
   hasPendingChanges.value = false; saveError.value = false; saveConflict.value = false; repertoireDraft.value = emptyRepertoireDraft()
   if (saveTimeout) { clearTimeout(saveTimeout); saveTimeout = null }

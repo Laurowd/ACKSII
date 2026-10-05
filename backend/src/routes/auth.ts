@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import prisma from '../lib/prisma';
 import { authGuard } from '../middleware/auth';
 import { rateLimitByIp } from '../lib/rateLimit';
-import { hashResetToken, sendPasswordReset } from '../lib/passwordReset';
+import { hashResetToken, sendPasswordReset, passwordResetConfigured } from '../lib/passwordReset';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -34,6 +34,7 @@ const loginBodySchema = {
 } as const;
 
 export async function authRoutes(app: FastifyInstance) {
+  app.get('/capabilities', async () => ({ passwordRecovery: passwordResetConfigured() }));
   const registerRateLimit = rateLimitByIp(10, 60_000, 'auth-register');
   const loginRateLimit = rateLimitByIp(20, 60_000, 'auth-login');
   const meRateLimit = rateLimitByIp(120, 60_000, 'auth-me');

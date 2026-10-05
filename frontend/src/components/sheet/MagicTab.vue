@@ -1,5 +1,6 @@
 <template>
   <div class="space-y-4">
+    <SpellLearningPanel :character="character" />
     <SpellcastingPanel :character="character" :prepare="prepare" :refresh="refresh"
       :repertoire-draft="repertoireDraft"
       :spell-descriptions="compendiumSpells" :descriptions-loading="loadingDescriptions" :descriptions-error="descriptionsError"
@@ -212,6 +213,7 @@ export default { name: 'MagicTab' }
 </script>
 
 <script setup lang="ts">
+import SpellLearningPanel from './SpellLearningPanel.vue'
 import api from '../../services/api'
 import { useCharacterRelations } from '../../composables/characterRelations'
 import HelpTooltip from '../HelpTooltip.vue'

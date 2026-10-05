@@ -13,7 +13,7 @@
       <div class="flex min-w-0 max-w-full flex-col items-end gap-2">
         <div class="flex flex-wrap max-w-full gap-2">
           <button v-if="canViewAudit" @click="toggleAudit" class="px-4 py-2 bg-dark-card border border-steel-dark text-gold hover:text-gold-light hover:border-gold rounded transition-all text-sm">
-            {{ showAuditLog ? 'Ocultar Logs' : 'Log de Alterações' }}
+            {{ showAuditLog ? 'Ocultar histórico' : 'Histórico da campanha' }}
           </button>
           
           <!-- Campaign Filter -->
@@ -77,21 +77,33 @@
 
     <!-- Master view -> grouped by player -->
     <div v-if="showAuditLog && authStore.isMaster" class="mb-8 bg-dark-card border border-gold/20 rounded-xl p-5 animate-slide-in">
-      <h2 class="text-xl font-bold text-gold mb-4 border-b border-steel-dark pb-2">Log de Alterações — {{ selectedCampaign?.name }}</h2>
-      <div v-if="loadingLogs" role="status" class="text-steel-light text-center py-4">Carregando logs...</div>
+      <h2 class="text-xl font-bold text-gold mb-4 border-b border-steel-dark pb-2">Histórico — {{ selectedCampaign?.name }}</h2>
+      <label class="block text-sm text-steel-light mb-4">Tipo de operação
+        <select v-model="auditAction" aria-label="Tipo de operação" @change="auditPage = 1; loadAudit()" class="inp mt-1" :disabled="loadingLogs">
+          <option value="">Todas as operações</option><option value="REWARD_SETTLEMENT">Distribuição de XP e ouro</option>
+          <option value="REWARD_RECEIVED">Recompensas individuais</option><option value="XP_ADJUSTMENT">Correções de XP</option>
+          <option value="ADVENTURE_SETTLEMENT">Aventuras</option><option value="LEVEL_ADVANCEMENT">Avanços de nível</option><option value="SPELL_CAST">Conjuração</option>
+        </select>
+      </label>
+      <div v-if="loadingLogs" role="status" class="text-steel-light text-center py-4">Carregando histórico…</div>
       <div v-else-if="auditError" role="alert" class="text-red-400"><p>{{ auditError }}</p><button @click="loadAudit" class="text-gold underline mt-2">Tentar carregar histórico novamente</button></div>
       <div v-else-if="auditLogs.length === 0" class="text-steel text-center py-4 border border-dashed border-steel-dark rounded-lg">Nenhuma alteração recente registrada.</div>
       <ul v-else class="space-y-3 max-h-100 overflow-y-auto pr-2 scrollbar-hide">
         <li v-for="log in auditLogs" :key="log.id" class="text-sm border-b border-steel-dark/30 pb-2 flex flex-col md:flex-row md:items-center justify-between">
           <div>
             <span class="text-gold-dark font-bold">{{ log.user?.username || 'Sistema' }}</span> 
-            <span class="text-steel"> editou a ficha de </span> 
-            <span class="font-bold text-steel-light">{{ log.character?.characterName || 'Desconhecido' }}</span>: 
-            <span class="text-gold ml-1">{{ log.details }}</span> 
+            <span class="text-steel"> · {{ presentAudit(log).subject }}</span>
+            <strong class="block text-gold mt-1">{{ presentAudit(log).title }}</strong>
+            <p v-for="(line, i) in presentAudit(log).lines" :key="i" class="text-steel-light break-words">{{ line }}</p>
           </div>
           <span class="text-[10px] text-steel shrink-0 mt-1 md:mt-0">{{ new Date(log.createdAt).toLocaleString('pt-BR') }}</span>
         </li>
       </ul>
+      <div v-if="!auditError" class="flex flex-wrap items-center justify-between gap-3 mt-4 text-sm">
+        <button @click="auditPage--; loadAudit()" :disabled="loadingLogs || auditPage <= 1" class="text-gold disabled:opacity-40">Página anterior</button>
+        <span role="status">Página {{ auditPage }} de {{ auditPages }} · {{ auditTotal }} registros</span>
+        <button @click="auditPage++; loadAudit()" :disabled="loadingLogs || auditPage >= auditPages" class="text-gold disabled:opacity-40">Próxima página</button>
+      </div>
     </div>
 
     <!-- Master view -> grouped by player -->
@@ -192,6 +204,7 @@ import { errorMessage } from '../utils/catalog'
 import { notifyError, notifySuccess } from '../utils/toast'
 import CharacterImportDialog from '../components/CharacterImportDialog.vue'
 import { filterCharacters, recentCharacters, type CharacterSort } from '../utils/characterList'
+import { presentAudit } from '../utils/auditPresentation'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -216,10 +229,11 @@ const showAuditLog = ref(false)
 const loadingLogs = ref(false)
 const auditLogs = ref<any[]>([])
 const auditError=ref('')
+const auditAction=ref(''),auditPage=ref(1),auditPages=ref(1),auditTotal=ref(0)
 const selectedCampaign=computed(()=>campaigns.value.find(c=>c.id===globalCampaignFilter.value))
 const canViewAudit=computed(()=>authStore.isMaster && selectedCampaign.value?.masterId===authStore.user?.id)
 let auditRequest=0
-function clearAudit(){auditRequest++;showAuditLog.value=false;auditLogs.value=[];auditError.value='';loadingLogs.value=false}
+function clearAudit(){auditRequest++;showAuditLog.value=false;auditLogs.value=[];auditError.value='';loadingLogs.value=false;auditPage.value=1;auditAction.value='';auditTotal.value=0;auditPages.value=1}
 watch(globalCampaignFilter,clearAudit,{flush:'sync'})
 onBeforeUnmount(clearAudit)
 
@@ -235,8 +249,8 @@ async function loadAudit() {
     auditLogs.value=[];auditError.value=''
     loadingLogs.value = true
     try {
-      const res = await api.get(`/api/campaigns/${campaignId}/audit`)
-      if(request===auditRequest)auditLogs.value = res.data
+      const res = await api.get(`/api/campaigns/${campaignId}/audit`, { params: { page: auditPage.value, action: auditAction.value || undefined } })
+      if(request===auditRequest){auditLogs.value = res.data.items || res.data;auditPages.value=res.data.pages || 1;auditTotal.value=res.data.total ?? auditLogs.value.length}
     } catch (e) { if(request===auditRequest)auditError.value=errorMessage(e, 'Não foi possível carregar o histórico.') }
     finally { if(request===auditRequest)loadingLogs.value = false }
   }
