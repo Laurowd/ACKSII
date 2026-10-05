@@ -23,12 +23,22 @@
           <div v-for="lev in 6" :key="lev" class="bg-dark-bg/30 rounded-lg p-3">
             <div class="flex items-center justify-between mb-2">
               <span class="font-bold text-gold">Nível {{ lev }}</span>
-              <button type="button" @click="addSpell(lev)" :aria-label="`Adicionar magia de nível ${lev}`" class="text-gold hover:text-gold-light text-sm">+</button>
+              <button type="button" @click="startSpell(lev)" :disabled="addingSpell" :aria-label="`Adicionar magia de nível ${lev}`" class="text-gold hover:text-gold-light text-sm disabled:opacity-40">+</button>
             </div>
             <div v-for="s in getSpellsByLevel(lev)" :key="s.id" class="flex items-center gap-1 mb-1">
               <input v-model="s.name" @change="saveSpellName(s)" class="inp-table min-w-0 flex-1 text-sm" placeholder="Nome da magia" :aria-label="`Magia de nível ${lev}`" :list="'acks-spell-compendium-' + lev" />
               <button type="button" @click="removeSpell(s.id)" :aria-label="`Remover magia ${s.name || 'sem nome'}`" class="text-crimson-light hover:text-crimson text-xs font-bold pl-1">X</button>
             </div>
+            <form v-if="newSpell?.level === lev" @submit.prevent="addSpell" class="mt-3 space-y-2">
+              <label class="block text-xs text-steel-light">Nome da nova magia
+                <input v-model="newSpell.name" required maxlength="160" :disabled="addingSpell" :aria-label="`Nome da nova magia de nível ${lev}`" :list="'acks-spell-compendium-' + lev" class="inp mt-1" placeholder="Escolha ou informe o nome" />
+              </label>
+              <label class="block text-xs text-steel-light">Tradição
+                <select v-model="newSpell.tradition" :disabled="addingSpell" :aria-label="`Tradição da nova magia de nível ${lev}`" class="inp mt-1"><option value="">A definir</option><option value="arcane">Arcana</option><option value="divine">Divina</option></select>
+              </label>
+              <p class="text-xs text-steel-light">Magias de campanha ficam como referência e têm conjuração controlada pelo mestre.</p>
+              <div class="flex flex-wrap gap-3"><button type="submit" :disabled="addingSpell || !newSpell.name.trim()" class="text-sm text-gold disabled:opacity-40">Confirmar magia</button><button type="button" @click="newSpell = null" :disabled="addingSpell" class="text-sm text-steel-light">Cancelar</button></div>
+            </form>
           </div>
         </div>
       </div>
@@ -328,8 +338,20 @@ function getSpellsByLevel(level: number) {
 }
 
 // Spells
-async function addSpell(level: number) {
-  await relations.add('spells', 'spells', 'spell', { level, name: '' }, String(level))
+const newSpell = ref<{ name: string; level: number; tradition: string } | null>(null)
+const addingSpell = ref(false)
+function startSpell(level: number) {
+  if (newSpell.value && (newSpell.value.name.trim() || newSpell.value.tradition) && !window.confirm('Descartar o nome da nova magia antes de escolher outro nível?')) return
+  newSpell.value = { level, name: '', tradition: '' }
+}
+async function addSpell() {
+  if (addingSpell.value || !newSpell.value?.name.trim()) return
+  const input = { ...newSpell.value, name: newSpell.value.name.trim(), tradition: newSpell.value.tradition || null }
+  addingSpell.value = true
+  try {
+    const result = await relations.add('spells', 'spells', 'spell', input, String(input.level))
+    if (result) newSpell.value = null
+  } finally { addingSpell.value = false }
 }
 
 async function removeSpell(id: string) {

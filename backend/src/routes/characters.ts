@@ -889,9 +889,11 @@ export async function characterRoutes(app: FastifyInstance) {
     const character = await tx.character.findUnique({ where: { id: characterId } });
     if (!character) return mutationResponse(404, { error: 'Character not found' });
     if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
-    const level = Math.min(6, Math.max(1, Number(data.level) || 1));
+    const name = String(data.name || '').trim();
+    if (!name) return mutationResponse(400, { error: 'Informe o nome da magia antes de adicioná-la.' });
+    const level = data.level ?? 1;
     const spell = await tx.spell.create({
-      data: { characterId, level, name: data.name || '' }
+      data: { characterId, level, name, tradition: data.tradition ?? null }
     });
     return mutationResponse(201, { spell });
   }));
@@ -905,9 +907,10 @@ export async function characterRoutes(app: FastifyInstance) {
     if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
     const existing = await tx.spell.findFirst({ where: { id: spellId, characterId } });
     if (!existing) return mutationResponse(404, { error: 'Spell not found' });
+    if (data.name !== undefined && !data.name.trim()) return mutationResponse(400, { error: 'Informe o nome da magia ou remova a entrada.' });
     const spell = await tx.spell.update({
       where: { id: spellId },
-      data: { name: data.name !== undefined ? String(data.name) : undefined },
+      data: { name: data.name?.trim(), level: data.level, tradition: data.tradition },
     });
     return mutationResponse(200, { spell });
   }));

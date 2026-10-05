@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 const accounts: Record<string, any> = {}
 
 test('player proficiency edits use validated choices while test targets stay editable', async ({ page }) => {
@@ -194,6 +195,84 @@ test('description loading failure offers retry while spells and casting remain a
   await expect(list.getByRole('alert')).toHaveCount(0)
   await list.getByRole('button', { name: 'Ajuda: Slumber', exact: true }).hover()
   await expect(page.getByRole('tooltip')).toContainText('This spell')
+})
+
+test('invalid divine entries are explained and cannot block casting a valid spell', async ({ page }) => {
+  const { character, headers } = await openMage(page)
+  expect((await page.request.put(`/api/characters/${character.id}`, { headers, data: { version: character.version, classKey: 'catalog:priestess', level: 8 } })).status()).toBe(200)
+  const stored = (await (await page.request.get(`/api/characters/${character.id}`, { headers })).json()).character
+  expect((await page.request.post(`/api/game-rules/characters/${character.id}/magic/repertoire`, { headers, data: { version: stored.version, orderApproved: true, spells: [{ name: 'Discern Gist', level: 1, tradition: 'divine' }] } })).status()).toBe(200)
+  const current = (await (await page.request.get(`/api/characters/${character.id}`, { headers })).json()).character
+  expect((await page.request.post(`/api/characters/${character.id}/spells`, { headers, data: { version: current.version, name: 'Magia', level: 1, tradition: 'divine' } })).status()).toBe(201)
+  await page.reload()
+  await page.getByRole('button', { name: 'Magia', exact: true }).click()
+  const list = page.getByRole('region', { name: 'Magias do personagem', exact: true })
+  await expect(list.getByRole('button', { name: 'Conjurar Magia', exact: true })).toBeDisabled()
+  await expect(list.getByText(/Conjuração automática indisponível/)).toBeVisible()
+  await expect(list.getByRole('button', { name: 'Conjurar Discern Gist', exact: true })).toBeEnabled()
+  const cast = page.waitForResponse(r => r.url().endsWith('/magic/cast') && r.request().method() === 'POST')
+  await list.getByRole('button', { name: 'Conjurar Discern Gist', exact: true }).click()
+  expect((await cast).status()).toBe(200)
+  await expect(page.getByRole('status').filter({ hasText: 'Uso de magia registrado.' })).toBeVisible()
+  const saved = (await (await page.request.get(`/api/characters/${character.id}`, { headers })).json()).character
+  expect(JSON.parse(saved.rulesState).used['divine:1']).toBe(1)
+  expect(saved.spells.some((spell: any) => spell.name === 'Magia')).toBe(true)
+})
+
+test('adding a manual spell creates nothing until a name is confirmed and cancellation creates no placeholder', async ({ page }) => {
+  const { character, headers } = await openMage(page)
+  await page.getByRole('button', { name: 'Magia', exact: true }).click()
+  await page.getByText('Exceções de magia (mestre)', { exact: true }).click()
+  await page.getByRole('button', { name: 'Adicionar magia de nível 1', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Confirmar magia', exact: true })).toBeDisabled()
+  const count = async () => (await (await page.request.get(`/api/characters/${character.id}`, { headers })).json()).character.spells.length
+  expect(await count()).toBe(1)
+  await page.getByRole('button', { name: 'Cancelar', exact: true }).click()
+  expect(await count()).toBe(1)
+  await page.getByRole('button', { name: 'Adicionar magia de nível 1', exact: true }).click()
+  await page.getByLabel('Nome da nova magia de nível 1', { exact: true }).fill('Arcane Armor')
+  await page.getByLabel('Tradição da nova magia de nível 1', { exact: true }).selectOption('arcane')
+  const added = page.waitForResponse(r => r.url().endsWith('/spells') && r.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Confirmar magia', exact: true }).click()
+  expect((await added).status()).toBe(201)
+  await page.reload()
+  await page.getByRole('button', { name: 'Magia', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Magias do personagem', exact: true }).getByText('Arcane Armor', { exact: true })).toBeVisible()
+  const saved = (await (await page.request.get(`/api/characters/${character.id}`, { headers })).json()).character
+  expect(saved.spells).toHaveLength(2)
+  expect(saved.spells.find((spell: any) => spell.name === 'Arcane Armor').tradition).toBe('arcane')
+})
+
+test('login and magic run under production CSP without inline scripts or local file links', async ({ page }) => {
+  const config = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'))
+  const policy = config.headers.flatMap((rule: any) => rule.headers).find((header: any) => header.key === 'Content-Security-Policy').value
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()) })
+  await page.addInitScript(() => {
+    (window as any).violations = []
+    document.addEventListener('securitypolicyviolation', event => (window as any).violations.push(event.effectiveDirective + ':' + event.blockedURI))
+  })
+  await page.route('**/*', async route => {
+    if (route.request().resourceType() !== 'document') return route.continue()
+    const response = await route.fetch()
+    await route.fulfill({ response, headers: { ...response.headers(), 'content-security-policy': policy } })
+  })
+  await page.goto('/login')
+  await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => (window as any).violations)).toEqual([])
+  await openMage(page)
+  await page.getByRole('button', { name: 'Magia', exact: true }).click()
+  await page.getByRole('button', { name: 'Ajuda: Slumber', exact: true }).hover()
+  await expect(page.getByRole('tooltip')).toContainText('This spell')
+  await page.keyboard.press('Escape')
+  const cast = page.waitForResponse(r => r.url().endsWith('/magic/cast') && r.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Conjurar Slumber', exact: true }).click()
+  expect((await cast).status()).toBe(200)
+  await expect(page.getByRole('status').filter({ hasText: 'Uso de magia registrado.' })).toBeVisible()
+  expect(await page.locator('script:not([src]), [href^="file:"], [src^="file:"]').count()).toBe(0)
+  expect(await page.evaluate(() => (window as any).violations)).toEqual([])
+  expect(errors).toEqual([])
 })
 
 test('legacy spells remain readable without automatic casting and unknown descriptions have an explanation', async ({ page }) => {

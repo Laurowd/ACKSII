@@ -27,6 +27,11 @@ export function scalarBody(modelName: string) {
   if (modelName === 'CharacterActivity') properties.status = { type: 'string', enum: ['QUEUED', 'ACTIVE', 'COMPLETED', 'CANCELLED'] }
   if (modelName === 'MercantileVenture') properties.status = { type: 'string', enum: ['IN_TRANSIT', 'SOLD'] }
   if (modelName === 'Proficiency') properties.category = { type: 'string', enum: ['adventuring', 'class', 'general'] }
+  if (modelName === 'Spell') {
+    properties.name = { type: 'string', minLength: 1, maxLength: 160 }
+    properties.level = { type: 'integer', minimum: 1, maximum: 6 }
+    properties.tradition = { anyOf: [{ type: 'string', enum: ['arcane', 'divine'] }, { type: 'null' }] }
+  }
   return { type: 'object', additionalProperties: false, properties }
 }
 

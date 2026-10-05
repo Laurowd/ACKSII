@@ -4,6 +4,10 @@
 
 A aba **Sessão** reúne PV, ações de dano/cura, CA, iniciativa, salvamentos, armas e conjuração. Cura respeita os PV máximos; dano admite valores negativos. As ações usam o mesmo salvamento e tratamento de falhas da ficha. Magias favoritas são guardadas por conta e ficha neste navegador. Há busca por magia e filtro de favoritas, além de busca por nome/anotação no inventário; filtros não alteram peso nem os registros exportados.
 
+Conjuração valida a magia escolhida e o limite de escolhas válidas, distintas, do mesmo nível e tradição. Entradas antigas vazias, nomes fora do catálogo e magias de campanha permanecem consultáveis, recebem um aviso e não bloqueiam as magias válidas. Elas não concedem conjuração automática. O limite de repertório de conjuradores estudiosos, os usos diários e a proteção de versão continuam ativos. Salvar o repertório normal ainda exige validar a lista completa.
+
+Em **Exceções de magia (mestre)**, adicionar exige informar o nome e confirmar; cancelar não cria uma entrada vazia. O editor conserva nível e tradição nos registros. Para uma entrada antiga chamada “Magia”, corrija o nome nesse editor ou remova o registro, após conferir o que ele representa. Magias de campanha têm controle manual pelo mestre.
+
 O painel do mestre atualiza o grupo a cada 30 segundos enquanto está visível. É possível pausar a atualização; ela também fica pausada durante a distribuição de recompensas. Requisições não se sobrepõem e são canceladas ao sair. Falhas conservam a última leitura com aviso. Não há transmissão contínua por WebSocket.
 
 Fichas abertas conferem uma revisão pequena, com os mesmos controles de acesso. Alterações na ficha ou nas configurações da campanha exibem um aviso. A atualização solicitada pelo usuário fica bloqueada enquanto houver edições, recuperação de rascunho ou salvamento em andamento. Nenhuma leitura periódica substitui as edições locais.

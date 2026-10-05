@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest'
-import {RULE_CLASSES,magicPools,advancement,allocateAdventure,monsterXp,proficiencyIssues,spellIssues,proficiencyBudget,SPELL_LIST} from './gameRules'
+import {RULE_CLASSES,magicPools,advancement,allocateAdventure,monsterXp,proficiencyIssues,spellIssues,spellCastIssues,proficiencyBudget,SPELL_LIST} from './gameRules'
 import {defaultWeaponStyle,weaponCatalogValues} from './equipment'
 import {settleDomainMonth,researchPlan,researchOutcome} from './campaignRules'
 import {buildClass,ClassBuild} from './classBuilder'
@@ -36,6 +36,21 @@ describe('rulebook character workflows',()=>{
     expect(proficiencyIssues(RULE_CLASSES.Fighter!,character,[{name:'Combat Trickery (disarm, force back, knock down, overrun, sunder, wrestling)',category:'class'}]).length).toBeGreaterThan(0)
     expect(spellIssues(RULE_CLASSES.Mage!,character,[{name:'Fireball',level:3,tradition:'arcane'}]).length).toBeGreaterThan(0)
     expect(proficiencyIssues(RULE_CLASSES.Fighter!,{...character,level:3},[{name:'Combat Reflexes',category:'class'},{name:'Combat Reflexes',category:'class'}]).join(' ')).toContain('repetida')
+  })
+  it('casts a valid divine spell without accepting a legacy placeholder',()=>{
+    const spell={name:'Discern Gist',level:1,tradition:'divine'}
+    const c={...character,level:8,spells:[spell,{name:'Magia',level:1,tradition:'divine'}]}
+    expect(spellCastIssues(RULE_CLASSES.Priestess!,c,spell)).toEqual([])
+    expect(spellCastIssues(RULE_CLASSES.Priestess!,c,c.spells[1]).join(' ')).toContain('não consta')
+  })
+  it('counts only valid distinct choices of the selected pool and level without exceeding its limit',()=>{
+    const spell={name:'Slumber',level:1,tradition:'arcane'}
+    const c={...character,spells:[spell,{...spell},{name:'Magia',level:1,tradition:'arcane'},{name:'Fireball',level:3,tradition:'arcane'}]}
+    expect(spellCastIssues(RULE_CLASSES.Mage!,c,spell)).toEqual([])
+    c.spells.push({name:'Arcane Armor',level:1,tradition:'arcane'})
+    expect(spellCastIssues(RULE_CLASSES.Mage!,c,spell).join(' ')).toContain('limite 1')
+    expect(spellCastIssues(RULE_CLASSES.Mage!,c,{...spell,tradition:'divine'}).length).toBeGreaterThan(0)
+    expect(spellCastIssues({...RULE_CLASSES.Priestess!,divineSpellList:[]},{...character,level:8}, {name:'Discern Gist',level:1,tradition:'divine'}).join(' ')).toContain('religioso')
   })
   it('uses the revised book lists for Venturer, Fighter and Explorer choices',()=>{
     for (const name of ['Language','Navigation']) expect(proficiencyIssues(RULE_CLASSES.Venturer!, character, [{name,category:'class'}])).toEqual([])

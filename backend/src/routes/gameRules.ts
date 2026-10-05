@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import prisma from '../lib/prisma'
 import { authGuard } from '../middleware/auth'
 import { resolveClass, progressionFields } from '../lib/classCatalog'
-import { GENERAL_PROFICIENCIES, RULE_CLASSES, SPELL_LIST, rulesFor, proficiencyBudget, proficiencyIssues, spellIssues, magicPools, readState, advancement, allocateAdventure, xpAdjustment, monsterXp } from '../lib/gameRules'
+import { GENERAL_PROFICIENCIES, RULE_CLASSES, SPELL_LIST, rulesFor, proficiencyBudget, proficiencyIssues, spellIssues, spellCastIssues, magicPools, readState, advancement, allocateAdventure, xpAdjustment, monsterXp } from '../lib/gameRules'
 import { initialAdventuring } from '../lib/creationRules'
 import { combatConfigurationSchema, validateCombatConfiguration } from '../lib/combatConfiguration'
 import { formulaKey, studyPlan } from '../lib/spellLearning'
@@ -187,7 +187,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       const rules=rulesFor(await resolveClass(c.classKey,c.campaignId,c.className))
       const spell=c.spells.find((s:any)=>s.id===input.spellId)
       if(!rules||!spell)throw operationError('Escolha uma magia do repertório.')
-      const issues=spellIssues(rules,c,c.spells)
+      const issues=spellCastIssues(rules,c,spell)
       if(issues.length)throw operationError(issues.join(' '))
       const pools=magicPools(rules,c),pool=pools.find(p=>p.tradition===spell.tradition)||(pools.length===1?pools[0]:undefined)
       if(!pool)throw operationError('Defina o tipo da magia no repertório.')

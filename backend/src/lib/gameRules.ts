@@ -74,6 +74,25 @@ export function spellIssues(rules: ClassRules, character: any, spells: any[], le
   return issues
 }
 
+// Legacy/manual entries are references, not additional castable choices. Check
+// the selected spell and the valid, distinct choices of its own pool/level.
+export function spellCastIssues(rules: ClassRules, character: any, spell: any) {
+  const issues = spellIssues(rules, character, [spell])
+  if (issues.length) return issues
+  const pools = magicPools(rules, character)
+  const tradition = spell.tradition || (pools.length === 1 ? pools[0]!.tradition : '')
+  const seen = new Set<string>()
+  const choices = (character.spells || [spell]).filter((entry: any) => {
+    const entryTradition = entry.tradition || (pools.length === 1 ? pools[0]!.tradition : '')
+    if (entry.level !== spell.level || entryTradition !== tradition || spellIssues(rules, character, [entry]).length) return false
+    const key = normalized(entry.name)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+  return spellIssues(rules, character, choices)
+}
+
 // Rulebook p. 311: re-roll all HD, CON per die (minimum 1), at least +1 HP.
 export function advancement(rules: ClassRules, character: any, dice: number[]) {
   const next = rules.levels[character.level]

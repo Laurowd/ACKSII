@@ -233,6 +233,34 @@ test('magic repertoire, concurrent casts and rest cannot create extra slots', as
   assert.deepEqual(JSON.parse(c.rulesState).used,{});
 });
 
+test('valid divine casts ignore unrelated manual entries and invalid casts spend no uses', async()=>{
+  const c=await db.character.create({data:{userId:user.id,characterName:`Divine ${suffix}`,classKey:'catalog:priestess',className:'Priestess',level:8,spells:{create:[{name:'Discern Gist',level:1,tradition:'divine'},{name:'Magia',level:1,tradition:'divine'}]}}});
+  const spells=await db.spell.findMany({where:{characterId:c.id}}),base=`/api/game-rules/characters/${c.id}/magic/cast`;
+  const valid=spells.find(s=>s.name==='Discern Gist'),invalid=spells.find(s=>s.name==='Magia');
+  const denied=await request('POST',base,{version:c.version,spellId:invalid.id});
+  assert.equal(denied.statusCode,400,denied.body);
+  assert.equal((await db.character.findUnique({where:{id:c.id}})).version,c.version);
+  const success=await request('POST',base,{version:c.version,spellId:valid.id});
+  assert.equal(success.statusCode,200,success.body);
+  assert.equal(success.json().used['divine:1'],1);
+  assert.equal((await request('POST',base,{version:c.version,spellId:valid.id})).statusCode,409);
+});
+
+test('manual spell writes require names and persist level and tradition atomically', async()=>{
+  const c=await db.character.create({data:{userId:user.id,characterName:`Manual spells ${suffix}`}}),base=`/api/characters/${c.id}/spells`;
+  for(const payload of [{},{name:''},{name:' '},{name:'Slumber',level:7},{name:'Slumber',tradition:'unknown'}]) assert.equal((await request('POST',base,payload)).statusCode,400);
+  assert.equal(await db.spell.count({where:{characterId:c.id}}),0);
+  assert.equal((await db.character.findUnique({where:{id:c.id}})).version,0);
+  const added=await request('POST',base,{name:' Discern Gist ',level:1,tradition:'divine'});
+  assert.equal(added.statusCode,201,added.body);const spell=added.json().spell;
+  assert.equal(spell.name,'Discern Gist');assert.equal(spell.tradition,'divine');
+  const changed=await request('PUT',`${base}/${spell.id}`,{name:'Fireball',level:3,tradition:'arcane'});
+  assert.equal(changed.statusCode,200,changed.body);
+  assert.equal(changed.json().spell.level,3);assert.equal(changed.json().spell.tradition,'arcane');
+  assert.equal((await request('PUT',`${base}/${spell.id}`,{name:' '})).statusCode,400);
+  const saved=await db.spell.findUnique({where:{id:spell.id}});assert.equal(saved.name,'Fireball');assert.equal(saved.level,3);
+});
+
 test('domain settlement uses a snapshot and refuses a second closing of the same month',async()=>{
   let c=await db.character.create({data:{userId:user.id,characterName:'Domain workflow',classKey:'catalog:fighter',className:'Fighter'}});
   const d=await db.domain.create({data:{characterId:c.id,peasantFamilies:100,revenuePerFamily:6,servicePerFamily:4,taxPerFamily:2,garrisonCost:200,liturgiesCost:100,titheCost:100,treasury:1000}});

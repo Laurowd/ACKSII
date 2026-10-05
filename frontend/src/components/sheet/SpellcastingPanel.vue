@@ -46,7 +46,9 @@
               <div class="flex items-center gap-2 min-w-0 flex-1">
                 <button type="button" @click="toggleFavorite(spell)" :aria-label="`${isFavorite(spell) ? 'Remover dos favoritos' : 'Favoritar'} ${spell.name}`" :aria-pressed="isFavorite(spell)" class="text-gold text-lg shrink-0">{{ isFavorite(spell) ? '★' : '☆' }}</button>
                 <HelpTooltip :label="spell.name || 'Magia sem nome'">{{ spellDescription(spell) }}</HelpTooltip>
-                <div class="min-w-0"><strong class="block break-words text-dark-text">{{ spell.name || 'Magia sem nome' }}</strong><span class="block text-xs text-steel-light">{{ traditionName(spellTradition(info, spell)) }}</span></div>
+                <div class="min-w-0"><strong class="block break-words text-dark-text">{{ spell.name || 'Magia sem nome' }}</strong><span class="block text-xs text-steel-light">{{ traditionName(spellTradition(info, spell)) }}</span>
+                  <p v-if="!loading && info.supported && castingIssues.get(spell.id)" class="mt-1 text-xs text-gold-light">Conjuração automática indisponível. {{ castingIssues.get(spell.id) }}</p>
+                </div>
               </div>
               <button v-if="info.supported && info.magic?.length" type="button" @click="cast(spell.id)" :disabled="busy || loading || !canCast(spell)" :aria-label="`Conjurar ${spell.name || 'magia'}`" class="px-3 py-2 rounded-lg text-sm font-bold bg-gold/15 text-gold hover:bg-gold/25 disabled:opacity-40 disabled:cursor-not-allowed">Conjurar</button>
             </li>
@@ -95,7 +97,7 @@ import api from '../../services/api'
 import { getResource } from '../../services/resources'
 import { errorMessage } from '../../utils/catalog'
 import { useCharacterOperations } from '../../composables/characterOperations'
-import { remainingSpellUses, spellTradition, repertoireHasChanges, repertoireSnapshot, type RepertoireDraft } from '../../utils/spellcasting'
+import { remainingSpellUses, spellTradition, spellCastingValidation, repertoireHasChanges, repertoireSnapshot, type RepertoireDraft } from '../../utils/spellcasting'
 import { spellValidation } from '../../utils/ruleChoices'
 import { useAuthStore } from '../../stores/auth'
 
@@ -122,7 +124,12 @@ const restDay = ref(1), restConfirmed = ref(false)
 const url = () => `/api/game-rules/characters/${props.character.id}`
 const traditionName = (tradition: string) => tradition === 'arcane' ? 'Arcana' : tradition === 'divine' ? 'Divina' : 'Tradição a definir'
 const remaining = (tradition: string, level: number) => remainingSpellUses(info.value, tradition, level)
-const canCast = (spell: any) => remaining(spellTradition(info.value, spell), spell.level) > 0
+const castingIssues = computed(() => {
+  const spells = props.character.spells || []
+  const issues = spellCastingValidation(info.value, spells, metadata.value.spells || [])
+  return new Map<string, string>(spells.map((spell: any, i: number) => [spell.id, issues[i] || '']))
+})
+const canCast = (spell: any) => !castingIssues.value.get(spell.id) && remaining(spellTradition(info.value, spell), spell.level) > 0
 const spellGroups = computed(() => {
   const groups = new Map<number, any[]>()
   for (const spell of props.character.spells || []) {
@@ -205,7 +212,11 @@ async function saveRepertoire() {
     else props.repertoireDraft.original = JSON.stringify({ spells: (props.character.spells || []).map((spell: any) => ({ name: spell.name, level: spell.level, tradition: spellTradition(info.value, spell) })), orderApproved: false })
   })
 }
-async function cast(spellId: string) { await change(`magic:${spellId}:cast`, 'magic/cast', { spellId }, 'Uso de magia registrado.') }
+async function cast(spellId: string) {
+  const spell = props.character.spells?.find((entry: any) => entry.id === spellId)
+  if (!spell || !canCast(spell)) return
+  await change(`magic:${spellId}:cast`, 'magic/cast', { spellId }, 'Uso de magia registrado.')
+}
 async function rest() {
   await change('magic:rest', 'magic/rest', { day: restDay.value, hours: 8, requirementsMet: true }, 'Usos de magia recuperados.')
   restConfirmed.value = false
