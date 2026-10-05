@@ -43,8 +43,11 @@ describe('Regras, magia e pesquisa', () => {
       mutateCharacter(this.account, 'PUT', `/characters/${c.id}/domain`, { peasantFamilies: 100, treasury: 1000, garrisonCost: 200, liturgiesCost: 100, titheCost: 100 })
       cy.signIn(this.account, `/character/${c.id}`)
       cy.button('Evolução & Regras').click()
+      // The initial rules request disables this fieldset, including its disclosure.
+      cy.button('Atualizar conferência').should('be.enabled')
       cy.contains('summary', 'Calcular XP pelo livro (avançado)').click()
-      cy.field('Identificador único da aventura').should('be.enabled').type('cypress-adventure')
+      cy.get('#adventure-settlement').should('have.attr', 'open')
+      cy.field('Identificador único da aventura').should('be.visible').and('be.enabled').type('cypress-adventure')
       cy.field('Valor do tesouro elegível (GP)').clear().type('2000')
       cy.button('Conferir distribuição de XP').click()
       cy.button('Confirmar concessão de XP').click()
