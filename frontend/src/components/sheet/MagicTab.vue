@@ -346,7 +346,7 @@ function startSpell(level: number) {
 }
 async function addSpell() {
   if (addingSpell.value || !newSpell.value?.name.trim()) return
-  const input = { ...newSpell.value, name: newSpell.value.name.trim(), tradition: newSpell.value.tradition || null }
+  const input = { ...newSpell.value, name: newSpell.value.name.trim() }
   addingSpell.value = true
   try {
     const result = await relations.add('spells', 'spells', 'spell', input, String(input.level))

@@ -27,12 +27,16 @@ export function scalarBody(modelName: string) {
   if (modelName === 'CharacterActivity') properties.status = { type: 'string', enum: ['QUEUED', 'ACTIVE', 'COMPLETED', 'CANCELLED'] }
   if (modelName === 'MercantileVenture') properties.status = { type: 'string', enum: ['IN_TRANSIT', 'SOLD'] }
   if (modelName === 'Proficiency') properties.category = { type: 'string', enum: ['adventuring', 'class', 'general'] }
-  if (modelName === 'Spell') {
-    properties.name = { type: 'string', minLength: 1, maxLength: 160 }
-    properties.level = { type: 'integer', minimum: 1, maximum: 6 }
-    properties.tradition = { anyOf: [{ type: 'string', enum: ['arcane', 'divine'] }, { type: 'null' }] }
-  }
   return { type: 'object', additionalProperties: false, properties }
+}
+
+// Tighten new editor writes without rejecting placeholders in older exports.
+export function spellEditorBody() {
+  const schema = scalarBody('Spell')
+  schema.properties.name = { ...schema.properties.name, minLength: 1 }
+  schema.properties.level = { type: 'integer', minimum: 1, maximum: 6 }
+  schema.properties.tradition = { type: 'string', enum: ['', 'arcane', 'divine'] }
+  return schema
 }
 
 export const characterUpdateBody = {

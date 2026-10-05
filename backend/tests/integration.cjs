@@ -259,6 +259,8 @@ test('manual spell writes require names and persist level and tradition atomical
   assert.equal(changed.json().spell.level,3);assert.equal(changed.json().spell.tradition,'arcane');
   assert.equal((await request('PUT',`${base}/${spell.id}`,{name:' '})).statusCode,400);
   const saved=await db.spell.findUnique({where:{id:spell.id}});assert.equal(saved.name,'Fireball');assert.equal(saved.level,3);
+  const legacy=await request('POST',base,{name:'Arcane Armor',level:1});assert.equal(legacy.statusCode,201,legacy.body);assert.equal(legacy.json().spell.tradition,'');
+  const unspecified=await request('POST',base,{name:'Slumber',level:1,tradition:''});assert.equal(unspecified.statusCode,201,unspecified.body);
 });
 
 test('domain settlement uses a snapshot and refuses a second closing of the same month',async()=>{

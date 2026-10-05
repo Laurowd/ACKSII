@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { mutateCharacter, mutationResponse, relationFields, versionedBody } from '../lib/characterMutation';
-import { scalarBody, characterUpdateBody, characterCreateBody } from '../lib/inputSchemas';
+import { scalarBody, spellEditorBody, characterUpdateBody, characterCreateBody } from '../lib/inputSchemas';
 import { FastifyInstance } from 'fastify';
 import prisma, { type TransactionClient } from '../lib/prisma';
 import { authGuard } from '../middleware/auth';
@@ -882,7 +882,7 @@ export async function characterRoutes(app: FastifyInstance) {
   }));
 
   // ====== SPELLS (spellcasters only) ======
-  app.post('/:characterId/spells', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('Spell')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
+  app.post('/:characterId/spells', { preHandler: [authGuard], schema: { body: versionedBody(spellEditorBody()) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId } = request.params as any;
     const { id, role } = request.user as any;
     const data = relationFields(request.body) as any;
@@ -893,12 +893,12 @@ export async function characterRoutes(app: FastifyInstance) {
     if (!name) return mutationResponse(400, { error: 'Informe o nome da magia antes de adicioná-la.' });
     const level = data.level ?? 1;
     const spell = await tx.spell.create({
-      data: { characterId, level, name, tradition: data.tradition ?? null }
+      data: { characterId, level, name, tradition: data.tradition ?? '' }
     });
     return mutationResponse(201, { spell });
   }));
 
-  app.put('/:characterId/spells/:spellId', { preHandler: [authGuard], schema: { body: versionedBody(scalarBody('Spell')) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
+  app.put('/:characterId/spells/:spellId', { preHandler: [authGuard], schema: { body: versionedBody(spellEditorBody()) } }, async (request, reply) => mutateCharacter(request, reply, async (tx) => {
     const { characterId, spellId } = request.params as any;
     const { id, role } = request.user as any;
     const data = relationFields(request.body) as any;
