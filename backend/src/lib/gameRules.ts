@@ -53,7 +53,7 @@ export function magicPools(rules: ClassRules, character: any, level = character.
   })
 }
 
-export function spellIssues(rules: ClassRules, character: any, spells: any[], level = character.level || 1) {
+export function spellIssues(rules: ClassRules, character: any, spells: any[], level = character.level || 1, catalog: any[] = SPELL_LIST) {
   const pools = magicPools(rules, character, level)
   const issues: string[] = []
   const seen = new Set<string>()
@@ -63,8 +63,9 @@ export function spellIssues(rules: ClassRules, character: any, spells: any[], le
     const key = `${pool.tradition}:${normalized(spell.name)}`
     if (seen.has(key)) issues.push(`${spell.name}: repetida no repertório ${pool.tradition}.`)
     seen.add(key)
-    if (!SPELL_LIST.some(s => normalized(s.name) === normalized(spell.name) && s.level === spell.level && s.tradition === pool.tradition)) issues.push(`${spell.name}: não consta na lista ${pool.tradition} de nível ${spell.level}; use o modo manual para magia de campanha.`)
-    if(pool.tradition==='divine'&&rules.divineSpellList&&!rules.divineSpellList.some(s=>normalized(s.name)===normalized(spell.name)&&s.level===spell.level))issues.push(`${spell.name}: não pertence ao repertório religioso desta classe.`)
+    const entry = catalog.find(s => normalized(s.name) === normalized(spell.name) && s.level === spell.level && s.tradition === pool.tradition)
+    if (!entry) issues.push(`${spell.name}: não consta nas opções disponíveis ${pool.tradition} de nível ${spell.level}; confira o nome e a liberação do mestre.`)
+    if(!entry?.campaignSpellId&&pool.tradition==='divine'&&rules.divineSpellList&&!rules.divineSpellList.some(s=>normalized(s.name)===normalized(spell.name)&&s.level===spell.level))issues.push(`${spell.name}: não pertence ao repertório religioso desta classe.`)
   }
   for (const pool of pools) for (let i = 0; i < 6; i++) {
     const count = spells.filter(s => s.level === i + 1 && (s.tradition === pool.tradition || (!s.tradition && pools.length === 1))).length
@@ -76,21 +77,21 @@ export function spellIssues(rules: ClassRules, character: any, spells: any[], le
 
 // Legacy/manual entries are references, not additional castable choices. Check
 // the selected spell and the valid, distinct choices of its own pool/level.
-export function spellCastIssues(rules: ClassRules, character: any, spell: any) {
-  const issues = spellIssues(rules, character, [spell])
+export function spellCastIssues(rules: ClassRules, character: any, spell: any, catalog: any[] = SPELL_LIST) {
+  const issues = spellIssues(rules, character, [spell], character.level || 1, catalog)
   if (issues.length) return issues
   const pools = magicPools(rules, character)
   const tradition = spell.tradition || (pools.length === 1 ? pools[0]!.tradition : '')
   const seen = new Set<string>()
   const choices = (character.spells || [spell]).filter((entry: any) => {
     const entryTradition = entry.tradition || (pools.length === 1 ? pools[0]!.tradition : '')
-    if (entry.level !== spell.level || entryTradition !== tradition || spellIssues(rules, character, [entry]).length) return false
+    if (entry.level !== spell.level || entryTradition !== tradition || spellIssues(rules, character, [entry], character.level || 1, catalog).length) return false
     const key = normalized(entry.name)
     if (seen.has(key)) return false
     seen.add(key)
     return true
   })
-  return spellIssues(rules, character, choices)
+  return spellIssues(rules, character, choices, character.level || 1, catalog)
 }
 
 // Rulebook p. 311: re-roll all HD, CON per die (minimum 1), at least +1 HP.

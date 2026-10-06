@@ -4,6 +4,7 @@ import { authGuard } from '../middleware/auth'
 import { canReadCampaign, resolveClass, progressionFields } from '../lib/classCatalog'
 import { creationRules, initialAdventuring, abilityModifier, ATTRIBUTE_KEYS } from '../lib/creationRules'
 import { rulesFor, proficiencyIssues, spellIssues, magicPools } from '../lib/gameRules'
+import { characterSpellCatalog, campaignSpellError } from '../lib/campaignSpells'
 import { findCompendiumEntry } from './compendium'
 import { defaultWeaponStyle } from '../lib/equipment'
 
@@ -73,7 +74,7 @@ export async function characterCreationRoutes(app: FastifyInstance) {
     const ruleData = rulesFor(klass)
     if (rulesMode === 'standard') {
       if (!ruleData) return reply.code(400).send({message:'Classe livre: selecione o modo manual e registre a decisão do mestre.'})
-      const issues = [...proficiencyIssues(ruleData,data,proficiencies || []),...spellIssues(ruleData,data,spells || [])]
+      const issues = [...proficiencyIssues(ruleData,data,proficiencies || []),...spellIssues(ruleData,data,spells || [],1,await characterSpellCatalog({campaignId},{id:userId}))]
       for (const category of ['class','general']) if (!proficiencies?.some(p=>p.category===category)) issues.push(`Escolha ao menos uma proficiência ${category}.`)
       for (const pool of magicPools(ruleData,data)) if (pool.studious && pool.slots[0] && !spells?.some(s=>s.tradition===pool.tradition && s.level===1)) issues.push(`Escolha sua primeira magia ${pool.tradition}.`)
       if (issues.length) return reply.code(400).send({message:issues.join(' '), step:2})
@@ -96,7 +97,12 @@ export async function characterCreationRoutes(app: FastifyInstance) {
       coins={coinGP:Math.floor(copper/100),coinSP:Math.floor(copper%100/10),coinCP:copper%10}
     }
     // Nested create commits the sheet and all initial choices together.
-    const character = await prisma.character.create({ data: {
+    const character = await prisma.$transaction(async tx => {
+      if (rulesMode === 'standard' && ruleData) {
+        const issues = spellIssues(ruleData, data, spells || [], 1, await characterSpellCatalog({campaignId}, {id:userId}, tx))
+        if (issues.length) throw campaignSpellError(issues.join(' '))
+      }
+      return tx.character.create({ data: {
       ...fields, ...coins, userId, campaignId, characterName: data.characterName.trim(),
       rulesState: JSON.stringify({creationMode:rulesMode||'legacy',exceptionReason:exceptionReason||''}),
       classKey: klass.id, className: klass.name, classFeatures: rules.build ? '' : klass.classFeatures,
@@ -107,6 +113,7 @@ export async function characterCreationRoutes(app: FastifyInstance) {
       weapons:{create:purchasedWeapons}, spells:{create:(spells||[]).map(spell => ({ ...spell, name: spell.name.trim() }))},
       proficiencies: { create: [...initialAdventuring(data.str, official ? klass.name : '', rules.ruleProfile), ...(proficiencies ?? []).filter(p => p.category !== 'adventuring').map(p => ({ name: p.name.trim(), category: p.category }))] },
     } })
+    }, { isolationLevel: 'Serializable' })
     return reply.code(201).send({ character })
   })
 }

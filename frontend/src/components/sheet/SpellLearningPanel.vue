@@ -50,7 +50,7 @@ const key = (spell: any) => `${spell.tradition}:${spell.level}:${spell.name.toLo
 const state = computed(() => { try { return JSON.parse(props.character.rulesState || '{}') } catch { return {} } })
 const study = computed(() => state.value.study)
 const studiousPools = computed(() => (overview.value.magic || []).filter((pool: any) => pool.studious))
-const catalog = computed(() => (metadata.value.spells || []).filter((spell: any) => studiousPools.value.some((pool: any) => pool.tradition === spell.tradition)))
+const catalog = computed(() => [...(metadata.value.spells || []), ...(overview.value.campaignSpells || [])].filter((spell: any) => studiousPools.value.some((pool: any) => pool.tradition === spell.tradition)))
 const availableFormulas = computed(() => catalog.value.filter((spell: any) => studiousPools.value.some((pool: any) => pool.tradition === spell.tradition && pool.slots[spell.level - 1]) && ((state.value.formulas || []).some((formula: any) => key(formula) === key(spell)) || (props.character.spellbook || []).some((name: string) => name.toLowerCase() === spell.name.toLowerCase()))))
 const selected = computed(() => catalog.value.find((spell: any) => key(spell) === selectedKey.value))
 const replacements = computed(() => (props.character.spells || []).filter((spell: any) => spell.level === selected.value?.level && spell.tradition === selected.value?.tradition))

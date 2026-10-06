@@ -7,6 +7,7 @@
       <h1 class="text-3xl font-bold text-gold">Gerenciamento da Campanha</h1>
     </div>
 
+    <CampaignSpellEditor :campaign-id="campaignId" />
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
       <div class="bg-dark-card border border-gold/20 p-6 rounded-xl md:col-span-2">
         <p v-if="loadingSettings" role="status" class="text-sm text-steel py-2">Carregando configurações da campanha…</p>
@@ -338,6 +339,7 @@ import { useAuthStore } from '../stores/auth'
 import { notifyError, notifyInfo, notifySuccess } from '../utils/toast'
 import { errorMessage, type CatalogClass } from '../utils/catalog'
 import ClassPointBuilder from '../components/ClassPointBuilder.vue'
+import CampaignSpellEditor from '../components/CampaignSpellEditor.vue'
 
 const route = useRoute()
 const campaignId = route.params.id as string

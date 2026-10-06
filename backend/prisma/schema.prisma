@@ -43,6 +43,7 @@ model Campaign {
   members       CampaignMember[]
   characters    Character[]
   customClasses CustomClass[]
+  spells        CampaignSpell[]
   economy       CampaignEconomy?
   activities    CampaignActivity[]
   auditLogs     AuditLog[]
@@ -60,6 +61,36 @@ model CampaignMember {
 
   @@unique([campaignId, userId])
   @@index([userId, status])
+}
+
+model CampaignSpell {
+  id          String   @id @default(uuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  version     Int      @default(0)
+  name        String
+  nameKey     String
+  level       Int
+  tradition   String
+  description String
+  range       String   @default("")
+  duration    String   @default("")
+  visibility  String   @default("SECRET")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  reveals     CampaignSpellReveal[]
+
+  @@unique([campaignId, tradition, nameKey])
+  @@index([campaignId, visibility])
+}
+
+model CampaignSpellReveal {
+  spellId     String
+  spell       CampaignSpell @relation(fields: [spellId], references: [id], onDelete: Cascade)
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  @@id([spellId, characterId])
+  @@index([characterId])
 }
 
 model CustomClass {
@@ -92,6 +123,7 @@ model Character {
   campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+  revealedCampaignSpells CampaignSpellReveal[]
 
   // Bio (ACKS II Character Sheet layout)
   chroniclesOf  String @default("") // "THE CHRONICLES OF" / campaign name

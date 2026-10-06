@@ -25,6 +25,10 @@ async function addProf(page: Page, name: string, category: string) {
   await page.getByLabel('Nome da proficiência', { exact: true }).last().fill(name)
   await page.getByLabel('Categoria', { exact: true }).last().selectOption(category)
 }
+async function chooseSpell(page: Page, label: string, name: string) {
+  await page.getByLabel(label, { exact: true }).fill(name)
+  await page.getByRole('listbox', { name: `Opções de ${label}`, exact: true }).getByText(name, { exact: true }).click()
+}
 async function review(page: Page) {
   await page.getByRole('button', { name: 'Continuar', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Equipamento inicial' })).toBeVisible()
@@ -73,7 +77,7 @@ test('Mage requires an initial spell and rejects duplicates before review, inclu
     await page.getByRole('button', { name: '+ Magia inicial', exact: true }).click()
     await expect(page.getByLabel(`Tradição da magia inicial ${i}`)).toHaveValue('arcane')
     expect(await page.getByLabel(`Tradição da magia inicial ${i}`).locator('option').count()).toBe(1)
-    await page.getByLabel(`Nome da magia inicial ${i}`).selectOption('Arcane Armor')
+    await chooseSpell(page, `Nome da magia inicial ${i}`, 'Arcane Armor')
   }
   await page.getByRole('button', { name: 'Continuar', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('repetida')
@@ -97,17 +101,17 @@ test('switching class preserves choices and requires correcting incompatible mag
   await start(page, 'mage')
   await addProf(page, 'Alchemy', 'class'); await addProf(page, 'Caving', 'general')
   await page.getByRole('button', { name: '+ Magia inicial', exact: true }).click()
-  await page.getByLabel('Nome da magia inicial 1').selectOption('Arcane Armor')
+  await chooseSpell(page, 'Nome da magia inicial 1', 'Arcane Armor')
   await page.getByRole('button', { name: 'Voltar', exact: true }).click()
   await page.getByRole('combobox', { name: 'Classe', exact: true }).selectOption('catalog:crusader')
   await page.getByRole('button', { name: 'Continuar', exact: true }).click()
   await page.getByRole('button', { name: 'Continuar', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('indisponível')
-  await expect(page.getByLabel('Nome da magia inicial 1')).toHaveValue('Arcane Armor')
+  await expect(page.getByLabel('Nome da magia inicial 1', { exact: true })).toHaveValue('Arcane Armor')
   await page.getByLabel('Nome da proficiência', { exact: true }).first().fill('Healing')
   await page.getByLabel('Tradição da magia inicial 1').selectOption('divine')
-  await expect(page.getByLabel('Nome da magia inicial 1')).toHaveValue('')
-  await page.getByLabel('Nome da magia inicial 1').selectOption('Cure Light Injury')
+  await expect(page.getByLabel('Nome da magia inicial 1', { exact: true })).toHaveValue('')
+  await chooseSpell(page, 'Nome da magia inicial 1', 'Cure Light Injury')
   await review(page); await confirm(page)
 })
 
@@ -125,7 +129,7 @@ test('manual mode accepts campaign magic, while book mode revalidates the same d
   await page.getByLabel('Modo de criação').selectOption('manual')
   await page.getByLabel('Decisão do mestre (obrigatória)').fill('Magia da campanha aprovada pelo mestre.')
   await page.getByRole('button', { name: '+ Magia inicial', exact: true }).click()
-  await page.getByLabel('Nome da magia inicial 1').fill('Campaign ward')
+  await page.getByLabel('Nome da magia inicial 1', { exact: true }).fill('Campaign ward')
   await page.getByLabel('Modo de criação').selectOption('standard')
   await page.getByRole('button', { name: 'Continuar', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('modo manual')

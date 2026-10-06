@@ -7,6 +7,7 @@ import { authRoutes } from './routes/auth'
 import { characterRoutes } from './routes/characters'
 import { characterCreationRoutes } from './routes/characterCreation'
 import { campaignsRoutes } from './routes/campaigns'
+import { campaignSpellsRoutes } from './routes/campaignSpells'
 import { customClassesRoutes } from './routes/classes'
 import { compendiumRoutes } from './routes/compendium'
 import { rulesRoutes } from './routes/rules'
@@ -70,6 +71,7 @@ export function buildApp(config = readConfig(), logger = true) {
   app.register(characterCreationRoutes, { prefix: '/api/characters' })
   app.register(characterImportRoutes, { prefix: '/api/characters' })
   app.register(campaignsRoutes, { prefix: '/api/campaigns' })
+  app.register(campaignSpellsRoutes, { prefix: '/api/campaigns' })
   app.register(customClassesRoutes, { prefix: '/api/classes' })
   app.register(compendiumRoutes, { prefix: '/api/compendium' })
   app.register(rulesRoutes, { prefix: '/api/rules' })

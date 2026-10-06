@@ -426,7 +426,8 @@
           <button v-if="canManage" type="button" @click="addProficiency(cat.key)" :aria-label="`Adicionar proficiência: ${cat.label}`" class="text-sm text-gold hover:text-gold-light transition-colors">+</button>
         </div>
         <div v-for="p in getProfsByCategory(cat.key)" :key="p.id" class="flex items-center gap-2 mb-2 bg-dark-bg/35 border border-steel-dark/50 rounded-lg px-2.5 py-2 hover:bg-dark-bg/50 transition-colors">
-          <input v-model="p.name" @change="saveProficiency(p)" :readonly="!canManage" :aria-label="`Nome da proficiência ${p.name || 'nova'}`" class="flex-1 min-w-0 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-dark-text text-sm focus:outline-none focus:border-gold" placeholder="Proficiência" />
+          <SearchableChoice v-if="canManage" v-model="p.name" @change="saveProficiency(p)" :options="manualProficiencyOptions(cat.key)" :label="`Nome da proficiência ${p.name || 'nova'}`" class="flex-1" placeholder="Proficiência" />
+          <input v-else :value="p.name" readonly :aria-label="`Nome da proficiência ${p.name || 'nova'}`" class="flex-1 min-w-0 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-dark-text text-sm" placeholder="Proficiência" />
           <label :for="`proficiency-target-${p.id}`" class="text-[10px] uppercase tracking-wider text-steel w-10 text-right font-semibold shrink-0">Alvo</label>
           <input :id="`proficiency-target-${p.id}`" v-model.number="p.throwTarget" @change="saveProficiency(p)" :aria-label="`Alvo da proficiência ${p.name || 'nova'}`" type="number" class="w-14 shrink-0 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-gold text-center text-sm font-bold focus:outline-none focus:border-gold" />
           <button v-if="canManage || cat.key !== 'adventuring'" type="button" @click="removeProficiency(p.id)" :aria-label="`Remover proficiência ${p.name || 'sem nome'}`" class="text-crimson-light hover:text-crimson text-xs font-bold px-1.5 py-0.5 rounded border border-transparent hover:border-crimson/40 shrink-0">X</button>
@@ -462,11 +463,14 @@ defineOptions({ name: 'CombatTab' })
 import api from '../../services/api'
 import { useCharacterRelations } from '../../composables/characterRelations'
 import HelpTooltip from '../HelpTooltip.vue'
+import SearchableChoice from '../SearchableChoice.vue'
+import { getResource } from '../../services/resources'
+import { creationSettings } from '../../utils/creation'
 import { classEffects } from '../../utils/classEffects'
 import { calculateCharacterMetrics } from '../../utils/characterMetrics'
 import { getModifier, formatMod, calculateAttackThrow, getWeaponAbilityModifier } from '../../utils/mechanics'
 import { notifyError } from '../../utils/toast'
-import { errorMessage, selectedClass } from '../../utils/catalog'
+import { errorMessage, selectedClass, proficiencyOptions } from '../../utils/catalog'
 import { computed, onMounted, ref } from 'vue'
 import { classDefinitionFeats } from '../../utils/classDefinitionFeats'
 const props = defineProps<{
@@ -487,6 +491,12 @@ const props = defineProps<{
 const emit = defineEmits(['save', 'campaign-change', 'owner-change', 'class-change', 'level-change', 'open-rules'])
 const relations = useCharacterRelations(() => props.character)
 const compendiumWeapons = ref<any[]>([])
+const proficiencyMetadata = ref<any>({})
+function manualProficiencyOptions(category: string) {
+  const rules = creationSettings(selectedClass(props.customClasses, props.character)).rules
+  return proficiencyOptions(category === 'class' ? rules?.proficiencies || [] : category === 'general' ? proficiencyMetadata.value.generalProficiencies || [] : ['Adventuring', ...getProfsByCategory('adventuring').map((p: any) => p.name).filter(Boolean)])
+}
+onMounted(async () => { try { proficiencyMetadata.value = (await getResource('/api/game-rules/metadata')).data } catch { /* Manual names remain available if the reference catalog fails. */ } })
 
 // Constants and local logic
 const ATTRS = [

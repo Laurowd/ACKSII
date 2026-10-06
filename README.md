@@ -224,4 +224,6 @@ A migração `20260911140000_acks_rules_alignment` acrescenta campos de pesquisa
 - O calendário usa quatro semanas por mês e avança atividades das fichas, projetos antigos/manuais e a fila de campanha. Pesquisas acompanhadas usam seus próprios períodos de trabalho. Recarregue fichas abertas para ver o avanço. Custos extras de domínio são somados aos salários dos seguidores; não lance o mesmo salário nos dois lugares.
 - O construtor de classes por pontos calcula categorias, custos/trocas iniciais, XP, ataque, salvamentos, PV, magia e limites raciais. O editor livre permanece disponível; poderes condicionais e variantes além da construção suportada exigem revisão do mestre.
 
+Magias homebrew possuem cadastro na campanha, visibilidade secreta ou por ficha e conjuração com os usos normais. Magias e proficiências têm escolhas pesquisáveis; veja [magias de campanha](docs/MAGIAS_DE_CAMPANHA.md). A migration `20261005203000_campaign_spells` deve ser aplicada antes de iniciar esta versão.
+
 Os testes unitários não escrevem no Neon; os testes de backend usam banco simulado. Rode `npm.cmd test` em `backend` e `frontend`. Cypress, Playwright e os testes de integração usam PostgreSQL local isolado, conforme [o guia de testes](docs/TESTES_CYPRESS.md).

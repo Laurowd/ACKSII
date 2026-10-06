@@ -10,7 +10,7 @@ test('player proficiency edits use validated choices while test targets stay edi
   await expect(page.getByRole('button', { name: /Adicionar proficiência:/ })).toHaveCount(0)
   await expect(page.getByLabel('Nome da proficiência Climbing', { exact: true })).toHaveAttribute('readonly', '')
   await page.getByRole('button', { name: 'Escolher proficiências com validação' }).click()
-  await page.getByLabel('Nome da escolha de proficiência').fill('Seduction')
+  await page.getByLabel('Nome da escolha de proficiência', { exact: true }).fill('Seduction')
   await page.getByRole('button', { name: 'Adicionar escolha', exact: true }).click()
   await expect(page.getByRole('alert').filter({ hasText: 'Seduction' })).toBeVisible()
   await page.getByLabel('Categoria da escolha de proficiência').selectOption('general')

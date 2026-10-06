@@ -1,7 +1,7 @@
 import { magicPools, normalized, readState, SPELL_LIST, spellIssues, type ClassRules } from './gameRules'
 export function formulaKey(spell: any) { return `${spell.tradition}:${spell.level}:${normalized(spell.name)}` }
-export function studyPlan(character: any, rules: ClassRules, input: any) {
-  const spell = SPELL_LIST.find(entry => formulaKey(entry) === input.formulaKey)
+export function studyPlan(character: any, rules: ClassRules, input: any, catalog: any[] = SPELL_LIST) {
+  const spell = catalog.find(entry => formulaKey(entry) === input.formulaKey)
   if (!spell) throw new Error('Escolha uma fórmula do catálogo.')
   const pool = magicPools(rules, character).find(entry => entry.tradition === spell.tradition && entry.studious)
   if (!pool?.slots[spell.level - 1]) throw new Error('A classe precisa estudar e já poder conjurar magias deste nível.')
@@ -12,7 +12,7 @@ export function studyPlan(character: any, rules: ClassRules, input: any) {
   const replaced = input.replaceSpellId && character.spells.find((entry: any) => entry.id === input.replaceSpellId)
   if (input.replaceSpellId && (!replaced || replaced.level !== spell.level || (replaced.tradition || pool.tradition) !== spell.tradition)) throw new Error('A substituição precisa ser de uma magia da mesma tradição e nível.')
   const proposed = [...character.spells.filter((entry: any) => entry.id !== input.replaceSpellId), spell]
-  const issues = spellIssues(rules, character, proposed)
+  const issues = spellIssues(rules, character, proposed, character.level || 1, catalog)
   if (issues.length) throw new Error(issues.join(' '))
   return { spell: { name: spell.name, level: spell.level, tradition: spell.tradition }, replaceSpellId: input.replaceSpellId || null, replacedName: replaced?.name || null }
 }

@@ -61,8 +61,8 @@
         <datalist id="creation-class-profs"><option v-for="name in proficiencyOptions(chosenRules.rules?.proficiencies || [])" :key="name" :value="name" /></datalist>
         <datalist id="creation-general-profs"><option v-for="name in proficiencyOptions(metadata.generalProficiencies || [])" :key="name" :value="name" /></datalist>
         <div v-for="(p, i) in draft.proficiencies" :key="i" class="space-y-1">
-          <div class="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2">
-            <input v-model="p.name" @change="choicesReviewed = true" :list="p.category === 'class' ? 'creation-class-profs' : 'creation-general-profs'" aria-label="Nome da proficiência" :aria-invalid="choicesReviewed && !!proficiencyCheck.rows[i]" :aria-describedby="`creation-prof-error-${i}`" required maxlength="200" class="inp min-w-0 col-span-2 sm:col-span-1" />
+          <div class="grid items-start grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2">
+            <SearchableChoice v-model="p.name" @change="choicesReviewed = true" :options="proficiencyOptions(p.category === 'class' ? chosenRules.rules?.proficiencies || [] : metadata.generalProficiencies || [])" label="Nome da proficiência" :aria-invalid="choicesReviewed && !!proficiencyCheck.rows[i]" :aria-describedby="`creation-prof-error-${i}`" required maxlength="200" class="col-span-2 sm:col-span-1" />
             <select v-model="p.category" @change="choicesReviewed = true" aria-label="Categoria" class="inp min-w-0"><option value="general">Geral</option><option value="class">Classe</option></select>
             <button type="button" @click="draft.proficiencies.splice(i, 1)" :aria-label="`Remover proficiência ${i + 1}`" class="text-red-400">Remover</button>
           </div>
@@ -73,19 +73,20 @@
           <h3 class="text-gold">Magias iniciais</h3><p class="text-sm">Escolha o repertório de estudo ou as magias concedidas pela ordem, conforme sua classe.</p>
           <p v-for="pool in availableMagic" :key="pool.tradition" class="text-sm text-steel-light">{{ traditionName(pool.tradition) }} · nível 1 · {{ pool.repertoire[0] == null ? 'repertório definido pela ordem' : `limite de ${pool.repertoire[0]} magias` }}{{ pool.studious ? ' · escolha ao menos uma magia inicial' : '' }}</p>
           <div v-for="(s,i) in draft.spells" :key="i" class="space-y-1">
-            <div class="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[8rem_minmax(0,1fr)_auto] gap-2">
+            <div class="grid items-start grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[8rem_minmax(0,1fr)_auto] gap-2">
               <select v-model="s.tradition" @change="s.name = ''; choicesReviewed = true" :aria-label="`Tradição da magia inicial ${i + 1}`" class="inp min-w-0 col-span-2 sm:col-span-1">
                 <option v-if="draft.rulesMode === 'standard' && !availableMagic.some(p => p.tradition === s.tradition)" :value="s.tradition">{{ traditionName(s.tradition) }} · indisponível</option>
                 <option v-for="tradition in draft.rulesMode === 'manual' ? ['arcane', 'divine'] : availableMagic.map(p => p.tradition)" :key="tradition" :value="tradition">{{ traditionName(tradition) }}</option>
               </select>
-              <input v-if="draft.rulesMode === 'manual'" v-model="s.name" :list="`creation-spells-${s.tradition}`" :aria-label="`Nome da magia inicial ${i + 1}`" required maxlength="200" class="inp min-w-0" />
-              <select v-else v-model="s.name" @change="choicesReviewed = true" :aria-label="`Nome da magia inicial ${i + 1}`" :aria-invalid="choicesReviewed && !!spellCheck.rows[i]" :aria-describedby="`creation-spell-error-${i}`" required class="inp min-w-0"><option value="">Escolha a magia</option><option v-if="s.name && !initialSpellOptions(s.tradition).some(spell => spell.name === s.name)" :value="s.name">{{ s.name }} · indisponível</option><option v-for="spell in initialSpellOptions(s.tradition)" :key="spell.name" :value="spell.name">{{ spell.name }}</option></select>
+              <SearchableChoice v-model="s.name" @change="choicesReviewed = true" :options="initialSpellOptions(s.tradition).map((spell: any) => ({ value: spell.name, hint: spell.campaignSpellId ? 'Magia de campanha' : 'Catálogo do livro' }))" :label="`Nome da magia inicial ${i + 1}`" :disabled="loadingCampaignSpells" :aria-invalid="choicesReviewed && !!spellCheck.rows[i]" :aria-describedby="`creation-spell-error-${i}`" required maxlength="200" />
               <button type="button" @click="draft.spells.splice(i,1)" :aria-label="`Remover magia inicial ${i + 1}`" class="text-red-400">Remover</button>
             </div>
             <p :id="`creation-spell-error-${i}`" v-if="choicesReviewed && spellCheck.rows[i]" class="text-sm text-red-400">{{ spellCheck.rows[i] }}</p>
           </div>
           <datalist v-for="tradition in ['arcane', 'divine']" :key="tradition" :id="`creation-spells-${tradition}`"><option v-for="spell in initialSpellOptions(tradition)" :key="spell.name" :value="spell.name" /></datalist>
           <button type="button" class="text-gold disabled:opacity-40" :disabled="draft.rulesMode === 'standard' && !availableMagic.length" @click="draft.spells.push({name:'',level:1,tradition:availableMagic[0]?.tradition || 'arcane'})">+ Magia inicial</button>
+          <p v-if="loadingCampaignSpells" role="status" class="text-sm text-steel-light">Carregando magias disponíveis na campanha...</p>
+          <p v-if="campaignSpellError" role="alert" class="text-sm text-red-400">{{ campaignSpellError }} <button type="button" @click="loadCampaignSpells" class="underline">Tentar carregar magias novamente</button></p>
         </template>
       </template>
       <template v-if="step === 3">
@@ -138,6 +139,7 @@ import { creationSettings, purchaseSummary } from '../utils/creation'
 import { choiceMagicPools, proficiencyValidation, spellValidation, traditionName } from '../utils/ruleChoices'
 import { useAuthStore } from '../stores/auth'
 import { createLocalDraft } from '../utils/localDrafts'
+import SearchableChoice from '../components/SearchableChoice.vue'
 const route = useRoute(), router = useRouter()
 const steps = ['Atributos', 'Classe', 'Identidade', 'Equipamento', 'Revisão']
 const attributes = [{ key: 'str', label: 'Força' }, { key: 'int', label: 'Intelecto' }, { key: 'dex', label: 'Destreza' }, { key: 'wil', label: 'Vontade' }, { key: 'con', label: 'Constituição' }, { key: 'cha', label: 'Carisma' }] as const
@@ -151,6 +153,18 @@ const step = ref(0), error = ref(''), rollLog = ref(''), submitting = ref(false)
 const errorAlert = ref<HTMLElement | null>(null)
 watch(error, async value => { if (value) { await nextTick(); errorAlert.value?.focus() } })
 const metadata = ref<any>({}), equipment = ref<any[]>([]), useBudget = ref(false), startingGold = ref(100)
+const campaignSpells = ref<any[]>([]), loadingCampaignSpells = ref(false), campaignSpellError = ref('')
+const spellCatalog = computed(() => [...(metadata.value.spells || []), ...campaignSpells.value])
+let campaignSpellRequest = 0
+async function loadCampaignSpells() {
+  const request = ++campaignSpellRequest, id = draft.value.campaignId
+  campaignSpells.value = []; campaignSpellError.value = ''; loadingCampaignSpells.value = !!id
+  if (!id) return
+  try { const response = await api.get(`/api/campaigns/${id}/spell-options`); if (request === campaignSpellRequest) campaignSpells.value = response.data.spells }
+  catch (caught) { if (request === campaignSpellRequest) campaignSpellError.value = errorMessage(caught, 'Não foi possível carregar as magias de campanha.') }
+  finally { if (request === campaignSpellRequest) loadingCampaignSpells.value = false }
+}
+watch(() => draft.value.campaignId, loadCampaignSpells, { immediate: true })
 const loadingResources = ref(true), resourceError = ref('')
 const initializing = ref(true)
 const purchasesSummary = computed(() => purchaseSummary(startingGold.value, draft.value.purchases, equipment.value))
@@ -191,8 +205,8 @@ async function restoreCreation() {
 const magic = computed(() => choiceMagicPools(chosenRules.value.rules, draft.value.int))
 const availableMagic = computed(() => magic.value.filter(pool => pool.slots[0]))
 const proficiencyCheck = computed(() => draft.value.rulesMode === 'standard' && chosenRules.value.rules ? proficiencyValidation(chosenRules.value.rules, draft.value.int, draft.value.proficiencies, metadata.value.generalProficiencies) : { rows: [] as string[], issues: [] as string[], limits: { class: 0, general: 0 } })
-const spellCheck = computed(() => draft.value.rulesMode === 'standard' ? spellValidation(magic.value, draft.value.spells, metadata.value.spells || []) : { rows: [] as string[], issues: [] as string[] })
-function initialSpellOptions(tradition: string): { name: string; level: number; tradition: string }[] { return (magic.value.find(p=>p.tradition===tradition)?.spellList || metadata.value.spells || []).filter((spell: any) => spell.level === 1 && spell.tradition === tradition) }
+const spellCheck = computed(() => draft.value.rulesMode === 'standard' ? spellValidation(magic.value, draft.value.spells, spellCatalog.value) : { rows: [] as string[], issues: [] as string[] })
+function initialSpellOptions(tradition: string): any[] { const pool = magic.value.find(p=>p.tradition===tradition); return spellCatalog.value.filter((spell: any) => spell.level === 1 && spell.tradition === tradition && (!pool?.spellList || spell.campaignSpellId || pool.spellList.some((entry:any)=>entry.name===spell.name&&entry.level===spell.level))) }
 const supportsStandard = computed(() => !!chosenRules.value.rules)
 const catalogAlternative = computed(() => classes.value.find(c => c.source === 'catalog' && c.name === klass.value?.name))
 const requirementErrors = computed(() => {

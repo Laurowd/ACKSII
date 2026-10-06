@@ -1,7 +1,7 @@
 import { getModifier } from './mechanics'
 
 export interface ProficiencyChoice { name: string; category: string }
-export interface SpellChoice { name: string; level: number; tradition: string }
+export interface SpellChoice { name: string; level: number; tradition: string; campaignSpellId?: string; description?: string; range?: string; duration?: string }
 export interface MagicChoicePool { tradition: string; studious: boolean; slots: number[]; repertoire: (number | null)[]; spellList?:SpellChoice[] }
 const normalized = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '')
 export const categoryName = (category: string) => category === 'class' ? 'de classe' : 'geral'
@@ -56,8 +56,9 @@ export function spellValidation(pools: MagicChoicePool[], choices: SpellChoice[]
     const key = `${pool.tradition}:${normalized(spell.name)}`
     if (seen.has(key)) return `${spell.name}: repetida no repertório ${traditionName(pool.tradition)}.`
     seen.add(key)
-    if (!spells.some(s => normalized(s.name) === normalized(spell.name) && s.level === spell.level && s.tradition === pool.tradition)) return `${spell.name}: escolha uma magia ${traditionName(pool.tradition)} de nível ${spell.level} da lista, ou registre a exceção no modo manual.`
-    if(pool.spellList&&!pool.spellList.some(s=>normalized(s.name)===normalized(spell.name)&&s.level===spell.level))return `${spell.name}: não pertence ao repertório religioso desta classe.`
+    const entry = spells.find(s => normalized(s.name) === normalized(spell.name) && s.level === spell.level && s.tradition === pool.tradition)
+    if (!entry) return `${spell.name}: escolha uma magia ${traditionName(pool.tradition)} de nível ${spell.level} da lista, confira a liberação pelo mestre ou registre apenas a referência no modo manual.`
+    if(!entry.campaignSpellId&&pool.spellList&&!pool.spellList.some(s=>normalized(s.name)===normalized(spell.name)&&s.level===spell.level))return `${spell.name}: não pertence ao repertório religioso desta classe.`
     return ''
   })
   const issues = rows.filter(Boolean)

@@ -37,7 +37,7 @@ describe('choices shown by the book-rule editors', () => {
     expect(spellValidation(magic, [armor, armor], spells).issues.join(' ')).toContain('repetida')
     expect(spellValidation(magic, [{ ...armor, tradition: 'divine' }], spells).issues.join(' ')).toContain('indisponível')
     expect(spellValidation(magic, [{ ...armor, level: 2 }], spells).issues.join(' ')).toContain('indisponível')
-    expect(spellValidation(magic, [{ ...armor, name: 'Campaign spell' }], spells).issues.join(' ')).toContain('modo manual')
+    expect(spellValidation(magic, [{ ...armor, name: 'Campaign spell' }], spells).issues.join(' ')).toContain('liberação pelo mestre')
     expect(spellValidation(magic, [{ ...armor, name: '' }], spells).issues).toEqual(['Escolha o nome da magia.'])
   })
   it('preserves actionable local errors without replacing network fallbacks', () => {

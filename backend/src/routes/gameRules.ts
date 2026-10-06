@@ -7,6 +7,7 @@ import { GENERAL_PROFICIENCIES, RULE_CLASSES, SPELL_LIST, rulesFor, proficiencyB
 import { initialAdventuring } from '../lib/creationRules'
 import { combatConfigurationSchema, validateCombatConfiguration } from '../lib/combatConfiguration'
 import { formulaKey, studyPlan } from '../lib/spellLearning'
+import { characterSpellCatalog } from '../lib/campaignSpells'
 
 const integer = (max = 2147483647) => ({ type: 'integer', minimum: 0, maximum: max })
 const text = { type: 'string', minLength: 1, maxLength: 160 }
@@ -31,12 +32,13 @@ export async function updateVersion(tx: any, c: any, expected: number, data: any
   if (!changed.count) throw Object.assign(operationError('A ficha mudou. Atualize a prévia antes de confirmar.',409), { code: 'CHARACTER_CONFLICT' })
 }
 const mutationCharacter = (tx: any, id: string) => tx.character.findUniqueOrThrow({ where: { id }, include: { spells: true, proficiencies: true, weapons: true } })
-const overview = (c: any, klass: any) => {
+const overview = (c: any, klass: any, catalog: any[]) => {
   const rules = rulesFor(klass)
-  if (!rules) return { supported:false, version:c.version, reason:'Classe livre: configure a construção por pontos ou use os campos manuais.' }
+  const campaignSpells = catalog.filter(entry => entry.campaignSpellId)
+  if (!rules) return { supported:false, version:c.version, campaignSpells, reason:'Classe livre: configure a construção por pontos ou use os campos manuais.' }
   const state = readState(c.rulesState)
   return {supported:true,version:c.version, rules, budget:proficiencyBudget(rules,c.level,c.int),
-    issues:[...proficiencyIssues(rules,c,c.proficiencies),...spellIssues(rules,c,c.spells)],
+    campaignSpells, issues:[...proficiencyIssues(rules,c,c.proficiencies),...spellIssues(rules,c,c.spells,c.level,catalog)],
     magic:magicPools(rules,c), used:state.used || {}, lastRestDay:state.lastRestDay ?? null,
     next:rules.levels[c.level] || null, standardAdventuring:initialAdventuring(c.str,klass.id.startsWith('catalog:')?klass.name:'',readState((klass as any).creationRules).ruleProfile) }
 }
@@ -50,7 +52,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       const c = await accessibleCharacter((req.params as any).id, req.user, tx)
       const rules = rulesFor(await resolveClass(c.classKey, c.campaignId, c.className))
       if (!rules || !magicPools(rules, c).some(pool => pool.studious && pool.tradition === input.spell.tradition)) throw operationError('Este fluxo é para conjuradores que estudam fórmulas.')
-      const spell = SPELL_LIST.find(entry => formulaKey(entry) === formulaKey(input.spell))
+      const spell = (await characterSpellCatalog(c, req.user as any, tx)).find(entry => formulaKey(entry) === formulaKey(input.spell))
       if (!spell) throw operationError('Escolha uma fórmula válida no catálogo.')
       const state = readState(c.rulesState)
       state.formulas ||= []
@@ -71,7 +73,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       if (state.study) throw operationError('Já existe um estudo em andamento. Confira o registro antes de iniciar outro.', 409)
       const rules = rulesFor(await resolveClass(c.classKey, c.campaignId, c.className))
       if (!rules) throw operationError('Classe sem aprendizado automático.')
-      let plan; try { plan = studyPlan(c, rules, input) } catch (error) { throw operationError((error as Error).message) }
+      let plan; try { plan = studyPlan(c, rules, input, await characterSpellCatalog(c, req.user as any, tx)) } catch (error) { throw operationError((error as Error).message) }
       const receipt = createHash('sha256').update(`study:${c.id}:${input.studyId}`).digest('hex')
       if (await tx.auditLog.findUnique({ where: { id: receipt } })) throw operationError('Este estudo já foi registrado; atualize a ficha.', 409)
       if (input.day > 2147483640) throw operationError('O dia de jogo está fora do intervalo permitido.')
@@ -90,7 +92,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
         if (input.day < study.earliestDay) throw operationError(`Conclua uma semana de estudo dedicado; primeiro dia de conclusão: ${study.earliestDay}.`)
         const rules = rulesFor(await resolveClass(c.classKey, c.campaignId, c.className))
         if (!rules) throw operationError('A classe mudou; confira o estudo com o mestre.')
-        try { studyPlan(c, rules, { formulaKey: formulaKey(study.spell), replaceSpellId: study.replaceSpellId }) } catch (error) { throw operationError((error as Error).message) }
+        try { studyPlan(c, rules, { formulaKey: formulaKey(study.spell), replaceSpellId: study.replaceSpellId }, await characterSpellCatalog(c, req.user as any, tx)) } catch (error) { throw operationError((error as Error).message) }
         if (study.replaceSpellId) await tx.spell.delete({ where: { id: study.replaceSpellId } })
         await tx.spell.create({ data: { ...study.spell, characterId: c.id } })
       }
@@ -119,7 +121,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
   app.get('/metadata', async () => ({ classes:RULE_CLASSES, generalProficiencies:GENERAL_PROFICIENCIES, spells:SPELL_LIST }))
   app.get('/characters/:id', async req => {
     const c=await accessibleCharacter((req.params as any).id,req.user)
-    return overview(c,await resolveClass(c.classKey,c.campaignId,c.className))
+    return overview(c,await resolveClass(c.classKey,c.campaignId,c.className),await characterSpellCatalog(c,req.user as any))
   })
 
   const advancementBody=body({version,dice:{type:'array',maxItems:9,items:{type:'integer',minimum:1,maximum:12}},
@@ -170,7 +172,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       const c=await accessibleCharacter((req.params as any).id,req.user,tx)
       const rules=rulesFor(await resolveClass(c.classKey,c.campaignId,c.className))
       if(!rules)throw operationError('Magia não configurada para esta classe.')
-      const issues=spellIssues(rules,c,input.spells)
+      const issues=spellIssues(rules,c,input.spells,c.level,await characterSpellCatalog(c,req.user as any,tx))
       if(magicPools(rules,c).some(p=>!p.studious)&&!input.orderApproved)issues.push('Confirme com o mestre o repertório da ordem religiosa.')
       if(issues.length)throw operationError(issues.join(' '))
       await updateVersion(tx,c,input.version)
@@ -187,7 +189,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       const rules=rulesFor(await resolveClass(c.classKey,c.campaignId,c.className))
       const spell=c.spells.find((s:any)=>s.id===input.spellId)
       if(!rules||!spell)throw operationError('Escolha uma magia do repertório.')
-      const issues=spellCastIssues(rules,c,spell)
+      const issues=spellCastIssues(rules,c,spell,await characterSpellCatalog(c,req.user as any,tx))
       if(issues.length)throw operationError(issues.join(' '))
       const pools=magicPools(rules,c),pool=pools.find(p=>p.tradition===spell.tradition)||(pools.length===1?pools[0]:undefined)
       if(!pool)throw operationError('Defina o tipo da magia no repertório.')

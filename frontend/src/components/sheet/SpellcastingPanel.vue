@@ -46,7 +46,7 @@
               <div class="flex items-center gap-2 min-w-0 flex-1">
                 <button type="button" @click="toggleFavorite(spell)" :aria-label="`${isFavorite(spell) ? 'Remover dos favoritos' : 'Favoritar'} ${spell.name}`" :aria-pressed="isFavorite(spell)" class="text-gold text-lg shrink-0">{{ isFavorite(spell) ? '★' : '☆' }}</button>
                 <HelpTooltip :label="spell.name || 'Magia sem nome'">{{ spellDescription(spell) }}</HelpTooltip>
-                <div class="min-w-0"><strong class="block break-words text-dark-text">{{ spell.name || 'Magia sem nome' }}</strong><span class="block text-xs text-steel-light">{{ traditionName(spellTradition(info, spell)) }}</span>
+                <div class="min-w-0"><strong class="block break-words text-dark-text">{{ spell.name || 'Magia sem nome' }}</strong><span class="block text-xs text-steel-light">{{ traditionName(spellTradition(info, spell)) }}<span v-if="campaignEntry(spell)"> · Magia de campanha</span></span>
                   <p v-if="!loading && info.supported && castingIssues.get(spell.id)" class="mt-1 text-xs text-gold-light">Conjuração automática indisponível. {{ castingIssues.get(spell.id) }}</p>
                 </div>
               </div>
@@ -62,11 +62,10 @@
       <details v-if="!compact && info.supported && info.magic?.length && !loading" :open="repertoireDraft.open" class="border border-steel-dark p-3 rounded-lg" @toggle="onEditorToggle">
         <summary class="cursor-pointer font-bold text-gold">Editar repertório com validação</summary>
         <fieldset :disabled="busy || loading" class="min-w-0 space-y-3 mt-3">
-          <div v-for="(spell, i) in repertoire" :key="i" class="grid grid-cols-[minmax(0,1fr)_4rem] sm:flex items-center gap-2">
+          <div v-for="(spell, i) in repertoire" :key="i" class="grid grid-cols-[minmax(0,1fr)_5rem] sm:grid-cols-[8rem_5rem_minmax(0,1fr)_auto] items-start gap-2">
             <select v-model="spell.tradition" @change="changeTradition(spell)" class="inp min-w-0 sm:w-32" :aria-label="`Tradição da magia ${i + 1}`"><option v-for="pool in info.magic" :key="pool.tradition" :value="pool.tradition">{{ traditionName(pool.tradition) }}</option></select>
             <select v-model.number="spell.level" @change="spell.name = ''" class="inp w-20" :aria-label="`Nível da magia ${i + 1}`"><option v-if="!availableLevels(spell.tradition).includes(spell.level)" :value="spell.level">{{ spell.level }} · indisponível</option><option v-for="level in availableLevels(spell.tradition)" :key="level" :value="level">{{ level }}</option></select>
-            <input v-model="spell.name" :list="`spellcasting-list-${i}`" class="inp col-span-2 min-w-0 flex-1" :aria-label="`Nome da magia ${i + 1}`" placeholder="Nome da magia" />
-            <datalist :id="`spellcasting-list-${i}`"><option v-for="suggestion in spellSuggestions(spell)" :key="suggestion.name" :value="suggestion.name" /></datalist>
+            <SearchableChoice v-model="spell.name" :options="spellSuggestions(spell).map((entry: any) => ({ value: entry.name, hint: entry.campaignSpellId ? 'Magia de campanha' : 'Catálogo do livro' }))" :label="`Nome da magia ${i + 1}`" class="col-span-2 sm:col-span-1" :disabled="busy || loading" placeholder="Escolha ou busque uma magia" />
             <button type="button" @click="repertoire.splice(i, 1)" :aria-label="`Remover ${spell.name || 'magia'} do repertório`" class="text-sm text-red-400 justify-self-start">Remover</button>
           </div>
           <button type="button" @click="addSpell" :disabled="!info.magic.some((pool: any) => pool.slots.some((slots: number) => slots > 0))" class="text-sm text-gold disabled:opacity-40">+ Adicionar magia</button>
@@ -93,6 +92,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import HelpTooltip from '../HelpTooltip.vue'
+import SearchableChoice from '../SearchableChoice.vue'
 import api from '../../services/api'
 import { getResource } from '../../services/resources'
 import { errorMessage } from '../../utils/catalog'
@@ -117,6 +117,7 @@ function toggleFavorite(spell: any) {
 }
 watch(() => props.character.id, () => { try { const value = JSON.parse(localStorage.getItem(favoriteKey()) || '[]'); favorites.value = Array.isArray(value) ? value.filter(entry => typeof entry === 'string').slice(0, 500) : [] } catch { favorites.value = [] } }, { immediate: true })
 const info = ref<any>({}), metadata = ref<any>({}), busy = ref(false), loading = ref(true), error = ref(''), notice = ref('')
+const spellCatalog = computed(() => [...(metadata.value.spells || []), ...(info.value.campaignSpells || [])])
 const repertoire = computed({ get: () => props.repertoireDraft.spells || [], set: value => { props.repertoireDraft.spells = value } })
 const orderApproved = computed({ get: () => props.repertoireDraft.orderApproved, set: value => { props.repertoireDraft.orderApproved = value } })
 const draftPending = computed(() => repertoireHasChanges(props.repertoireDraft))
@@ -126,7 +127,7 @@ const traditionName = (tradition: string) => tradition === 'arcane' ? 'Arcana' :
 const remaining = (tradition: string, level: number) => remainingSpellUses(info.value, tradition, level)
 const castingIssues = computed(() => {
   const spells = props.character.spells || []
-  const issues = spellCastingValidation(info.value, spells, metadata.value.spells || [])
+  const issues = spellCastingValidation(info.value, spells, spellCatalog.value)
   return new Map<string, string>(spells.map((spell: any, i: number) => [spell.id, issues[i] || '']))
 })
 const canCast = (spell: any) => !castingIssues.value.get(spell.id) && remaining(spellTradition(info.value, spell), spell.level) > 0
@@ -142,6 +143,8 @@ const spellGroups = computed(() => {
   return [...groups].sort(([a], [b]) => a - b).map(([level, spells]) => ({ level, spells }))
 })
 function spellDescription(spell: any) {
+  const campaign = campaignEntry(spell)
+  if (campaign) return [campaign.range && `Alcance: ${campaign.range}`, campaign.duration && `Duração: ${campaign.duration}`, campaign.description].filter(Boolean).join('\n\n')
   const matches = (props.spellDescriptions || []).filter(entry => entry.name.trim().toLowerCase() === String(spell.name || '').trim().toLowerCase())
   const entry = matches.find(entry => entry.level === Number(spell.level)) || matches[0]
   if (entry?.notes?.trim()) return entry.notes
@@ -149,6 +152,7 @@ function spellDescription(spell: any) {
   if (props.descriptionsError) return 'A consulta às descrições está indisponível. Use Tentar carregar descrições novamente.'
   return 'Descrição não cadastrada no catálogo. Para magias de campanha, consulte o mestre.'
 }
+function campaignEntry(spell: any) { return (info.value.campaignSpells || []).find((entry: any) => entry.name.toLowerCase().replace(/[^a-z0-9]/g, '') === String(spell.name || '').toLowerCase().replace(/[^a-z0-9]/g, '') && entry.level === spell.level && entry.tradition === spellTradition(info.value, spell)) }
 
 async function load() {
   if (busy.value || (loading.value && Object.keys(info.value).length)) return
@@ -178,7 +182,7 @@ function discardDraft() {
   if (window.confirm('Descartar as alterações do repertório e voltar às magias registradas?')) resetDraft()
 }
 function availableLevels(tradition: string): number[] { return (info.value.magic?.find((pool: any) => pool.tradition === tradition)?.slots || []).flatMap((slots: number, i: number) => slots ? [i + 1] : []) }
-function spellSuggestions(spell:any){return (info.value.magic?.find((pool:any)=>pool.tradition===spell.tradition)?.spellList || metadata.value.spells || []).filter((entry:any)=>entry.level===spell.level&&entry.tradition===spell.tradition)}
+function spellSuggestions(spell:any){const pool = info.value.magic?.find((pool:any)=>pool.tradition===spell.tradition);return spellCatalog.value.filter((entry:any)=>entry.level===spell.level&&entry.tradition===spell.tradition&&(!pool?.spellList||entry.campaignSpellId||pool.spellList.some((allowed:any)=>allowed.name===entry.name&&allowed.level===entry.level)))}
 function changeTradition(spell: any) { spell.level = availableLevels(spell.tradition)[0] || 1; spell.name = '' }
 function addSpell() { const pool = info.value.magic.find((pool: any) => availableLevels(pool.tradition).length); if (pool) repertoire.value.push({ name: '', level: availableLevels(pool.tradition)[0], tradition: pool.tradition }) }
 
@@ -204,7 +208,7 @@ async function change(key: string, path: string, input: any, message: string, ap
 }
 
 async function saveRepertoire() {
-  const check = spellValidation(info.value.magic || [], repertoire.value, metadata.value.spells || [])
+  const check = spellValidation(info.value.magic || [], repertoire.value, spellCatalog.value)
   if (check.issues.length) { error.value = check.issues.join(' '); notice.value = ''; return }
   const submitted = repertoireSnapshot(props.repertoireDraft)
   await change('magic:repertoire:update', 'magic/repertoire', { spells: JSON.parse(JSON.stringify(repertoire.value)), orderApproved: orderApproved.value }, 'Repertório registrado.', () => {
