@@ -27,7 +27,7 @@ describe('revised class concessions and book progression', () => {
     expect(proficiencyBudget(rules,1,10)).toEqual({class:1,general:1})
     expect(proficiencyIssues(rules,character,[{name:'Alchemy',category:'class'},{name:'Caving',category:'general'},...grantRows(classGrants(rules,character))])).toEqual([])
     expect(proficiencyIssues(rules,character,['Caving','Riding','Seafaring','Gambling'].map(name=>({name,category:'general'}))).join(' ')).toContain('limite 1')
-    expect(proficiencyIssues(rules,character,[{name:'Craft (weapon-smithing)',category:'general'}]).join(' ')).toContain('três graduações')
+    expect(proficiencyIssues(rules,character,[{name:'Craft (weapon-smithing)',category:'general'}])).toEqual([])
   })
   it('requires a named Craft and applies Attention to Detail to initial throws', () => {
     const rules = RULE_CLASSES['Dwarven Craftpriest']!

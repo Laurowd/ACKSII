@@ -15,6 +15,7 @@
         <div v-for="pool in info.magic" :key="pool.tradition" class="rounded-lg border border-steel-dark bg-dark-bg/30 p-4">
           <h3 class="font-bold text-gold">{{ traditionName(pool.tradition) }} · conjurador {{ pool.casterLevel }}</h3>
           <p class="text-xs text-steel-light mt-1">Recuperação por {{ pool.studious ? 'estudo' : 'oração' }} · usos restantes / limite diário</p>
+          <p v-if="pool.restricted" class="text-xs text-gold mt-2">{{ pool.restricted.path }}: a vaga extra de cada nível é reservada a {{ pool.restricted.types.map((key:string)=>SPELL_TYPES.find(type=>type.key===key)?.label).join(' ou ') }}. Os usos diários permanecem iguais.</p>
           <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-3">
             <div v-for="(slots, i) in pool.slots" :key="i" class="rounded-lg border border-steel-dark p-2 text-center">
               <span class="block text-xs text-steel-light">Nível {{ Number(i) + 1 }}</span>
@@ -98,6 +99,7 @@ import { getResource } from '../../services/resources'
 import { errorMessage } from '../../utils/catalog'
 import { useCharacterOperations } from '../../composables/characterOperations'
 import { remainingSpellUses, spellTradition, spellCastingValidation, repertoireHasChanges, repertoireSnapshot, type RepertoireDraft } from '../../utils/spellcasting'
+import { SPELL_TYPES } from '../../../../backend/src/lib/warlockPaths'
 import { spellValidation } from '../../utils/ruleChoices'
 import { useAuthStore } from '../../stores/auth'
 

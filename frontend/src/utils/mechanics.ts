@@ -1,4 +1,5 @@
 // ACKS II Mechanics Engine
+import { weaponAttackAttribute } from '../../../backend/src/lib/weaponAttacks'
 // Auto-calculates modifiers, AC, encumbrance, movement, etc.
 
 /** Standard ACKS II ability score modifier table */
@@ -111,6 +112,7 @@ export function calculateAttackThrow(baseThrow: number, targetAC: number, totalB
 }
 
 export interface AttackWeaponData {
+  attackAbility?: string;
   style?: string;
   rangeShort?: number;
   rangeMed?: number;
@@ -118,13 +120,8 @@ export interface AttackWeaponData {
 }
 
 /** Ranged weapons use DEX; weapons without a listed range use STR. */
-export function getWeaponAbilityModifier(weapon: AttackWeaponData, strMod: number, dexMod: number): number {
-  if (weapon.style === 'Missile Weapon') return dexMod;
-  if (['Single Weapon', 'Dual Weapon', 'Two-Handed Weapon', 'Weapon and Shield'].includes(weapon.style ?? '')) return strMod;
-  const isRanged = Number(weapon.rangeShort || 0) > 0
-    || Number(weapon.rangeMed || 0) > 0
-    || Number(weapon.rangeLong || 0) > 0;
-  return isRanged ? dexMod : strMod;
+export function getWeaponAbilityModifier(weapon: AttackWeaponData, strMod: number, dexMod: number, finesse = false): number {
+  return weaponAttackAttribute(weapon,strMod,dexMod,finesse)==='dex' ? dexMod : strMod;
 }
 
 /** AC calculation: base 0 + armor + shield + DEX mod */

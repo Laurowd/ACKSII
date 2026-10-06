@@ -12,7 +12,7 @@ export async function campaignSpellChoices(campaignId: string | null | undefined
     ...(characterId ? [{ visibility: 'CHARACTERS', reveals: { some: { characterId } } }] : []),
   ] }, orderBy: [{ level: 'asc' }, { name: 'asc' }] })
   return rows.map((row: any) => ({ campaignSpellId: row.id, name: row.name, level: row.level, tradition: row.tradition,
-    description: row.description, range: row.range, duration: row.duration }))
+    description: row.description, range: row.range, duration: row.duration, types: row.types || [] }))
 }
 export async function characterSpellCatalog(character: { id?: string; campaignId?: string | null }, user: { id: string }, db: any = prisma) {
   if (character.campaignId) {

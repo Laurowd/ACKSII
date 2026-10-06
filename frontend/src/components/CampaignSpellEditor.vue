@@ -18,6 +18,7 @@
           <label class="sm:col-span-2 text-sm">Duração<input v-model="draft.duration" maxlength="300" class="inp mt-1" placeholder="Ex.: 1 turno" /></label>
         </div>
         <label class="block text-sm">Descrição e efeitos<textarea v-model="draft.description" required maxlength="10000" rows="5" class="inp mt-1" placeholder="Descreva o efeito, os alvos e as condições da magia." /></label>
+        <fieldset class="rounded-lg border border-steel-dark p-3"><legend class="text-sm text-gold px-1">Tipos de magia</legend><p class="text-xs text-steel-light mb-2">Opcional. Define se a magia pode ocupar a vaga extra do Dark Path de um Warlock.</p><div class="grid sm:grid-cols-3 gap-2"><label v-for="type in SPELL_TYPES" :key="type.key" class="text-sm flex gap-2 items-center"><input v-model="draft.types" type="checkbox" :value="type.key" />{{ type.label }}</label></div></fieldset>
         <label class="block text-sm">Visibilidade<select v-model="draft.visibility" aria-label="Visibilidade" class="inp mt-1"><option value="SECRET">Secreta — somente o mestre</option><option value="CAMPAIGN">Disponível para toda a campanha</option><option value="CHARACTERS">Revelada para personagens específicos</option></select></label>
         <p class="text-xs text-steel-light">Disponibilizar permite consultar e escolher; não ensina a magia automaticamente. A conjuração usa os limites da classe, do repertório e os usos diários.</p>
         <fieldset v-if="draft.visibility === 'CHARACTERS'" class="rounded-lg border border-steel-dark p-3 space-y-2">
@@ -47,6 +48,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import api from '../services/api'
 import HelpTooltip from './HelpTooltip.vue'
 import { errorMessage } from '../utils/catalog'
+import { SPELL_TYPES } from '../../../backend/src/lib/warlockPaths'
 const props = defineProps<{ campaignId: string }>()
 const spells = ref<any[]>([]), characters = ref<any[]>([]), draft = ref<any>(null), editing = ref<any>(null)
 const loading = ref(false), loadFailed = ref(false), busy = ref(false), error = ref(''), notice = ref(''), search = ref(''), removing = ref('')
@@ -55,8 +57,8 @@ const visibilityLabel = (value: string) => ({ SECRET: 'Secreta', CAMPAIGN: 'Toda
 const filtered = computed(() => spells.value.filter(spell => `${spell.name} ${spell.description}`.toLocaleLowerCase().includes(search.value.trim().toLocaleLowerCase())))
 function start(spell?: any) {
   editing.value = spell ? { id: spell.id, version: spell.version } : null
-  draft.value = spell ? { name: spell.name, level: spell.level, tradition: spell.tradition, description: spell.description, range: spell.range, duration: spell.duration, visibility: spell.visibility, characterIds: [...spell.characterIds] }
-    : { name: '', level: 1, tradition: 'arcane', description: '', range: '', duration: '', visibility: 'SECRET', characterIds: [] }
+  draft.value = spell ? { name: spell.name, level: spell.level, tradition: spell.tradition, description: spell.description, types:[...(spell.types || [])], range: spell.range, duration: spell.duration, visibility: spell.visibility, characterIds: [...spell.characterIds] }
+    : { name: '', level: 1, tradition: 'arcane', description: '', types:[], range: '', duration: '', visibility: 'SECRET', characterIds: [] }
   error.value = ''; notice.value = ''; removing.value = ''
 }
 async function load() {

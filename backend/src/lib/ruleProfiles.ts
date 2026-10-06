@@ -11,6 +11,7 @@ export function ruleProfile(name: string) {
     initiative, initiativeSource: initiative ? 'Animal Reflexes' : '',
     alertness: name === 'Explorer',
     gracefulFighting: name === 'Bladedancer',
+    weaponFinesse: name === 'Bladedancer' ? 'bladedancer' : '',
     perceptive: name === 'Explorer' || /^(Elven|Dwarven) /.test(name),
     damageProgression: warrior ? 'fighter' : 'none',
     damageTrade: ['Paladin','Zaharan Ruinguard'].includes(name) ? 'missile' : 'none',

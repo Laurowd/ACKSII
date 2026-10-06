@@ -43,7 +43,7 @@ const busy = ref(false), reviewed = ref(false), preview = ref<any>(null), payloa
 const draftStore = createLocalDraft<{choices:ClassSelections;totem:{alive:boolean;nearby:boolean};reason:string;reconcile:boolean}>(useAuthStore().user?.id || '', `class-choices:${props.character.id}:${props.character.classKey}`)
 let draftRevision = 0, restored = false, resetting = false, baseline = ''
 const snapshot = () => JSON.stringify([choices.value,totem.value,reconcile.value,reason.value])
-function reset() { resetting=true; initial.value = {...selectionsFor(props.character)}; choices.value = {...initial.value}; const status = abilityState(props.character).totemStatus; totem.value = {alive: status?.alive ?? true, nearby: status?.nearby ?? true}; reconcile.value = false; reason.value = ''; baseline=snapshot(); resetting=false }
+function reset() { resetting=true; initial.value = {...selectionsFor(props.character,props.info.rules)}; choices.value = {...initial.value}; const status = abilityState(props.character).totemStatus; totem.value = {alive: status?.alive ?? true, nearby: status?.nearby ?? true}; reconcile.value = false; reason.value = ''; baseline=snapshot(); resetting=false }
 watch(() => JSON.stringify([props.info.classChoices,props.info.totemStatus]), () => {
   if (busy.value) return
   if (restored && snapshot() !== baseline) { preview.value = null; error.value = 'A ficha foi atualizada. Suas escolhas locais foram preservadas; confira novamente antes de confirmar.'; return }

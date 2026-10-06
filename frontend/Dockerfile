@@ -9,6 +9,9 @@ RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 COPY backend/src/data/domainIncomeFactors.json /app/backend/src/data/domainIncomeFactors.json
 COPY backend/src/lib/classAbilities.ts /app/backend/src/lib/classAbilities.ts
+COPY backend/src/lib/proficiencyRanks.ts /app/backend/src/lib/proficiencyRanks.ts
+COPY backend/src/lib/warlockPaths.ts /app/backend/src/lib/warlockPaths.ts
+COPY backend/src/lib/weaponAttacks.ts /app/backend/src/lib/weaponAttacks.ts
 COPY backend/src/data/acksRules.json /app/backend/src/data/acksRules.json
 RUN npm run build
 

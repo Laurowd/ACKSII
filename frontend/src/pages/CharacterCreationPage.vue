@@ -49,7 +49,7 @@
           <label>Terra natal<input v-model="draft.birthplace" maxlength="200" class="inp" /></label>
           <label>Alinhamento<select v-model="draft.alignment" class="inp"><option value="">A definir</option><option>Lawful</option><option>Neutral</option><option>Chaotic</option></select></label>
           <label>PV iniciais<input v-model.number="draft.hpMax" type="number" min="1" max="1000" required class="inp" /><button type="button" @click="rollHp" class="text-gold underline">Rolar dado da classe (mínimo 4) + CON</button></label>
-          <label v-if="subclasses.length && !chosenRules.rules?.classChoices?.some((choice:any) => choice.id === 'tradition')">Subclasse<select v-model="draft.subclass" class="inp"><option value="">A definir</option><option v-for="s in subclasses" :key="s">{{ s }}</option></select></label>
+          <label v-if="subclasses.length && !chosenRules.rules?.classChoices?.some((choice:any) => ['tradition','dark-path'].includes(choice.id))">Subclasse<select v-model="draft.subclass" class="inp"><option value="">A definir</option><option v-for="s in subclasses" :key="s">{{ s }}</option></select></label>
           <label>Idiomas<input v-model="draft.languagesKnown" maxlength="2000" class="inp" /></label>
         </div>
         <label class="flex gap-2"><input v-model="draft.isSpellcaster" type="checkbox" :disabled="draft.rulesMode === 'standard'" /> Este personagem usa magia</label>
@@ -256,7 +256,7 @@ watch(klass, (value) => {
   draft.value.isSpellcaster = chosenRules.value?.spellcaster ?? false
   if (value) draft.value.hpMax = Math.max(1, 4 + (value.conBonus ? getModifier(draft.value.con) : 0)) + Number(chosenRules.value.rules?.levels[0]?.hitDice.match(/\+(\d+)/)?.[1] || 0)
 })
-watch(() => draft.value.classChoices, () => { if (!restoring) { changeOrigin(); draft.value.subclass = draft.value.classChoices.tradition || '' } }, {deep:true})
+watch(() => draft.value.classChoices, () => { if (!restoring) { changeOrigin(); draft.value.subclass = draft.value.classChoices.tradition || draft.value.classChoices['dark-path'] || '' } }, {deep:true})
 watch(() => draft.value.rulesMode, mode => { if (!restoring && mode === 'standard') draft.value.isSpellcaster = chosenRules.value.spellcaster ?? false })
 async function loadClasses() {
   const id = ++sequence

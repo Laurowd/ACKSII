@@ -1,4 +1,4 @@
-import { WITCH_POWERS, CRAFTPRIEST_POWERS } from './revisedClassPowers'
+import { WITCH_POWERS, CRAFTPRIEST_POWERS, BLADEDANCER_POWERS, WARLOCK_POWERS } from './revisedClassPowers'
 export const CLASS_POWERS: Record<string, {name: string, description: string, minimumLevel?: number, subPath?: string}[]> = {
   "fighter": [
     {
@@ -338,64 +338,7 @@ export const CLASS_POWERS: Record<string, {name: string, description: string, mi
       "description": "The bard can learn another class proficiency from any class, thief skill (excluding backstab), venturer class power (excluding mercantile network), or other class power approved by the Judge, excluding spellcasting."
     }
   ],
-  "bladedancer": [
-    {
-      "name": "Graceful Fighting",
-      "description": "The bladedancer fights in an agile and acrobatic style that resembles a choreographed dance. If a bladedancer is wearing light armor, very light armor, or no armor, and carrying 5 stones or less encumbrance, she gains a +1 bonus to initiative and a +1 bonus to Armor Class. At 7 th level, the AC bonus increases to +2, and at 13th level the AC bonus increases to +3. Graceful fighting can be stacked with Swashbuckling proficiency to increase the AC bonus, but the bonus from Swashbuckling is capped at +1 unless the bladedancer is unarmored."
-    },
-    {
-      "name": "Divine Magic",
-      "description": "Bladedancers can manifest their goddess’s power in the form of divine spells, which are granted through prayer and worship. The number and levels of spells the bladedancer can cast in a single day are listed on the Bladedancer Spell Progression table. The bladedancer’s spell selection is limited to the spells in her order’s repertoire (which is different than that of the crusader). See the Spells chapter for a list of all available spells."
-    },
-    {
-      "name": "Strength of Faith",
-      "description": "When the bladedancer strikes a foe, the goddess lends her strength to the blow. The bladedancer can apply her WIL modifier instead of her STR modifier on any damage roll affected by STR."
-    },
-    {
-      "name": "Theology",
-      "description": "Every bladedancer receives religious instruction at an abbey, cloister, or temple. She can begin play as a member of a religious hierarchy (Judge’s discretion). She can acquire congregants through proselytizing. She can automatically identify religious symbols, spell signatures, trappings, and holy days of her own faith, and can recognize those of other faiths with a proficiency throw of 11+. Rare or occult cults might be harder to recognize. (This class power is the equivalent of one rank of Theology proficiency.)"
-    },
-    {
-      "name": "Weapon Finesse",
-      "description": "Bladedancers fight with lissome speed and cat-like agility. A bladedancer can apply her DEX modifier instead of her STR modifier on her melee attack throws when using weapons with which she is proficient. (This class power is the equivalent of Weapon Finesse proficiency, except that it applies to the bladedancer’s specific weapons rather than to all tiny, small, or medium weapons. It cannot stack with Weapon Finesse.)"
-    },
-    {
-      "name": "Minor Magical Research (5th)",
-      "description": "The bladedancer can scribe scrolls and brew potions."
-    },
-    {
-      "name": "Major Magical Research (9th)",
-      "description": "The bladedancer can create permanent magic items such as enchanted armor, rings, or weapons."
-    },
-    {
-      "name": "Temple (9th level)",
-      "description": "By acquiring a temple worth at least 15,000gp, the bladedancer can attract followers to her service. So long as the bladedancer is currently in favor with her goddess, she can buy or build her temple at half the normal price due to miraculous assistance. 5d6 x 10 0th level troops and 1d6 bladedancers of 1st level of the same religion arrive to serve her within 1d3 months of her acquiring the temple. If the bladedancer has already acquired a temple, the followers arrive to serve her within 1d3 months of her reaching 9th level. The followers are fanatically brave and completely loyal (loyalty +4 and morale +4). Despite their loyalty, the followers must be paid a fair wage or they might eventually leave the bladedancer’s service. Additional rules for temples are detailed in the Campaigns chapter."
-    },
-    {
-      "name": "Supreme Magical Research (11th level)",
-      "description": "The bladedancer can learn and cast ritual divine spells of great power (7th, 8th, and 9th level) and craft magical constructs. If chaotic, the bladedancer can create necromantic servants and become undead. Rules for magic research can be found in the Campaigns chapter (p. XX). CODE OF BEHAVIOR Like crusaders, bladedancers must uphold the strictures of their order and their goddess. If the Judge has not specified particular religious orders in his campaign, the default bladedancer is assumed to be from the Temple of the Blade and Veil, the order devoted to Ianna, Goddess of Love and War. The strictures of their order are many. • The bladedancer must always carry a weapon on her person, except where imperial or sacred law forbids it. • The bladedancer must offer prayers to Ianna at dawn and dusk. Offering prayers requires one turn (10 minutes). • The bladedancer must not debase herself by fighting with the implements of the peasantry such as axes and hammers, by dishonorably firing bows or slings from a distance, or by resorting to shields for defense. (She can, however, hurl javelins or spears she carries.) • The bladedancer must not get married or have children before she reaches the rank of Blade-Dancer (7th level). She needn’t remain chaste, however, and may have liaisons as desired. • The bladedancer must not use her divine magic for unlawful or chaotic purposes. If a bladedancer ever falls from favor, due to violating the strictures of her faith, the goddess can impose penalties upon the bladedancer. As with crusaders, these penalties are entirely up to the Judge."
-    },
-    {
-      "name": "Divine Magic",
-      "description": "Priestesses can manifest their goddess’s power in the form of divine spells, which are granted through prayer and worship. The number and levels of spells the priestess can cast in a single day are listed on the Priestess Spell Progression table. The priestess’s spell selection is limited to the spells in her order’s repertoire (which is different than that of the crusader). See the Spells chapter for a list of all available spells."
-    },
-    {
-      "name": "Theology",
-      "description": "Every priestess receives religious instruction at an abbey, cloister, or temple. She can begin play as a member of a religious hierarchy (Judge’s discretion). She can acquire congregants through proselytizing. She can automatically identify religious symbols, spell signatures, trappings, and holy days of her own faith, and can recognize those of other faiths with a proficiency throw of 11+. Rare or occult cults might be harder to recognize. (This class power is the equivalent of one rank of Theology proficiency)."
-    },
-    {
-      "name": "Minor Magical Research (5th level)",
-      "description": "The priestess can scribe magical scrolls and brew potions."
-    },
-    {
-      "name": "Major Magical Research (9th level)",
-      "description": "The priestess can create more powerful magic items such as weapons, rings, and staffs."
-    },
-    {
-      "name": "Supreme Magical Research (11th level)",
-      "description": "The priestess can learn and cast ritual divine spells of great power (7th, 8th, and 9th level) and craft magical constructs. If chaotic, the priestess can create necromantic servants and become undead. Rules for magic research can be found in the Campaigns chapter (p. XX). CODE OF BEHAVIOR Like crusaders, priestesses must uphold the strictures of their order and their goddess. If the Judge has not specified particular religious orders in his campaign, the default priestess is assumed to be from the Keepers of the Hearth Fire, the order devoted to Mityara, Goddess of Civilization and Mercy. The strictures of their order are many. • The priestess must always wear the white mantles and shawls of their order when in public. • The priestess must offer prayers to Mityara at dawn and dusk. Offering prayers requires one turn (10 minutes). • Every seventh day, the priestess must keep a flame lit throughout the night, representing the light of civilization. • The priestess must refrain from the taking of human or demi-human life by any means. (Of course, beastmen, undead, and other monsters are abominations and should be put down!) • The priestess must remain both chaste and celibate until she reaches the rank of Mother (7th level). • The priestess must not use her divine magic for unlawful or chaotic purposes. If a priestess ever falls from favor, due to violating the strictures of her faith, the goddess might impose penalties upon the priestess. As with crusaders, these penalties are entirely up to the Judge."
-    }
-  ],
+  "bladedancer": BLADEDANCER_POWERS,
   "shaman": [
     {
       "name": "Commune with Spirits",
@@ -477,108 +420,7 @@ export const CLASS_POWERS: Record<string, {name: string, description: string, mi
       "description": "Elves can speak the Common, Elven, Gnoll, Hobgoblin, and Orc languages."
     }
   ],
-  "warlock": [
-    {
-      "name": "Arcane Magic",
-      "description": "Warlocks can learn and cast powerful arcane spells. A warlock’s spell selection is limited to the spells in his repertoire. A warlock’s repertoire can include the number of spells up to the number and level of spells listed for his level, increased by his Intellect bonus."
-    },
-    {
-      "name": "Dark Path",
-      "description": "Every warlock has chosen to follow a dark path: Demonology, Necromancy, or Transmogrification. Each dark path rewards the warlock with one class power at 1st level and one additional class power at 3rd, 5th, 7th, 9th, and 11th level."
-    },
-    {
-      "name": "Occultism",
-      "description": "Every warlock has studied the forbidden secrets of the occult. On a proficiency throw of 11+, he can name the popular titles and symbols of chthonic powers; identify the type of undead creature encountered; and otherwise recall information of interest to demonology and necromancy."
-    },
-    {
-      "name": "Minor Magical Research (5th level)",
-      "description": "The warlock can research spells, scribe magical scrolls, and brew potions."
-    },
-    {
-      "name": "Major Magical Research (9th level)",
-      "description": "The warlock can create more powerful magic items such as weapons, rings, and staffs."
-    },
-    {
-      "name": "Sanctum (9th level)",
-      "description": "By acquiring a sanctum (often a great tower) worth at least 15,000gp, the warlock can attract followers to his service as assistants in magical research."
-    },
-    {
-      "name": "Supreme Magical Research (11th level)",
-      "description": "The warlock can learn and cast ritual arcane spells of great power (7th, 8th, and 9th level), craft magical constructs, and create magical cross-breeds."
-    },
-    {
-      "name": "Dark Path: Demonology (1st) - Conjure Dark Powers",
-      "description": "When the demonologist casts summoning spells, the spell effects are calculated as if he were two caster levels higher than his actual level of experience. He is better at maintaining concentration over them."
-    },
-    {
-      "name": "Dark Path: Demonology (3rd) - Theology",
-      "description": "The demonologist has become a cultist of the chthonic powers. He gains one rank of the Theology proficiency."
-    },
-    {
-      "name": "Dark Path: Demonology (5th) - Conjure Hellion",
-      "description": "The demonologist has made pacts with demon lords. He can cast conjure hellion once per day."
-    },
-    {
-      "name": "Dark Path: Demonology (7th) - Expanded Repertoire",
-      "description": "The demonologist gains an expanded repertoire. The additional spells must be conjuration or summoning spells."
-    },
-    {
-      "name": "Dark Path: Demonology (9th) - Words of Command",
-      "description": "The demonologist can compel his conjured and summoned creatures to obey his inexorable will rather than pervert it."
-    },
-    {
-      "name": "Dark Path: Demonology (11th) - Power of Sacrifice",
-      "description": "Bargaining with the infernal powers has taught the demonologist the power of sacrifice. He can gain arcane power by blood sacrifice, and counts any arcane power from blood sacrifice as double its gp value."
-    },
-    {
-      "name": "Dark Path: Necromancy (1st) - Secrets of the Dark Arts",
-      "description": "The necromancer can control undead as a Chaotic crusader of one half his class level. When the character casts necromantic spells, the spell effects are calculated as if he were two class levels higher than his actual level."
-    },
-    {
-      "name": "Dark Path: Necromancy (3rd) - Mortuary Science",
-      "description": "The necromancer has undertaken a deep study of anatomy, circulation, disease, and vitality. He gains one rank of the Healing proficiency."
-    },
-    {
-      "name": "Dark Path: Necromancy (5th) - Speak with Dead",
-      "description": "The dead hold no secrets for the necromancer. He can cast speak with the dead once per day."
-    },
-    {
-      "name": "Dark Path: Necromancy (7th) - Expanded Repertoire",
-      "description": "The necromancer gains an expanded repertoire. The additional spells must be death and necromancy spells."
-    },
-    {
-      "name": "Dark Path: Necromancy (9th) - Lordship Over the Undead",
-      "description": "Whenever the character succeeds in controlling undead, the undead are controlled for 1 day per level instead of the usual 1 turn per level. If it would be 1 day per level, they are controlled indefinitely."
-    },
-    {
-      "name": "Dark Path: Necromancy (11th) - Secrets of Life and Death",
-      "description": "The necromancer has finally unlocked the secrets of life and death. He can perform necromancy at half the usual material cost and research cost."
-    },
-    {
-      "name": "Dark Path: Transmogrification (1st) - Grotesque Arts",
-      "description": "When the character casts transmogrification spells, the spell effects are calculated as if he were two class levels higher than his actual level of experience. Targets suffer a -2 penalty to their saving throw."
-    },
-    {
-      "name": "Dark Path: Transmogrification (3rd) - Alchemy",
-      "description": "To master the art of transmogrification one must unravel the secrets of alchemy. The character gains one rank of the Alchemy proficiency."
-    },
-    {
-      "name": "Dark Path: Transmogrification (5th) - Skinchange",
-      "description": "The transmogrifier has learned to transcend his own form. He can cast skinchange once per day."
-    },
-    {
-      "name": "Dark Path: Transmogrification (7th) - Expanded Repertoire",
-      "description": "The transmogrifier gains an expanded repertoire. The additional spells must be transmogrification spells."
-    },
-    {
-      "name": "Dark Path: Transmogrification (9th) - Hideous Servant",
-      "description": "Experiments combining living creatures with the transmogrifier’s own flesh and blood have created a hideous servant intimately bonded to his will. The hideous servant is mechanically similar to a shaman’s totem animal. However, the sorcerer selects characteristics from two different animals."
-    },
-    {
-      "name": "Dark Path: Transmogrification (11th) - Shape Flesh and Bone",
-      "description": "The transmogrifier can mold flesh and bone like clay. The character is able to create magical crossbreeds at half the usual material cost and research cost."
-    }
-  ],
+  "warlock": WARLOCK_POWERS,
   "paladin": [
     {
       "name": "Aura of Protection",

@@ -12,10 +12,10 @@ export function classChoicePlan(character: any, rules: ClassAbilityRules, choice
     if (existing) {
       used.add(existing.id)
       if (existing.category !== 'natural' || existing.name !== grant.name) converted.push({ ...existing, name: grant.name, category: 'natural' })
-      if (existing.category === 'natural' && grant.name === 'Climbing' && character.level !== next.level) targets.push({ ...existing, throwTarget: existing.throwTarget + character.level - next.level })
     } else added.push(grant)
   }
   const removed = (character.proficiencies || []).filter((p: any) => (p.category === 'natural' && !used.has(p.id)) || (['class','general'].includes(p.category) && key(p.name) === 'adventuring'))
+  if(character.level!==level) for(const prof of character.proficiencies || []) if(prof.category!=='adventuring' && ['climbing','loremastery'].includes(prof.name.split('(')[0].trim().toLowerCase())) targets.push({...prof,throwTarget:prof.throwTarget + character.level - level})
   if (reconcileAdventuring) {
     const bonus = rules.className === 'Dwarven Craftpriest' ? 3 : 0, delta = bonus - Number(abilityState(character).adventuringProficiencyBonus || 0)
     if (delta) for (const prof of character.proficiencies || []) if (prof.category === 'adventuring' && initialAdventuring(character.str).some(p => p.name === prof.name)) targets.push({ ...prof, throwTarget: prof.throwTarget - delta })

@@ -1,9 +1,11 @@
 import { getModifier } from './mechanics'
 import { abilityProficiencies } from '../../../backend/src/lib/classAbilities'
+import { proficiencyRankIssues } from '../../../backend/src/lib/proficiencyRanks'
+import { restrictedRepertoire, restrictedRepertoireIssues } from '../../../backend/src/lib/warlockPaths'
 
 export interface ProficiencyChoice { name: string; category: string }
-export interface SpellChoice { name: string; level: number; tradition: string; campaignSpellId?: string; description?: string; range?: string; duration?: string }
-export interface MagicChoicePool { tradition: string; studious: boolean; slots: number[]; repertoire: (number | null)[]; spellList?:SpellChoice[] }
+export interface SpellChoice { name: string; level: number; tradition: string; campaignSpellId?: string; description?: string; range?: string; duration?: string; types?:string[] }
+export interface MagicChoicePool { tradition: string; studious: boolean; slots: number[]; repertoire: (number | null)[]; spellList?:SpellChoice[]; restricted?:{path:string;extra:number;types:string[]} }
 const normalized = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '')
 export const categoryName = (category: string) => category === 'class' ? 'de classe' : 'geral'
 export const traditionName = (tradition: string) => tradition === 'divine' ? 'divina' : 'arcana'
@@ -35,10 +37,7 @@ export function proficiencyValidation(rules: any, intellect: number, choices: Pr
     const count = choices.filter(p => p.category === category).length
     if (count > limits[category]) issues.push(`Proficiências ${categoryName(category)}: ${count} escolhas; limite ${limits[category]}.`)
   }
-  const singleRank = ['combatreflexes', 'combatferocity', 'alertness', 'swashbuckling', 'weaponfinesse', 'endurance', 'running', 'ambushing', 'blindfighting', 'climbing', 'riding', 'expandedrepertoire']
-  const ranks = [...choices.filter(p => !['adventuring','natural'].includes(p.category)), ...grants.filter(grant => !grant.conditional), ...(rules.abilityPowers || []).filter((power:any) => (power.minimumLevel || 1) <= level)]
-  for (const name of singleRank) if (ranks.filter(p => normalized(p.name) === name).length > 1) issues.push(`A proficiência ${ranks.find(p => normalized(p.name) === name)!.name} não pode ser repetida.`)
-  for (const grant of grants.filter(grant => grant.ranks === 3)) if (choices.some(choice => ['class','general'].includes(choice.category) && normalized(choice.name) === normalized(grant.name))) issues.push('Craft já possui as três graduações concedidas pela classe; escolha outro ofício ou proficiência.')
+  issues.push(...proficiencyRankIssues(choices,grants,(rules.abilityPowers || []).filter((power:any) => (power.minimumLevel || 1) <= level)))
   return { rows, issues, limits }
 }
 
@@ -50,7 +49,8 @@ export function choiceMagicPools(rules: any, intellect: number, level = 1, chara
     const slots = Array.from({ length: 6 }, (_, i) => row.spellSlots[index * 6 + i] || 0)
     const studious = tradition === 'arcane' || rules.magic === 'studious-divine'
     const expanded = abilityProficiencies({ ...character, level }, rules).some(proficiency => normalized(proficiency.name) === 'expandedrepertoire') ? 1 : 0
-    return { tradition, studious, slots, repertoire: slots.map(n => !n ? 0 : studious ? n + Math.max(0, getModifier(intellect)) + expanded : null),...(tradition==='divine'&&rules.divineSpellList?{spellList:rules.divineSpellList}:{}) }
+    const restricted=tradition==='arcane'?restrictedRepertoire(rules,character,level):undefined
+    return { tradition, studious, slots, repertoire: slots.map(n => !n ? 0 : studious ? n + Math.max(0, getModifier(intellect)) + expanded + (restricted?.extra || 0) : null), ...(restricted?{restricted}:{}), ...(tradition==='divine'&&rules.divineSpellList?{spellList:rules.divineSpellList}:{}) }
   })
 }
 
@@ -74,5 +74,6 @@ export function spellValidation(pools: MagicChoicePool[], choices: SpellChoice[]
     const limit = pool.repertoire[i]
     if (limit != null && count > limit) issues.push(`Repertório ${traditionName(pool.tradition)} de nível ${i + 1}: ${count} magias; limite ${limit}.`)
   }
+  for(const pool of pools)issues.push(...restrictedRepertoireIssues(pool,choices,spells))
   return { rows, issues }
 }

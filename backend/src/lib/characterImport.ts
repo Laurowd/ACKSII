@@ -112,6 +112,7 @@ function restoredRulesState(value: unknown, warnings: string[]) {
   if (value === undefined) return '{}';
   const state = jsonObject(value, 'Estado de regras', 80000);
   const restored: Record<string, any> = {};
+  if(state.retainedClassGrants)warnings.push('Concessões excepcionais da classe precisam ser aprovadas novamente pelo mestre em Revisar classe e concessões. Os registros foram mantidos para conferência, sem conceder seus efeitos automaticamente.');
   if (state.proficiencyOrigin !== undefined) {
     if (!BARBARIAN_ORIGINS.some(origin => origin.key === state.proficiencyOrigin)) throw new CharacterImportError('Origem de proficiências inválida.');
     restored.proficiencyOrigin = state.proficiencyOrigin;

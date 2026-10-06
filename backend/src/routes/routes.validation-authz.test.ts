@@ -323,7 +323,7 @@ describe('Routes validation/authz', () => {
     await app.close()
   })
 
-  it('looks up class progression by class name', async () => {
+  it('requires a reviewed class revision instead of changing class through autosave', async () => {
     const existing = {
       version: 0,
       id: 'ch1',
@@ -347,7 +347,9 @@ describe('Routes validation/authz', () => {
       payload: { className: 'Fighter', version: 0 },
     })
 
-    expect(res.statusCode, res.body).toBe(200)
+    expect(res.statusCode, res.body).toBe(400)
+    expect(res.json().code).toBe('CLASS_REVISION_REQUIRED')
+    expect(prismaMock.character.update).not.toHaveBeenCalled()
     expect(prismaMock.customClass.findFirst).toHaveBeenCalledWith({
       where: { campaignId: 'camp1', name: 'Fighter' },
     })

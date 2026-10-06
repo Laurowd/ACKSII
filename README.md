@@ -230,4 +230,6 @@ Magias homebrew possuem cadastro na campanha, visibilidade secreta ou por ficha 
 
 A criação separa Adventuring e as concessões de origem do bárbaro das escolhas de classe e gerais. Fichas antigas podem ser conferidas pelo mestre com prévia e confirmação; veja [proficiências iniciais](docs/PROFICIENCIAS_INICIAIS.md).
 
+Para trocar a classe de uma ficha existente, o mestre usa **Geral & Combate → Revisar classe e concessões**. A prévia mostra concessões removidas, adicionadas e mantidas como exceções; XP, PV, moedas e escolhas pagas são preservados. Warlock registra seu Dark Path e confere os tipos permitidos na vaga extra de repertório. Weapon Finesse oferece a escolha de atributo nas armas elegíveis, com o mesmo cálculo na sessão e na impressão. Veja [a conferência complementar](docs/AUDITORIA_COMPLEMENTAR_2026-10-06.md). Aplique a migration `20261006190000_weapon_ability_spell_types` antes de iniciar esta versão.
+
 Os testes unitários não escrevem no Neon; os testes de backend usam banco simulado. Rode `npm.cmd test` em `backend` e `frontend`. Cypress, Playwright e os testes de integração usam PostgreSQL local isolado, conforme [o guia de testes](docs/TESTES_CYPRESS.md).

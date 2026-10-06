@@ -79,3 +79,36 @@ test('class-choice drafts survive a tab switch before confirmation',async({page}
   await page.goto(`/character/${hero.id}`);await page.getByRole('button',{name:'Evolução & Regras',exact:true}).click();await choose(page,'Expert Traveling · escolha gratuita','Seafaring');await page.getByRole('button',{name:'Geral & Combate',exact:true}).click();await page.getByRole('button',{name:'Evolução & Regras',exact:true}).click();await expect(page.getByRole('combobox',{name:'Expert Traveling · escolha gratuita',exact:true})).toHaveValue('Seafaring');await expect(page.getByText('Rascunho de concessões recuperado.',{exact:false})).toBeVisible()
   expect(JSON.parse((await stored(page,hero.id)).rulesState).classChoices['expert-traveling']).toBeUndefined()
 })
+
+test('Warlock chooses a Dark Path and displays only its powers',async({page})=>{
+  await start(page,'warlock');await choose(page,'Dark Path do Warlock','Demonology');await prof(page,'Alchemy','class');await prof(page,'Caving','general');await spell(page,'Arcane Armor');const hero=await finish(page)
+  expect(hero.subclass).toBe('Demonology');expect(JSON.parse(hero.rulesState).classChoices['dark-path']).toBe('Demonology')
+  await expect(page.getByLabel('Dark Path do Warlock',{exact:true})).toHaveText('Demonology')
+  await expect(page.getByRole('button',{name:'Ajuda: Conjure Dark Powers',exact:true})).toBeVisible()
+  await expect(page.getByRole('button',{name:'Ajuda: Secrets of the Dark Arts',exact:true})).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'Ajuda: Grotesque Arts of Transformation',exact:true})).toHaveCount(0)
+})
+
+test('the master previews a class switch, can cancel, and confirms removal of old natural powers',async({page},info)=>{
+  const headers=await signIn(page),created=await page.request.post('/api/characters/guided',{headers,data:{characterName:'Review Tribal Warrior',classKey:'catalog:barbarian',rulesMode:'standard',proficiencyOrigin:'ivory-kingdoms',classChoices:{'damage-specialization':'melee'},str:13,int:10,dex:10,wil:10,con:10,cha:10,hpMax:6,proficiencies:[{name:'Ambushing',category:'class'},{name:'Caving',category:'general'}]}})
+  expect(created.status(),await created.text()).toBe(201);const hero=(await created.json()).character
+  await page.goto(`/character/${hero.id}`);await page.getByRole('combobox',{name:'Classe',exact:true}).selectOption('catalog:fighter')
+  const dialog=page.getByRole('dialog',{name:'Revisar classe e concessões',exact:true});await expect(dialog).toBeVisible();expect((await stored(page,hero.id)).className).toBe('Barbarian')
+  await dialog.getByRole('button',{name:'Cancelar',exact:true}).click();await expect(dialog).toHaveCount(0)
+  await expect(page.getByRole('combobox',{name:'Classe',exact:true})).toHaveValue('catalog:barbarian')
+  await page.getByRole('combobox',{name:'Classe',exact:true}).selectOption('catalog:fighter');await dialog.getByLabel('Justificativa do mestre').fill('Corrigir a classe após revisão da ficha.')
+  await dialog.getByRole('button',{name:'Conferir revisão de classe',exact:true}).click();await expect(dialog.getByText('Remover concessões antigas:',{exact:false})).toContainText('Running');expect((await stored(page,hero.id)).className).toBe('Barbarian')
+  await page.setViewportSize({width:320,height:812});await page.screenshot({path:info.outputPath('class-review-mobile.png'),fullPage:true});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+  await dialog.getByRole('button',{name:'Confirmar revisão de classe',exact:true}).click();await expect(dialog).toHaveCount(0)
+  const after=await stored(page,hero.id);expect(after.className).toBe('Fighter');expect(after.proficiencies.filter((row:any)=>row.category==='natural')).toHaveLength(0);expect(after.hpMax).toBe(hero.hpMax);expect(after.xp).toBe(hero.xp)
+  expect(JSON.parse(after.rulesState).proficiencyOrigin).toBeUndefined();expect(JSON.parse(after.rulesState).classChoices).toEqual({})
+})
+
+test('finesse attribute remains consistent in combat, session and printing after reload',async({page})=>{
+  const headers=await signIn(page),created=await page.request.post('/api/characters/guided',{headers,data:{characterName:'Finesse Blade',classKey:'catalog:bladedancer',str:10,int:10,dex:16,wil:10,con:10,cha:10,hpMax:6}});expect(created.status()).toBe(201);const hero=(await created.json()).character
+  const weapon=await page.request.post(`/api/characters/${hero.id}/weapons`,{headers,data:{version:hero.version,name:'Sword',style:'Single Weapon'}});expect(weapon.status(),await weapon.text()).toBe(201)
+  await page.goto(`/character/${hero.id}`);const attribute=page.getByRole('combobox',{name:'Atributo de ataque de Sword',exact:true});await expect(attribute).toHaveValue('auto')
+  let downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'Ficha para impressão/PDF',exact:true}).click();let html=await readFile((await (await downloaded).path())!,'utf8');expect(html).toContain('DEX · alvo contra CA 0: 8+')
+  await attribute.selectOption('str');await expect.poll(async()=> (await stored(page,hero.id)).weapons[0].attackAbility).toBe('str');await page.reload();await expect(attribute).toHaveValue('str')
+  downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'Ficha para impressão/PDF',exact:true}).click();html=await readFile((await (await downloaded).path())!,'utf8');expect(html).toContain('STR · alvo contra CA 0: 10+')
+})

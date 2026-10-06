@@ -22,13 +22,15 @@ import api from '../../services/api'
 import SpellcastingPanel from './SpellcastingPanel.vue'
 import { calculateCharacterMetrics } from '../../utils/characterMetrics'
 import { getModifier, getWeaponAbilityModifier } from '../../utils/mechanics'
+import { classEffects } from '../../utils/classEffects'
 import type { RepertoireDraft } from '../../utils/spellcasting'
 const props = defineProps<{ character: any; definition?: any; prepare: () => Promise<boolean>; refresh: () => Promise<void>; repertoireDraft: RepertoireDraft; busy: boolean }>()
 const emit = defineEmits<{ save: [] }>()
 const amount = ref(1), valid = computed(() => Number.isInteger(amount.value) && amount.value > 0 && amount.value <= 1000000)
 const metrics = computed(() => calculateCharacterMetrics(props.character, props.definition))
 const signed = (value: number) => `${value >= 0 ? '+' : ''}${value}`
-const attackBonus = (weapon: any) => Number(weapon.attackBonus || 0) + getWeaponAbilityModifier(weapon, getModifier(props.character.str), getModifier(props.character.dex))
+const effects=computed(()=>classEffects(props.character,props.definition?.ruleProfile))
+const attackBonus = (weapon: any) => Number(weapon.attackBonus || 0) + getWeaponAbilityModifier(weapon, getModifier(props.character.str), getModifier(props.character.dex),effects.value.finesseFor(weapon))
 const saves = [{ key: 'saveDeath', label: 'Morte' }, { key: 'saveImplements', label: 'Implementos' }, { key: 'saveParalysis', label: 'Paralisia' }, { key: 'saveBlast', label: 'Explosão' }, { key: 'saveSpells', label: 'Magias' }]
 function changeHp(delta: number) { if (!valid.value || props.busy) return; props.character.hpCurr = Math.max(-2147483648, Math.min(Number(props.character.hpMax), Number(props.character.hpCurr) + delta)); emit('save') }
 const descriptions = ref<any[]>([]), descriptionsLoading = ref(false), descriptionsError = ref('')

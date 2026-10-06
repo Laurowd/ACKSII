@@ -28,18 +28,19 @@
           <input v-model="character.birthplace" @input="emit('save')" @change="emit('save')" class="inp" />
         </div>
         <div>
-          <label class="lbl">Classe</label>
-          <select v-if="customClasses.length > 0" v-model="character.classKey" @change="emit('class-change')" class="inp">
+          <label for="sheet-class" class="lbl">Classe</label>
+          <select v-if="customClasses.length > 0" id="sheet-class" :value="character.classKey" @change="requestClassChange" :disabled="!canManage" class="inp">
             <option v-if="!character.classKey && character.className" value="">{{ character.className }} (cadastro anterior)</option>
             <option v-else value="" disabled>Selecione uma classe</option>
             <option v-for="c in customClasses" :key="c.id" :value="c.id">{{ c.name }} — {{ c.source === 'catalog' ? 'base' : 'campanha' }}</option>
           </select>
-          <input v-else v-model="character.className" @input="emit('save')" @change="emit('save')" class="inp" />
+          <output v-else id="sheet-class" class="inp block">{{ character.className }}</output>
+          <button v-if="canManage" type="button" @click="emit('class-change', character.classKey)" class="text-xs text-gold underline mt-1">Revisar classe e concessões</button>
         </div>
         <div v-if="levelFeats?.availableSubclasses && levelFeats.availableSubclasses.length > 0">
           <template v-if="usesStructuredTradition">
-            <label for="sheet-class-tradition" class="lbl">Tradição da Witch</label>
-            <output id="sheet-class-tradition" class="inp block">{{ selectionsFor(character).tradition || character.subclass || 'Escolha pendente' }}</output>
+            <label for="sheet-class-tradition" class="lbl">{{ character.className === 'Warlock' ? 'Dark Path do Warlock' : 'Tradição da Witch' }}</label>
+            <output id="sheet-class-tradition" class="inp block">{{ selectionsFor(character,selectedCustomClass?.rules).tradition || selectionsFor(character,selectedCustomClass?.rules)['dark-path'] || 'Escolha pendente' }}</output>
             <p class="text-xs text-steel-light mt-1">Confira a tradição em Evolução &amp; Regras → Escolhas próprias da classe.</p>
           </template>
           <template v-else>
@@ -367,13 +368,14 @@
               </td>
               <td class="py-2 px-1 text-center text-xs font-semibold text-steel-light whitespace-nowrap">
                 {{ weaponAbilityLabel(w) }}
+                <select v-if="effects.finesseFor(w)" v-model="w.attackAbility" @change="saveWeapon(w)" :aria-label="`Atributo de ataque de ${w.name}`" class="inp mt-1 text-xs"><option value="auto">Melhor atributo</option><option value="str">STR</option><option value="dex">DEX · Weapon Finesse</option></select>
               </td>
               <td class="py-2 px-1 text-center">
                 <input v-model.number="w.attackBonus" @blur="saveWeapon(w)" type="number" class="w-14 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-center font-bold text-gold focus:outline-none focus:border-gold" title="Outros bônus de ataque; não inclua FOR ou DES" />
               </td>
               <td class="py-2 px-1 text-center">
                 <input v-model="w.damage" @input="w.automaticDamage = false" @blur="saveWeapon(w)" class="w-16 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-dark-text text-center focus:outline-none focus:border-gold" />
-                <p class="text-xs text-steel-light">{{ w.automaticDamage ? 'Base por estilo' : 'Manual' }} · classe {{ formatMod(effects.damageBonusFor(w.style === 'Missile Weapon', w)) }}</p>
+                <p class="text-xs text-steel-light">{{ w.automaticDamage ? 'Base por estilo' : 'Manual' }} · classe {{ formatMod(effects.weaponDamageBonusFor(w)) }}</p>
               </td>
               <td class="py-2 px-1">
                 <div class="flex gap-1.5 justify-center">
@@ -504,6 +506,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['save', 'campaign-change', 'owner-change', 'class-change', 'level-change', 'open-rules'])
 const relations = useCharacterRelations(() => props.character)
+function requestClassChange(event:Event) {const select=event.target as HTMLSelectElement,key=select.value;select.value=props.character.classKey || '';emit('class-change',key)}
 const compendiumWeapons = ref<any[]>([])
 const proficiencyMetadata = ref<any>({})
 function manualProficiencyOptions(category: string) {
@@ -568,13 +571,13 @@ const combatMetrics = computed(() => calculateCharacterMetrics(props.character, 
 
 function attackThrowForWeaponAC(w: any, ac: number): string {
   if (!w || w.attackThrow == null) return '—'
-  const ability = getWeaponAbilityModifier(w, getModifier(props.character.str), getModifier(props.character.dex))
+  const ability = getWeaponAbilityModifier(w, getModifier(props.character.str), getModifier(props.character.dex),effects.value.finesseFor(w))
   const needed = calculateAttackThrow(Number(w.attackThrow), ac, Number(w.attackBonus ?? 0) + ability)
   return String(needed)
 }
 
 function weaponAbilityLabel(w: any) {
-  return getWeaponAbilityModifier(w, 0, 1) === 1 ? `DEX ${formatMod(getModifier(props.character.dex))}` : `STR ${formatMod(getModifier(props.character.str))}`
+  return effects.value.attackAttributeFor(w) === 'dex' ? `DEX ${formatMod(getModifier(props.character.dex))}` : `STR ${formatMod(getModifier(props.character.str))}`
 }
 
 async function saveProficiency(p: any) {
@@ -584,7 +587,7 @@ async function saveProficiency(p: any) {
 
 
 const selectedCustomClass = computed(() => selectedClass(props.customClasses, props.character) || null)
-const usesStructuredTradition = computed(() => selectedCustomClass.value?.rules?.classChoices?.some((choice:any) => choice.id === 'tradition'))
+const usesStructuredTradition = computed(() => selectedCustomClass.value?.rules?.classChoices?.some((choice:any) => ['tradition','dark-path'].includes(choice.id)))
 
 
 
@@ -712,7 +715,7 @@ async function removeWeapon(id: string) {
 async function saveWeapon(w: any) {
   await relations.update('weapons', w, {
     name: w.name, style: w.style, initBonus: w.initBonus, attackThrow: w.attackThrow,
-    attackBonus: w.attackBonus ?? 0, damage: w.damage,
+    attackBonus: w.attackBonus ?? 0, attackAbility:w.attackAbility || 'auto', damage: w.damage,
     catalogId: w.catalogId || '', automaticDamage: w.automaticDamage || false,
     rangeShort: w.rangeShort ?? 0, rangeMed: w.rangeMed ?? 0,
     rangeLong: w.rangeLong ?? 0, encumbrance: w.encumbrance ?? 0,

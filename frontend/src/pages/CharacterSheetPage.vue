@@ -164,6 +164,7 @@
           </div>
         </div>
       </div>
+      <ClassRevisionDialog v-if="classRevisionTarget && canManageRules" :character="char" :target="classRevisionTarget" :prepare="saveCharacter" @close="classRevisionTarget=null" @changed="loadCampaignContext" />
     </template>
   </div>
 </template>
@@ -190,6 +191,7 @@ import { belongsToCharacter, canReplayMutation, isCorrectedEditor, restoreEditab
 
 
 import CombatTab from '../components/sheet/CombatTab.vue';
+import ClassRevisionDialog from '../components/ClassRevisionDialog.vue'
 // re-trigger volar
 import InventoryTab from '../components/sheet/InventoryTab.vue'
 import MagicTab from '../components/sheet/MagicTab.vue'
@@ -201,6 +203,7 @@ import RulesAssistant from '../components/sheet/RulesAssistant.vue'
 const route = useRoute()
 const authStore = useAuthStore()
 const char = ref<any>(null)
+const classRevisionTarget=ref<any>(null)
 const loading = ref(true)
 const loadError = ref('')
 const saving = ref(false)
@@ -464,13 +467,9 @@ async function updateAssignment(includeOwner: boolean) {
   }
 }
 
-function onClassChange() {
-  const selected = selectedClass(customClasses.value, char.value)
-  if (selected) {
-    char.value.className = selected.name
-    char.value.subclass = ''
-  }
-  autoSave()
+function onClassChange(key:string) {
+  if(!canManageRules.value)return
+  classRevisionTarget.value=customClasses.value.find(definition=>definition.id===key) || selectedClass(customClasses.value,char.value)
 }
 
 const hpPercent = computed(() => {

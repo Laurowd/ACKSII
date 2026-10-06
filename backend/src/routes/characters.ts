@@ -13,6 +13,8 @@ import { readState, rulesFor, proficiencyIssues } from '../lib/gameRules';
 import { defaultWeaponStyle } from '../lib/equipment';
 import { abilityModifier } from '../lib/creationRules';
 import { weaponCatalogValues } from '../lib/equipment';
+import { selectionsFor } from '../lib/classAbilities';
+import { levelReconciliation, applyProficiencyPlan } from '../lib/levelReconciliation';
 
 function parseJsonSafe<T>(value: string | null | undefined, fallback: T): T {
   if (!value) return fallback;
@@ -23,7 +25,7 @@ function parseJsonSafe<T>(value: string | null | undefined, fallback: T): T {
   }
 }
 
-async function applyClassProgression(characterId: string, db: TransactionClient = prisma) {
+async function applyClassProgression(characterId: string, db: TransactionClient = prisma, previous?: any) {
   const character = await db.character.findUnique({ where: { id: characterId } });
   if (!character || !character.className) return character;
   if (character.campaignId) {
@@ -46,10 +48,12 @@ async function applyClassProgression(characterId: string, db: TransactionClient 
     }
   });
 
-  if (attackThrow !== undefined) await db.weapon.updateMany({
-    where: { characterId },
-    data: { attackThrow }
-  });
+  if (attackThrow !== undefined) {
+    const before=previous && await resolveClass(previous.classKey || '',previous.campaignId,previous.className);
+    const previousAttack=before && JSON.parse(before.attackThrows)[previous.level-1];
+    if(Number.isFinite(previousAttack))for(const weapon of await db.weapon.findMany({where:{characterId}}))await db.weapon.update({where:{id:weapon.id},data:{attackThrow:weapon.attackThrow+attackThrow-previousAttack}});
+    else await db.weapon.updateMany({where:{characterId},data:{attackThrow}});
+  }
 
   return updated;
 }
@@ -508,18 +512,19 @@ export async function characterRoutes(app: FastifyInstance) {
     if (data.classKey !== undefined && typeof data.classKey !== 'string') return reply.code(400).send({ error: 'Identificador de classe inválido.' });
     const classKey = typeof allowed.classKey === 'string' ? allowed.classKey : existing.classKey;
     const klass = await resolveClass(classKey || '', existing.campaignId, String(allowed.className ?? existing.className));
+    const previousClass = await resolveClass(existing.classKey || '',existing.campaignId,existing.className);
+    if(klass?.id!==previousClass?.id || (data.className!==undefined && !klass && data.className!==existing.className))return reply.code(400).send({code:'CLASS_REVISION_REQUIRED',error:'Revise a classe e as concessões pelo botão Revisar classe e concessões. Somente o mestre responsável pode confirmar essa mudança.'});
     if (classKey || klass) {
       if (!klass) return reply.code(400).send({ error: 'Classe não disponível para esta ficha.' });
       const level = Number(allowed.level ?? existing.level);
       if (!Number.isInteger(level) || level < 1 || level > JSON.parse(klass.xpPerLevel).length) return reply.code(400).send({ error: 'Nível fora da progressão desta classe.' });
       allowed.className = klass.name;
-      const tradition = readState(existing.rulesState).classChoices?.tradition;
-      if (klass.name === existing.className && rulesFor(klass)?.classChoices?.some(choice => choice.id === 'tradition') && tradition && data.subclass !== undefined && data.subclass !== tradition) {
+      const choices=selectionsFor(existing,rulesFor(klass) || {}),tradition = choices.tradition || choices['dark-path'];
+      if (klass.name === existing.className && tradition && data.subclass !== undefined && data.subclass !== tradition) {
         return reply.code(400).send({ code: 'CLASS_CHOICE_REQUIRED', error: 'Revise a tradição pelo fluxo Escolhas próprias da classe em Evolução & Regras; a mudança exige conferência e justificativa do mestre.' });
       }
       const campaign = existing.campaignId ? await prisma.campaign.findUnique({ where: { id: existing.campaignId } }) : null;
       if (parseJsonSafe<Record<string, boolean>>(campaign?.optionalRules, {}).enableClassAutoProgression !== false) {
-        const previousClass = await resolveClass(existing.classKey || '', existing.campaignId, existing.className);
         const before = previousClass ? progressionFields(previousClass, existing.level, existing.wil) : null;
         const after = progressionFields(klass, level, Number(allowed.wil ?? existing.wil));
         for (const key of ['saveDeath', 'saveParalysis', 'saveBlast', 'saveImplements', 'saveSpells'] as const) {
@@ -546,8 +551,15 @@ export async function characterRoutes(app: FastifyInstance) {
           include: { user: { select: { username: true } }, weapons: true, proficiencies: true, items: true, spells: true, rituals: true, magicFormulae: true, henchmen: true, domain: true, scars: true, activities: true, magicItemResearch: true, mercantileVentures: true }
         });
         if (['level', 'className', 'classKey'].some(key => allowed[key] !== undefined && allowed[key] !== (existing as any)[key])) {
-          const progressed = await applyClassProgression(characterId, tx);
-          if (progressed) updated = { ...updated, ...progressed, weapons: await tx.weapon.findMany({ where: { characterId } }) };
+          const rules=rulesFor(klass);
+          if(rules && Number(allowed.level ?? existing.level)!==existing.level) {
+            const proficiencies=await tx.proficiency.findMany({where:{characterId}});
+            const plan=levelReconciliation({...existing,proficiencies},rules,Number(allowed.level));
+            await tx.character.update({where:{id:characterId},data:{rulesState:JSON.stringify(plan.state)}});
+            await applyProficiencyPlan(tx,characterId,plan);
+          }
+          const progressed = await applyClassProgression(characterId, tx, existing);
+          if (progressed) updated = { ...updated, ...progressed, weapons: await tx.weapon.findMany({ where: { characterId } }),proficiencies:await tx.proficiency.findMany({where:{characterId}}) };
         }
         return updated;
       });
@@ -677,7 +689,7 @@ export async function characterRoutes(app: FastifyInstance) {
     if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
 
     const weapon = await tx.weapon.create({
-      data: { characterId, name: data.name || '', style: data.style || '', initBonus: data.initBonus || 0, attackThrow: data.attackThrow || 10, attackBonus: data.attackBonus || 0, damage: data.damage || '1d6', rangeShort: data.rangeShort || 0, rangeMed: data.rangeMed || 0, rangeLong: data.rangeLong || 0, encumbrance: data.encumbrance || 0 }
+      data: { characterId, name: data.name || '', style: data.style || '', initBonus: data.initBonus || 0, attackThrow: data.attackThrow || 10, attackBonus: data.attackBonus || 0, attackAbility:data.attackAbility || 'auto', damage: data.damage || '1d6', rangeShort: data.rangeShort || 0, rangeMed: data.rangeMed || 0, rangeLong: data.rangeLong || 0, encumbrance: data.encumbrance || 0 }
     });
     return mutationResponse(201, { weapon });
   }));
@@ -704,6 +716,7 @@ export async function characterRoutes(app: FastifyInstance) {
         ...(data.initBonus !== undefined && { initBonus: Number(data.initBonus) }),
         ...(data.attackThrow !== undefined && { attackThrow: Number(data.attackThrow) }),
         ...(data.attackBonus !== undefined && { attackBonus: Number(data.attackBonus) }),
+        ...(data.attackAbility !== undefined && { attackAbility: data.attackAbility }),
         ...(data.damage !== undefined && { damage: String(data.damage) }),
         ...(data.catalogId !== undefined && { catalogId: data.catalogId }),
         ...(data.automaticDamage !== undefined && { automaticDamage: data.automaticDamage }),

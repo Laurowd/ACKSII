@@ -2,6 +2,8 @@ import tables from '../data/acksRules.json'
 import spellList from '../data/spellAccess.json'
 import { abilityModifier, creationRules, BARBARIAN_ORIGINS, type ProficiencyOrigin } from './creationRules'
 import { classChoiceDefinitions, classGrants, abilityProficiencies, type ClassAbilityRules } from './classAbilities'
+import { proficiencyRankIssues } from './proficiencyRanks'
+import { restrictedRepertoire, restrictedRepertoireIssues } from './warlockPaths'
 
 export type ClassRules = ClassAbilityRules & { page: number; proficiencies: string[]; proficiencyPeriod: number; magic: string; bonusGeneral?:number; proficiencyOrigins?: ProficiencyOrigin[]; divineSpellList?:{name:string;level:number;tradition:string}[];
   levels: { level: number; xp: number; hitDice: string; casterLevel: number; arcaneCasterLevel?: number; divineCasterLevel?: number; spellSlots: number[] }[] }
@@ -46,10 +48,7 @@ export function proficiencyIssues(rules: ClassRules, character: any, choices: { 
     }
   }
   // Repeated ranks and specializations require the specific proficiency's permission.
-  const singleRank = new Set(['combatreflexes','combatferocity','alertness','swashbuckling','weaponfinesse','endurance','running','ambushing','blindfighting','climbing','riding','expandedrepertoire'])
-  const ranks = [...choices.filter(p => p.category !== 'adventuring' && p.category !== 'natural'), ...grants.filter(g => !g.conditional), ...(rules.abilityPowers || []).filter(power => (power.minimumLevel || 1) <= level)]
-  for (const name of singleRank) if (ranks.filter(p => normalized(p.name) === name).length > 1) issues.push(`A proficiência ${ranks.find(p => normalized(p.name) === name)!.name} não pode ser repetida.`)
-  for (const name of new Set(grants.filter(g => g.ranks === 3).map(g => normalized(g.name)))) if (choices.some(p => ['class','general'].includes(p.category) && normalized(p.name) === name)) issues.push('Craft já possui as três graduações concedidas pela classe; escolha outro ofício ou proficiência.')
+  issues.push(...proficiencyRankIssues(choices,grants,(rules.abilityPowers || []).filter(power => (power.minimumLevel || 1) <= level)))
   return issues
 }
 
@@ -60,8 +59,9 @@ export function magicPools(rules: ClassRules, character: any, level = character.
   return kinds.map((tradition, index) => {
     const slots = Array.from({ length: 6 }, (_, i) => row.spellSlots[index * 6 + i] || 0)
     const studious = tradition === 'arcane' || rules.magic === 'studious-divine'
+    const restricted=tradition==='arcane'?restrictedRepertoire(rules,character,level):undefined
     return { tradition, casterLevel: (tradition === 'arcane' ? row.arcaneCasterLevel : row.divineCasterLevel) ?? row.casterLevel, studious, slots,
-      repertoire: slots.map(n => !n ? 0 : studious ? n + Math.max(0, abilityModifier(character.int)) + (abilityProficiencies({...character,level}, rules).some(p => normalized(p.name) === 'expandedrepertoire') ? 1 : 0) : null),...(tradition==='divine'&&rules.divineSpellList?{spellList:rules.divineSpellList}:{}) }
+      repertoire: slots.map(n => !n ? 0 : studious ? n + Math.max(0, abilityModifier(character.int)) + (abilityProficiencies({...character,level}, rules).some(p => normalized(p.name) === 'expandedrepertoire') ? 1 : 0) + (restricted?.extra || 0) : null), ...(restricted?{restricted}:{}), ...(tradition==='divine'&&rules.divineSpellList?{spellList:rules.divineSpellList}:{}) }
   })
 }
 
@@ -84,6 +84,7 @@ export function spellIssues(rules: ClassRules, character: any, spells: any[], le
     const limit = pool.repertoire[i]
     if (limit != null && count > limit) issues.push(`Repertório ${pool.tradition} ${i+1}: ${count} magias, limite ${limit}.`)
   }
+  for(const pool of pools)issues.push(...restrictedRepertoireIssues(pool,spells,catalog))
   return issues
 }
 

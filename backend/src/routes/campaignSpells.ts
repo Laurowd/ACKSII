@@ -3,11 +3,13 @@ import prisma from '../lib/prisma'
 import { authGuard } from '../middleware/auth'
 import { normalized, SPELL_LIST } from '../lib/gameRules'
 import { campaignSpellChoices, campaignSpellError as fail, campaignSpellReferences, managedCampaign } from '../lib/campaignSpells'
+import { SPELL_TYPES } from '../lib/warlockPaths'
 
 const fields = {
   name: { type: 'string', minLength: 1, maxLength: 160 },
   level: { type: 'integer', minimum: 1, maximum: 6 }, tradition: { type: 'string', enum: ['arcane', 'divine'] },
   description: { type: 'string', minLength: 1, maxLength: 10000 },
+  types: {type:'array',uniqueItems:true,maxItems:14,items:{type:'string',enum:SPELL_TYPES.map(type=>type.key)}},
   range: { type: 'string', maxLength: 300 }, duration: { type: 'string', maxLength: 300 },
   visibility: { type: 'string', enum: ['SECRET', 'CAMPAIGN', 'CHARACTERS'] },
   characterIds: { type: 'array', uniqueItems: true, maxItems: 200, items: { type: 'string', minLength: 1, maxLength: 160 } },
@@ -55,7 +57,7 @@ export async function campaignSpellsRoutes(app: FastifyInstance) {
           if (references.length && (before.nameKey !== nameKey || before.level !== input.level || before.tradition !== input.tradition)) throw fail('Remova a magia das fichas antes de alterar seu nome, nível ou tradição.', 409)
           if (references.some((r: any) => input.visibility === 'SECRET' || (input.visibility === 'CHARACTERS' && !characterIds.includes(r.characterId)))) throw fail('Esta magia já foi aprendida. Remova-a das fichas afetadas antes de ocultá-la.', 409)
         }
-        const data = { name, nameKey, description, level: input.level, tradition: input.tradition, range: (input.range || '').trim(), duration: (input.duration || '').trim(), visibility: input.visibility }
+        const data = { name, nameKey, description, types:input.types ?? before?.types ?? [], level: input.level, tradition: input.tradition, range: (input.range || '').trim(), duration: (input.duration || '').trim(), visibility: input.visibility }
         const spell = before ? await tx.campaignSpell.update({ where: { id: before.id }, data: { ...data, version: { increment: 1 } } })
           : await tx.campaignSpell.create({ data: { ...data, campaignId: id } })
         await tx.campaignSpellReveal.deleteMany({ where: { spellId: spell.id } })

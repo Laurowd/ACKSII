@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify'
+import { learnedProficiencyRows } from '../lib/levelReconciliation'
 import prisma from '../lib/prisma'
 import { authGuard } from '../middleware/auth'
 import { canReadCampaign, resolveClass, progressionFields } from '../lib/classCatalog'
@@ -118,14 +119,14 @@ export async function characterCreationRoutes(app: FastifyInstance) {
       rulesState: JSON.stringify({creationMode:rulesMode||'legacy',exceptionReason:exceptionReason||'', ...(proficiencyOrigin ? { proficiencyOrigin } : {}), classChoices, adventuringProficiencyBonus: ruleData?.className === 'Dwarven Craftpriest' ? 3 : 0,
         ...(ruleData?.className === 'Shaman' && classChoices.totem ? { totemStatus: { alive: true, nearby: true } } : {}),
         classChoiceApprovals: Object.fromEntries(Object.keys(classChoices).filter(key => classChoices[key] === 'judge').map(key => [key, approvedChoiceSignature(classChoices, key)])) }),
-      ...(classChoices.tradition ? { subclass: classChoices.tradition } : {}),
+      ...(classChoices.tradition || classChoices['dark-path'] ? { subclass: classChoices.tradition || classChoices['dark-path'] } : {}),
       classKey: klass.id, className: klass.name, classFeatures: rules.build ? '' : klass.classFeatures,
       isSpellcaster: rules.spellcaster ?? data.isSpellcaster ?? false,
       level: 1, xp: 0, hpCurr: data.hpMax, ...progressionFields(klass, 1, data.wil),
       ...(ruleData ? Object.fromEntries(Array.from({length:6},(_,i)=>[`spellSlotsLevel${i+1}`,magicPools(ruleData,data).reduce((sum,p)=>sum+p.slots[i]!,0)])) : {}),
       items: { create: [...(items ?? []).map(i => ({ name: i.name.trim(), quantity: i.quantity, weight: i.weight })),...purchasedItems] },
       weapons:{create:purchasedWeapons}, spells:{create:(spells||[]).map(spell => ({ ...spell, name: spell.name.trim() }))},
-      proficiencies: { create: [...initialAdventuring(data.str, official ? klass.name : '', rules.ruleProfile), ...grantRows(classGrants(ruleData || {}, data)), ...(proficiencies ?? []).filter(p => p.category !== 'adventuring' && p.name.trim().toLowerCase() !== 'adventuring').map(p => ({ name: p.name.trim(), category: p.category, ...(ruleData?.className === 'Dwarven Craftpriest' ? { throwTarget: 8 } : {}) }))] },
+      proficiencies: { create: [...initialAdventuring(data.str, official ? klass.name : '', rules.ruleProfile), ...grantRows(classGrants(ruleData || {}, data)), ...learnedProficiencyRows({...data,proficiencies:[]},ruleData || {},(proficiencies ?? []).filter(p => p.category !== 'adventuring' && p.name.trim().toLowerCase() !== 'adventuring'),1)] },
     } })
     }, { isolationLevel: 'Serializable' })
     return reply.code(201).send({ character })

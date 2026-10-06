@@ -27,6 +27,7 @@ export function scalarBody(modelName: string) {
   if (modelName === 'CharacterActivity') properties.status = { type: 'string', enum: ['QUEUED', 'ACTIVE', 'COMPLETED', 'CANCELLED'] }
   if (modelName === 'MercantileVenture') properties.status = { type: 'string', enum: ['IN_TRANSIT', 'SOLD'] }
   if (modelName === 'Proficiency') properties.category = { type: 'string', enum: ['adventuring', 'class', 'general', 'natural'] }
+  if (modelName === 'Weapon') properties.attackAbility = { type:'string', enum:['auto','str','dex'] }
   return { type: 'object', additionalProperties: false, properties }
 }
 

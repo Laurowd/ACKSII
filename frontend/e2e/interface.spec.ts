@@ -3,9 +3,9 @@ import { readFileSync } from 'node:fs'
 const accounts: Record<string, any> = {}
 
 test('player proficiency edits use validated choices while test targets stay editable', async ({ page }) => {
-  const { character, headers } = await openMage(page, 'PLAYER')
+  const { character, headers } = await openMage(page, 'PLAYER','venturer')
   const base = `/api/characters/${character.id}`
-  expect((await page.request.put(base, { headers, data: { version: character.version, classKey: 'catalog:venturer', int: 10 } })).status()).toBe(200)
+  expect((await page.request.put(base, { headers, data: { version: character.version, int: 10 } })).status()).toBe(200)
   await page.reload()
   await expect(page.getByRole('button', { name: /Adicionar proficiência:/ })).toHaveCount(0)
   await expect(page.getByLabel('Nome da proficiência Climbing', { exact: true })).toHaveAttribute('readonly', '')
@@ -23,7 +23,7 @@ test('player proficiency edits use validated choices while test targets stay edi
   await expect.poll(async () => (await (await page.request.get(base, { headers })).json()).character.proficiencies.find((p: any) => p.name === 'Seduction')?.throwTarget).toBe(8)
 })
 
-async function openMage(page: Page, role = 'MASTER') {
+async function openMage(page: Page, role = 'MASTER',klass='mage') {
   const suffix = `ui_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
   if (!accounts[role]) {
     const registration = await page.request.post('/api/auth/register', {
@@ -35,8 +35,8 @@ async function openMage(page: Page, role = 'MASTER') {
   const { token, user } = accounts[role]
   const headers = { authorization: `Bearer ${token}` }
   const created = await page.request.post('/api/characters/guided', { headers, data: {
-    characterName: suffix, classKey: 'catalog:mage', str: 10, int: 16, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 4,
-    spells: [{ name: 'Slumber', level: 1, tradition: 'arcane' }],
+    characterName: suffix, classKey: `catalog:${klass}`, str: 10, int: 16, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 4,
+    spells: klass==='mage' ? [{ name: 'Slumber', level: 1, tradition: 'arcane' }] : [],
   } })
   expect(created.status()).toBe(201)
   const { character } = await created.json()
@@ -198,7 +198,10 @@ test('description loading failure offers retry while spells and casting remain a
 
 test('invalid divine entries are explained and cannot block casting a valid spell', async ({ page }) => {
   const { character, headers } = await openMage(page)
-  expect((await page.request.put(`/api/characters/${character.id}`, { headers, data: { version: character.version, classKey: 'catalog:priestess', level: 8 } })).status()).toBe(200)
+  const revised=await page.request.post(`/api/game-rules/characters/${character.id}/class-revision/apply`,{headers,data:{version:character.version,classKey:'catalog:priestess',keepNaturalIds:[],reason:'Preparar teste de repertório divino.'}})
+  expect(revised.status(),await revised.text()).toBe(200)
+  const revisedVersion=(await revised.json()).character.version
+  expect((await page.request.put(`/api/characters/${character.id}`, { headers, data: { version: revisedVersion, level: 8 } })).status()).toBe(200)
   const stored = (await (await page.request.get(`/api/characters/${character.id}`, { headers })).json()).character
   expect((await page.request.post(`/api/game-rules/characters/${character.id}/magic/repertoire`, { headers, data: { version: stored.version, orderApproved: true, spells: [{ name: 'Discern Gist', level: 1, tradition: 'divine' }] } })).status()).toBe(200)
   const current = (await (await page.request.get(`/api/characters/${character.id}`, { headers })).json()).character

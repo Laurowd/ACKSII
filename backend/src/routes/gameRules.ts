@@ -11,6 +11,8 @@ import { characterSpellCatalog } from '../lib/campaignSpells'
 import { proficiencyOriginPlan } from '../lib/proficiencyOrigin'
 import { abilityState, selectionsFor, classGrants, classChoiceIssues, approvedChoiceSignature, completeAutomaticSelections, type ClassSelections } from '../lib/classAbilities'
 import { classChoicePlan } from '../lib/classChoicePlan'
+import { classRevisionPlan } from '../lib/classRevisionPlan'
+import { levelReconciliation, applyProficiencyPlan, learnedProficiencyRows } from '../lib/levelReconciliation'
 
 const integer = (max = 2147483647) => ({ type: 'integer', minimum: 0, maximum: max })
 const text = { type: 'string', minLength: 1, maxLength: 160 }
@@ -41,8 +43,8 @@ const overview = (c: any, klass: any, catalog: any[]) => {
   if (!rules) return { supported:false, version:c.version, campaignSpells, reason:'Classe livre: configure a construção por pontos ou use os campos manuais.' }
   const state = readState(c.rulesState)
   return {supported:true,version:c.version, rules, budget:proficiencyBudget(rules,c.level,c.int),
-    proficiencyOrigin: state.proficiencyOrigin || '', grantedProficiencies: classGrants(rules, c), classChoices: selectionsFor(c), totemStatus: state.totemStatus,
-    campaignSpells, issues:[...classChoiceIssues(rules,c,selectionsFor(c),true),...proficiencyIssues(rules,c,c.proficiencies),...spellIssues(rules,c,c.spells,c.level,catalog)],
+    proficiencyOrigin: state.proficiencyOrigin || '', grantedProficiencies: classGrants(rules, c), classChoices: selectionsFor(c,rules), totemStatus: state.totemStatus,
+    campaignSpells, issues:[...classChoiceIssues(rules,c,selectionsFor(c,rules),true),...proficiencyIssues(rules,c,c.proficiencies),...spellIssues(rules,c,c.spells,c.level,catalog)],
     magic:magicPools(rules,c), used:state.used || {}, lastRestDay:state.lastRestDay ?? null,
     next:rules.levels[c.level] || null, standardAdventuring:initialAdventuring(c.str,klass.id.startsWith('catalog:')?klass.name:'',readState((klass as any).creationRules).ruleProfile) }
 }
@@ -130,6 +132,29 @@ export async function gameRulesRoutes(app: FastifyInstance) {
 
   const classChoicesSchema = { type: 'object', maxProperties: 30, propertyNames: { pattern: '^[a-z0-9-]{1,60}$' }, additionalProperties: { type: 'string', maxLength: 2000 } }
   const totemSchema = body({ alive: {type: 'boolean'}, nearby: {type: 'boolean'} }, ['alive','nearby'])
+  for(const action of ['preview','apply'])app.post(`/characters/:id/class-revision/${action}`,{schema:{body:body({version,classKey:text,reason:{type:'string',minLength:3,maxLength:1000},keepNaturalIds:{type:'array',uniqueItems:true,maxItems:100,items:text},choices:classChoicesSchema,origin:{type:'string',maxLength:160}},['version','classKey','reason','keepNaturalIds'])}},async req=>{
+    const input=req.body as any,user=req.user as any
+    return prisma.$transaction(async tx=>{
+      const c=await accessibleCharacter((req.params as any).id,user,tx)
+      if(user.role!=='MASTER' || (c.campaignId && (await tx.campaign.findUnique({where:{id:c.campaignId}}))?.masterId!==user.id))throw operationError('Somente o mestre responsável pode revisar a classe.',403)
+      const receipt=createHash('sha256').update(`class-revision:${c.id}:${input.version}:${JSON.stringify(input)}`).digest('hex')
+      if(action==='apply' && await tx.auditLog.findUnique({where:{id:receipt}}))return {character:await mutationCharacter(tx,c.id),alreadyApplied:true}
+      if(input.version!==c.version)throw Object.assign(operationError('A ficha mudou. Confira a revisão novamente.',409),{code:'CHARACTER_CONFLICT'})
+      if(input.reason.trim().length<3)throw operationError('Registre a justificativa do mestre.')
+      const before=await resolveClass(c.classKey,c.campaignId,c.className),after=await resolveClass(input.classKey,c.campaignId)
+      if(!after || c.level>JSON.parse(after.xpPerLevel).length)throw operationError('Classe indisponível ou sem progressão para o nível desta ficha.')
+      const campaign=c.campaignId && await tx.campaign.findUnique({where:{id:c.campaignId}})
+      const weapons=await tx.weapon.findMany({where:{characterId:c.id}})
+      let plan;try{plan=classRevisionPlan({...c,weapons},before,after,input,readState(campaign?.optionalRules).enableClassAutoProgression!==false)}catch(error){throw operationError((error as Error).message)}
+      const rules=rulesFor(after), preview={version:c.version,from:before?.name || c.className,to:after.name,reason:input.reason.trim(),added:plan.added,removed:plan.removed,targets:plan.targets,weaponTargets:plan.weaponTargets,retained:plan.state.retainedClassGrants,issues:rules?[...classChoiceIssues(rules,plan.next,undefined,true,true),...proficiencyIssues(rules,plan.next,plan.proficiencies),...spellIssues(rules,plan.next,c.spells,c.level,await characterSpellCatalog(c,user,tx))]:['Classe manual: confira poderes e limites com o mestre.']}
+      if(action==='preview')return preview
+      await updateVersion(tx,c,input.version,plan.fields)
+      await applyProficiencyPlan(tx,c.id,plan)
+      for(const weapon of plan.weaponTargets)await tx.weapon.update({where:{id:weapon.id},data:{attackThrow:weapon.attackThrow}})
+      await tx.auditLog.create({data:{id:receipt,characterId:c.id,campaignId:c.campaignId,userId:user.id,action:'CLASS_REVISED',details:JSON.stringify({...preview,previousChoices:abilityState(c).classChoices,previousOrigin:abilityState(c).proficiencyOrigin})}})
+      return {...preview,character:await mutationCharacter(tx,c.id)}
+    },{isolationLevel:'Serializable'})
+  })
   for (const action of ['preview','apply']) app.post(`/characters/:id/class-choices/${action}`, { schema: { body: body({ version, choices: classChoicesSchema, totemStatus: totemSchema, reconcileAdventuring: {type: 'boolean'}, reason: {type: 'string', maxLength: 1000} }, ['version','choices']) } }, async req => {
     const input = req.body as any, user = req.user as any
     return prisma.$transaction(async tx => {
@@ -140,7 +165,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       const klass = await resolveClass(c.classKey, c.campaignId, c.className), rules = rulesFor(klass)
       if (!rules?.classChoices?.length) throw operationError('Esta classe não possui escolhas próprias configuradas.')
       const canApprove = user.role === 'MASTER' && (!c.campaignId || (await tx.campaign.findUnique({where: {id: c.campaignId}}))?.masterId === user.id)
-      const previous = selectionsFor(c), choices: ClassSelections = completeAutomaticSelections(rules, c, { ...previous, ...input.choices })
+      const previous = selectionsFor(c,rules), choices: ClassSelections = completeAutomaticSelections(rules, c, { ...previous, ...input.choices })
       const changing = Object.entries(previous).some(([key, value]) => value && choices[key] !== value)
       if (changing && !canApprove) throw operationError('As escolhas de classe registradas só podem ser revisadas pelo mestre responsável.', 403)
       if (changing && (!input.reason?.trim() || input.reason.trim().length < 3)) throw operationError('Registre a justificativa do mestre para revisar uma escolha já concedida.')
@@ -162,7 +187,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       const next = { ...c, classChoices: choices, rulesState: JSON.stringify(state), proficiencies: plan.proficiencies }
       const preview = { ...plan, proficiencies: undefined, choices, totemStatus: state.totemStatus, version: c.version, issues: [...proficiencyIssues(rules,next,plan.proficiencies), ...classChoiceIssues(rules,next,choices,true,canApprove)], reason:input.reason?.trim() || '' }
       if (action === 'preview') return preview
-      await updateVersion(tx,c,input.version,{rulesState: JSON.stringify(state), ...(choices.tradition ? {subclass:choices.tradition} : {})})
+      await updateVersion(tx,c,input.version,{rulesState: JSON.stringify(state), ...(choices.tradition || choices['dark-path'] ? {subclass:choices.tradition || choices['dark-path']} : {})})
       for (const prof of plan.converted) await tx.proficiency.update({where:{id:prof.id},data:{name:prof.name,category:'natural'}})
       for (const prof of plan.targets) await tx.proficiency.update({where:{id:prof.id},data:{throwTarget:prof.throwTarget}})
       if (plan.removed.length) await tx.proficiency.deleteMany({where:{characterId:c.id,id:{in:plan.removed.map((p:any)=>p.id)}}})
@@ -192,22 +217,12 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       for(const key of ['saveDeath','saveParalysis','saveBlast','saveImplements','saveSpells']) saves[key]=(c as any)[key]+(after as any)[key]-(before as any)[key]
       const preview={...result,title:after.title,saves,attack:JSON.parse(klass.attackThrows)[result.level-1], additions,version:c.version}
       if(action==='preview')return preview
-      const state = readState(c.rulesState)
-      state.classChoices = completeAutomaticSelections(rules, c, selectionsFor(c), result.level)
-      if (state.totemStatus?.alive === false && result.level > Number(state.totemStatus.lostAtLevel ?? c.level)) state.totemStatus = {alive:true,nearby:true}
+      const plan=levelReconciliation(c,rules,result.level),state=plan.state
       await updateVersion(tx,c,input.version,{level:result.level,hpMax:result.hpMax,hpCurr:result.hpCurr,hitDice:result.hitDice,xpNext:result.xpNext,title:after.title,rulesState:JSON.stringify(state),...saves})
-      await tx.weapon.updateMany({where:{characterId:c.id},data:{attackThrow:preview.attack}})
-      if (rules.classChoices?.length) {
-        const plan = classChoicePlan(c, rules, state.classChoices, state, false, result.level, false)
-        if (plan.added.length) await tx.proficiency.createMany({data:plan.added.map((p:any)=>({...p,characterId:c.id}))})
-        for (const prof of plan.targets) if (rules.className !== 'Barbarian') await tx.proficiency.update({where:{id:prof.id},data:{throwTarget:prof.throwTarget}})
-      }
-      // Climbing granted by the origin follows thief progression; retain situational adjustments.
-      if (rules.proficiencyOrigins?.length && readState(c.rulesState).proficiencyOrigin === 'jutland') {
-        const climbingIds = c.proficiencies.filter((p: any) => p.category === 'natural' && p.name.trim().toLowerCase() === 'climbing').map((p: any) => p.id)
-        await tx.proficiency.updateMany({ where: { characterId: c.id, id: { in: climbingIds } }, data: { throwTarget: { increment: c.level - result.level } } })
-      }
-      if(additions.length)await tx.proficiency.createMany({data:additions.map((p:any)=>({...p,characterId:c.id}))})
+      const previousAttack=JSON.parse(klass.attackThrows)[c.level-1]
+      for(const weapon of await tx.weapon.findMany({where:{characterId:c.id}}))await tx.weapon.update({where:{id:weapon.id},data:{attackThrow:weapon.attackThrow+preview.attack-previousAttack}})
+      await applyProficiencyPlan(tx,c.id,plan)
+      if(additions.length)await tx.proficiency.createMany({data:learnedProficiencyRows(c,rules,additions,result.level).map((p:any)=>({...p,characterId:c.id}))})
       await tx.auditLog.create({data:{characterId:c.id,campaignId:c.campaignId,userId:(req.user as any).id,action:'LEVEL_ADVANCEMENT',details:JSON.stringify({dice:input.dice,preview})}})
       return {...preview, character: await mutationCharacter(tx,c.id)}
     }, {isolationLevel:'Serializable'})
@@ -246,7 +261,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       const issues=proficiencyIssues(rules,c,[...c.proficiencies,...input.choices])
       if(issues.length)throw operationError(issues.join(' '))
       await updateVersion(tx,c,input.version)
-      await tx.proficiency.createMany({data:input.choices.map((p:any)=>({...p,characterId:c.id}))})
+      await tx.proficiency.createMany({data:learnedProficiencyRows(c,rules,input.choices).map((p:any)=>({...p,characterId:c.id}))})
       return {ok:true, character: await mutationCharacter(tx, c.id), proficiencies: await tx.proficiency.findMany({ where: { characterId: c.id } })}
     }, {isolationLevel:'Serializable'})
   })

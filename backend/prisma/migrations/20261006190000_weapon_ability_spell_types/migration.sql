@@ -1,0 +1,2 @@
+ALTER TABLE "Weapon" ADD COLUMN "attackAbility" TEXT NOT NULL DEFAULT 'auto';
+ALTER TABLE "CampaignSpell" ADD COLUMN "types" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

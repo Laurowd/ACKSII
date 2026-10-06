@@ -77,7 +77,10 @@ test('unavailable rules or catalog block edits and exports until retry preserves
 test('repertoire draft survives tabs, export, canceled navigation and a failed save retry', async ({ page }) => {
   const { character, headers } = await fixture(page)
   const base = `/api/characters/${character.id}`
-  await confirmedWrite(page, headers, 'put', base, { classKey: 'catalog:mage', int: 16 })
+  await confirmedWrite(page, headers, 'put', base, { int: 16 })
+  const before=(await (await page.request.get(base,{headers})).json()).character
+  const revision=await page.request.post(`/api/game-rules/characters/${character.id}/class-revision/apply`,{headers,data:{version:before.version,classKey:'catalog:mage',keepNaturalIds:[],reason:'Preparar ficha de estudo de magias.'}})
+  expect(revision.status(),await revision.text()).toBe(200)
   await confirmedWrite(page, headers, 'post', base + '/spells', { name: 'Slumber', level: 1 })
   await page.reload()
   await page.getByRole('button', { name: 'Magia', exact: true }).click()

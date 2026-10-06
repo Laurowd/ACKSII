@@ -10,7 +10,7 @@ const { buildApp } = require('../dist/app');
 const db = require('../dist/lib/prisma').default;
 let app, master, player, other, campaign, a, b, secret;
 const suffix = randomBytes(6).toString('hex');
-const input = { name: `Chama Oculta ${suffix}`, level: 1, tradition: 'arcane', description: 'Efeito secreto: chama azul que ilumina sem calor.', range: '60 pés', duration: '1 turno', visibility: 'SECRET', characterIds: [] };
+const input = { name: `Chama Oculta ${suffix}`, level: 1, tradition: 'arcane', description: 'Efeito secreto: chama azul que ilumina sem calor.', types:['sum'], range: '60 pés', duration: '1 turno', visibility: 'SECRET', characterIds: [] };
 const request = (method, url, payload, actor = master) => app.inject({ method, url, payload, headers: { authorization: `Bearer ${actor.token}` } });
 async function actor(role, label) {
   const user = await db.user.create({ data: { role, username: `${label}_${suffix}`, email: `${label}_${suffix}@test.invalid`, passwordHash: 'unused-local-fixture' } });
@@ -30,6 +30,8 @@ test('secret homebrew is absent from every player catalog and direct management 
   const created = await request('POST', `/api/campaigns/${campaign.id}/spells`, input);
   assert.equal(created.statusCode, 200, created.body); secret = created.json().spell;
   assert.equal(secret.visibility, 'SECRET');
+  assert.deepEqual(secret.types,['sum']);
+  assert.equal((await request('POST',`/api/campaigns/${campaign.id}/spells`,{...input,name:'Invalid classification',types:['not-a-book-type']})).statusCode,400);
   for (const [path, who] of [[`/api/campaigns/${campaign.id}/spell-options`, player], [`/api/campaigns/${campaign.id}/spell-options?characterId=${a.id}`, player], [`/api/game-rules/characters/${a.id}`, player], ['/api/game-rules/metadata', player], ['/api/campaigns', player]]) {
     const response = await request('GET', path, undefined, who);
     assert.equal(response.statusCode, 200, response.body);
@@ -100,7 +102,7 @@ test('campaign-wide publication is available during guided creation without auto
   const shared = { ...input, name: `Luz Pública ${suffix}`, visibility: 'CAMPAIGN' };
   assert.equal((await request('POST', `/api/campaigns/${campaign.id}/spells`, shared)).statusCode, 200);
   const options = (await request('GET', `/api/campaigns/${campaign.id}/spell-options`, undefined, player)).json().spells;
-  assert.equal(options.some(spell => spell.name === shared.name), true); assert.equal(options.some(spell => spell.name === secret.name), false);
+  assert.equal(options.some(spell => spell.name === shared.name), true); assert.deepEqual(options.find(spell=>spell.name===shared.name).types,['sum']); assert.equal(options.some(spell => spell.name === secret.name), false);
   assert.equal(await db.spell.count({ where: { characterId: b.id } }), 0);
   const create = await request('POST', '/api/characters/guided', { campaignId: campaign.id, classKey: 'catalog:mage', characterName: 'Nova aprendiz', rulesMode: 'standard', str: 10, int: 10, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 4, proficiencies: [{ name: 'Alchemy', category: 'class' }, { name: 'Caving', category: 'general' }], spells: [{ name: shared.name, level: 1, tradition: 'arcane' }] }, player);
   assert.equal(create.statusCode, 201, create.body);

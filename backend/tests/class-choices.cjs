@@ -28,7 +28,7 @@ before(async()=>{
   await db.campaignMember.create({data:{campaignId:campaign.id,userId:player.id,status:'ACCEPTED'}});
 });
 after(async()=>{if(app)await app.close();else await db.$disconnect()});
-async function create(name,input){const response=await request('POST','/api/characters/guided',input);assert.equal(response.statusCode,201,response.body);return heroes[name]=response.json().character}
+async function create(name,input){const response=await request('POST','/api/characters/guided',input);assert.equal(response.statusCode,201,response.body);const stored=await request('GET',`/api/characters/${response.json().character.id}`);assert.equal(stored.statusCode,200,stored.body);return heroes[name]=stored.json().character}
 async function advance(hero){const rules=RULE_CLASSES[hero.className],row=rules.levels[hero.level];const current=await db.character.update({where:{id:hero.id},data:{xp:row.xp,version:{increment:1}}});const response=await request('POST',`/api/game-rules/characters/${hero.id}/advance/apply`,{version:current.version,dice:Array.from({length:Math.min(9,row.level)},()=>4)});assert.equal(response.statusCode,200,response.body);return response.json().character}
 
 test('guided creation records each class concession outside its paid budget',async()=>{
@@ -160,4 +160,72 @@ test('portable choices remain coupled to their grants without trusting imported 
   assert.equal(chosenClassPowers(RULE_CLASSES.Bard,approved.json().character).some(p=>p.name==='Poder da mesa'),true);
   const imported=await request('POST','/api/characters/import',{campaignId:campaign.id,document:{format:'acks-ii-character',version:1,character:portable(approved.json().character)}});assert.equal(imported.statusCode,201,imported.body);
   assert.equal(chosenClassPowers(RULE_CLASSES.Bard,imported.json().character).some(p=>p.name==='Poder da mesa'),false);assert.match(imported.json().warnings.join(' '),/nova aprovação/);
+});
+
+test('class revision requires the responsible master, previews removals and preserves balances atomically',async()=>{
+  const hero=await create('review-barbarian',base('barbarian',{'damage-specialization':'melee'},{proficiencyOrigin:'ivory-kingdoms',proficiencies:[{name:'Ambushing',category:'class'},{name:'Caving',category:'general'}]}));
+  const endpoint=`/api/game-rules/characters/${hero.id}/class-revision`,input={version:hero.version,classKey:'catalog:fighter',reason:'Classe corrigida após conferir a ficha.',keepNaturalIds:[]};
+  const bypass=await request('PUT',`/api/characters/${hero.id}`,{version:hero.version,classKey:'catalog:fighter'});assert.equal(bypass.statusCode,400,bypass.body);assert.equal(bypass.json().code,'CLASS_REVISION_REQUIRED');
+  assert.equal((await request('POST',`${endpoint}/apply`,input)).statusCode,403);
+  const preview=await request('POST',`${endpoint}/preview`,input,masterToken);assert.equal(preview.statusCode,200,preview.body);assert.deepEqual(preview.json().removed.map(row=>row.name).sort(),['Endurance','Running']);
+  assert.equal((await db.character.findUnique({where:{id:hero.id}})).className,'Barbarian');
+  const response=await request('POST',`${endpoint}/apply`,input,masterToken);assert.equal(response.statusCode,200,response.body);const after=response.json().character;
+  assert.equal(after.className,'Fighter');assert.equal(after.xp,hero.xp);assert.equal(after.hpMax,hero.hpMax);assert.equal(after.coinGP,hero.coinGP);assert.equal(after.proficiencies.filter(row=>row.category==='natural').length,0);
+  assert.deepEqual(JSON.parse(after.rulesState).classChoices,{});assert.equal(JSON.parse(after.rulesState).proficiencyOrigin,undefined);
+  const replay=await request('POST',`${endpoint}/apply`,input,masterToken);assert.equal(replay.statusCode,200,replay.body);assert.equal(replay.json().alreadyApplied,true);assert.equal(replay.json().character.version,after.version);
+  const stale=await request('POST',`${endpoint}/apply`,{...input,reason:'Nova revisão depois de alterar a ficha.'},masterToken);assert.equal(stale.statusCode,409,stale.body);
+});
+
+test('master retention is explicit and a same-class review can remove a legacy orphan',async()=>{
+  const hero=await create('retained-barbarian',base('barbarian',{'damage-specialization':'melee'},{proficiencyOrigin:'ivory-kingdoms',proficiencies:[{name:'Ambushing',category:'class'},{name:'Caving',category:'general'}]}));
+  const running=hero.proficiencies.find(row=>row.name==='Running'),endpoint=`/api/game-rules/characters/${hero.id}/class-revision`;
+  const input={version:hero.version,classKey:'catalog:fighter',reason:'Manter treinamento de corrida da campanha.',keepNaturalIds:[running.id]};
+  const result=await request('POST',`${endpoint}/apply`,input,masterToken);assert.equal(result.statusCode,200,result.body);let current=result.json().character;
+  assert.deepEqual(current.proficiencies.filter(row=>row.category==='natural').map(row=>row.name),['Running']);assert.equal(abilityProficiencies(current,RULE_CLASSES.Fighter).some(row=>row.name==='Running'),true);
+  assert.equal((await request('POST',`${endpoint}/apply`,{...input,version:current.version,keepNaturalIds:['not-this-character']},masterToken)).statusCode,400);
+  const reviewed=await request('POST',`${endpoint}/apply`,{...input,version:current.version,reason:'Remover a exceção após revisão.',keepNaturalIds:[]},masterToken);assert.equal(reviewed.statusCode,200,reviewed.body);current=reviewed.json().character;
+  assert.equal(current.proficiencies.some(row=>row.name==='Running'),false);
+});
+
+test('a direct level edit advances Climbing and preserves its manual offset like guided advancement',async()=>{
+  let hero=await create('level-barbarian',base('barbarian',{'damage-specialization':'melee'},{proficiencyOrigin:'jutland',proficiencies:[{name:'Ambushing',category:'class'},{name:'Caving',category:'general'}]}));
+  const climbing=hero.proficiencies.find(row=>row.name==='Climbing'&&row.category==='natural');assert.equal(climbing.throwTarget,6);
+  const adjusted=await request('PUT',`/api/characters/${hero.id}/proficiencies/${climbing.id}`,{version:hero.version,throwTarget:8},masterToken);assert.equal(adjusted.statusCode,200,adjusted.body);
+  hero=await db.character.findUnique({where:{id:hero.id}});
+  const advanced=await request('PUT',`/api/characters/${hero.id}`,{version:hero.version,level:2});assert.equal(advanced.statusCode,200,advanced.body);hero=advanced.json().character;
+  assert.equal(hero.proficiencies.find(row=>row.id===climbing.id).throwTarget,7);
+  const undo=await request('PUT',`/api/characters/${hero.id}`,{version:hero.version,level:1});assert.equal(undo.statusCode,200,undo.body);assert.equal(undo.json().character.proficiencies.find(row=>row.id===climbing.id).throwTarget,8);
+});
+
+test('Warlock path is required at creation, locked against autosave and grants the correct rank and slot',async()=>{
+  const input=base('warlock',{}, {spells:[{name:'Arcane Armor',level:1,tradition:'arcane'}]});
+  assert.equal((await request('POST','/api/characters/guided',input)).statusCode,400);
+  let hero=await create('path-warlock',{...input,classChoices:{'dark-path':'Demonology'}});assert.equal(hero.subclass,'Demonology');
+  const mismatch=await request('PUT',`/api/characters/${hero.id}`,{version:hero.version,subclass:'Necromancy'});assert.equal(mismatch.statusCode,400,mismatch.body);
+  const changed=await request('PUT',`/api/characters/${hero.id}`,{version:hero.version,level:7});assert.equal(changed.statusCode,200,changed.body);hero=changed.json().character;
+  assert.equal(hero.proficiencies.filter(row=>row.category==='natural'&&row.name==='Theology').length,1);
+  const overview=(await request('GET',`/api/game-rules/characters/${hero.id}`)).json();assert.equal(overview.magic[0].repertoire[0],4);assert.equal(overview.magic[0].slots[0],3);
+  const ordinary=SPELL_LIST.filter(spell=>spell.level===1&&spell.tradition==='arcane'&&!spell.types.includes('sum')).slice(0,4).map(({name,level,tradition})=>({name,level,tradition}));
+  const endpoint=`/api/game-rules/characters/${hero.id}/magic/repertoire`;
+  const rejected=await request('POST',endpoint,{version:hero.version,spells:ordinary});assert.equal(rejected.statusCode,400,rejected.body);assert.match(rejected.body,/vaga extra/);
+  const allowed=SPELL_LIST.find(spell=>spell.level===1&&spell.tradition==='arcane'&&spell.types.includes('sum'));
+  const accepted=await request('POST',endpoint,{version:hero.version,spells:[...ordinary.slice(0,3),{name:allowed.name,level:1,tradition:'arcane'}]});assert.equal(accepted.statusCode,200,accepted.body);
+});
+
+test('Diplomacy cannot be repeated and Craftpriest can learn a fourth Craft rank within the paid budget',async()=>{
+  let mage=await create('rank-mage',base('mage',{}, {spells:[{name:'Arcane Armor',level:1,tradition:'arcane'}]}));
+  mage=await db.character.update({where:{id:mage.id},data:{level:5}});
+  const endpoint=`/api/game-rules/characters/${mage.id}/proficiencies`,rejected=await request('POST',endpoint,{version:mage.version,choices:[{name:'Diplomacy',category:'general'},{name:'Diplomacy',category:'general'}]});assert.equal(rejected.statusCode,400,rejected.body);assert.match(rejected.body,/não pode ser repetida/);
+  let craft=await create('rank-craft',base('dwarven-craftpriest',{craft:'Craft (brewing)'},{spells:divine,proficiencies:[{name:'Alchemy',category:'class'},{name:'Craft (brewing)',category:'general'}]}));
+  assert.equal(craft.proficiencies.find(row=>row.category==='natural'&&row.name==='Craft (brewing)').throwTarget,2);
+  assert.equal(craft.proficiencies.find(row=>row.category==='general'&&row.name==='Craft (brewing)').throwTarget,-1);
+});
+
+test('weapon attack attribute persists and invalid attribute values do not mutate the ficha',async()=>{
+  let hero=await create('finesse-blade',base('bladedancer',{}, {dex:16,spells:divine,proficiencies:[{name:'Acrobatics',category:'class'},{name:'Caving',category:'general'}]}));
+  const created=await request('POST',`/api/characters/${hero.id}/weapons`,{version:hero.version,name:'Sword',style:'Single Weapon',attackAbility:'dex'});assert.equal(created.statusCode,201,created.body);const weapon=created.json().weapon;assert.equal(weapon.attackAbility,'dex');
+  hero=await db.character.findUnique({where:{id:hero.id}});
+  const endpoint=`/api/characters/${hero.id}/weapons/${weapon.id}`,updated=await request('PUT',endpoint,{version:hero.version,attackAbility:'str'});assert.equal(updated.statusCode,200,updated.body);assert.equal(updated.json().weapon.attackAbility,'str');
+  hero=await db.character.findUnique({where:{id:hero.id}});
+  const rejected=await request('PUT',endpoint,{version:hero.version,attackAbility:'wil'});assert.equal(rejected.statusCode,400,rejected.body);assert.equal((await db.character.findUnique({where:{id:hero.id}})).version,hero.version);
 });

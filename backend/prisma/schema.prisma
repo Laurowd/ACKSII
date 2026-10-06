@@ -73,6 +73,7 @@ model CampaignSpell {
   level       Int
   tradition   String
   description String
+  types       String[] @default([])
   range       String   @default("")
   duration    String   @default("")
   visibility  String   @default("SECRET")
@@ -299,6 +300,7 @@ model Weapon {
   initBonus   Int    @default(0)
   attackThrow Int    @default(10)
   attackBonus Int    @default(0)
+    attackAbility String @default("auto")
   damage      String @default("1d6")
   rangeShort  Int    @default(0)
   rangeMed    Int    @default(0)

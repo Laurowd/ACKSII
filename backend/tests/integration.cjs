@@ -318,7 +318,7 @@ test('point construction is restricted to the campaign master and participates i
   const preview=await request('POST',`${base}/preview`,build);assert.equal(preview.statusCode,200,preview.body);assert.equal(preview.json().summary.xpSecond,2000);
   const created=await request('POST',`${base}/create`,build);assert.equal(created.statusCode,201,created.body);
   assert.equal((await request('POST',`${base}/create`,build)).statusCode,409);
-  const c=await request('POST','/api/characters/guided',{characterName:'Custom hero',campaignId:campaign.id,classKey:created.json().id,str:10,int:10,dex:10,wil:10,con:10,cha:10,hpMax:6,rulesMode:'standard',proficiencies:[{name:'Combat Reflexes',category:'class'},{name:'Manual of Arms',category:'general'}]});
+  const c=await request('POST','/api/characters/guided',{characterName:'Custom hero',campaignId:campaign.id,classKey:created.json().id,str:10,int:10,dex:10,wil:10,con:10,cha:10,hpMax:6,rulesMode:'standard',proficiencies:[{name:'Combat Reflexes',category:'class'},{name:'Caving',category:'general'}]});
   assert.equal(c.statusCode,201,c.body);
   assert.equal((await request('GET',`/api/game-rules/characters/${c.json().character.id}`)).json().supported,true);
 });
