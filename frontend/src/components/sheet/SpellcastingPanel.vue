@@ -104,7 +104,7 @@ import { useAuthStore } from '../../stores/auth'
 const props = defineProps<{ character: any; prepare: () => Promise<boolean>; refresh: () => Promise<void>;
   repertoireDraft: RepertoireDraft; compact?: boolean;
   spellDescriptions?: { name: string; level?: number; notes?: string }[]; descriptionsLoading?: boolean; descriptionsError?: string }>()
-const emit = defineEmits<{ 'retry-descriptions': [] }>()
+const emit = defineEmits<{ 'retry-descriptions': []; 'choices-updated': [choices: { spells: any[]; pools: any[]; loading: boolean }] }>()
 const operations = useCharacterOperations()
 const spellSearch = ref(''), favoritesOnly = ref(false), favorites = ref<string[]>([])
 const favoriteKey = () => `acks:spell-favorites:${useAuthStore().user?.id || ''}:${props.character.id}`
@@ -158,13 +158,15 @@ async function load() {
   if (busy.value || (loading.value && Object.keys(info.value).length)) return
   loading.value = true
   error.value = ''
+  emit('choices-updated', { spells: [], pools: [], loading: true })
   try {
     if (!await props.prepare() || !await operations.retryPending()) throw new Error('Salve ou corrija as alterações pendentes da ficha antes de atualizar os usos.')
     const [rules, catalog] = await Promise.all([api.get(url()), getResource('/api/game-rules/metadata')])
     info.value = rules.data
     metadata.value = catalog.data
+    emit('choices-updated', { spells: spellCatalog.value, pools: rules.data.magic || [], loading: false })
     restDay.value = Math.max(restDay.value, (rules.data.lastRestDay ?? -1) + 1)
-  } catch (caught) { error.value = errorMessage(caught, 'Não foi possível carregar os usos de magia.') }
+  } catch (caught) { error.value = errorMessage(caught, 'Não foi possível carregar os usos de magia.'); emit('choices-updated', { spells: [], pools: [], loading: false }) }
   finally { loading.value = false }
 }
 

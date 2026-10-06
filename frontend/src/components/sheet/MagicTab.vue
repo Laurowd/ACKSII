@@ -4,7 +4,7 @@
     <SpellcastingPanel :character="character" :prepare="prepare" :refresh="refresh"
       :repertoire-draft="repertoireDraft"
       :spell-descriptions="compendiumSpells" :descriptions-loading="loadingDescriptions" :descriptions-error="descriptionsError"
-      @retry-descriptions="loadSpellDescriptions" />
+      @retry-descriptions="loadSpellDescriptions" @choices-updated="spellChoices = $event" />
     <details v-if="canManage" class="bg-dark-card border border-steel-dark rounded-xl p-4 sm:p-5">
       <summary class="font-bold text-gold cursor-pointer">Exceções de magia (mestre)</summary>
       <div class="space-y-4 mt-4">
@@ -26,17 +26,17 @@
               <button type="button" @click="startSpell(lev)" :disabled="addingSpell" :aria-label="`Adicionar magia de nível ${lev}`" class="text-gold hover:text-gold-light text-sm disabled:opacity-40">+</button>
             </div>
             <div v-for="s in getSpellsByLevel(lev)" :key="s.id" class="flex items-center gap-1 mb-1">
-              <input v-model="s.name" @change="saveSpellName(s)" class="inp-table min-w-0 flex-1 text-sm" placeholder="Nome da magia" :aria-label="`Magia de nível ${lev}`" :list="'acks-spell-compendium-' + lev" />
+              <SearchableChoice v-model="s.name" @change="saveSpellName(s)" :options="manualSpellChoices(spellChoices.spells, spellChoices.pools, lev, s.tradition)" :disabled="spellChoices.loading" :label="`Magia de nível ${lev}`" class="flex-1" placeholder="Nome da magia" />
               <button type="button" @click="removeSpell(s.id)" :aria-label="`Remover magia ${s.name || 'sem nome'}`" class="text-crimson-light hover:text-crimson text-xs font-bold pl-1">X</button>
             </div>
             <form v-if="newSpell?.level === lev" @submit.prevent="addSpell" class="mt-3 space-y-2">
               <label class="block text-xs text-steel-light">Nome da nova magia
-                <input v-model="newSpell.name" required maxlength="160" :disabled="addingSpell" :aria-label="`Nome da nova magia de nível ${lev}`" :list="'acks-spell-compendium-' + lev" class="inp mt-1" placeholder="Escolha ou informe o nome" />
+                <SearchableChoice v-model="newSpell.name" @change="chooseNewSpell" :options="manualSpellChoices(spellChoices.spells, spellChoices.pools, lev, newSpell.tradition)" required maxlength="160" :disabled="addingSpell || spellChoices.loading" :label="`Nome da nova magia de nível ${lev}`" class="mt-1" placeholder="Escolha ou digite para buscar" />
               </label>
               <label class="block text-xs text-steel-light">Tradição
                 <select v-model="newSpell.tradition" :disabled="addingSpell" :aria-label="`Tradição da nova magia de nível ${lev}`" class="inp mt-1"><option value="">A definir</option><option value="arcane">Arcana</option><option value="divine">Divina</option></select>
               </label>
-              <p class="text-xs text-steel-light">Magias de campanha ficam como referência e têm conjuração controlada pelo mestre.</p>
+              <p class="text-xs text-steel-light">A lista mostra magias do livro e homebrew liberadas para esta ficha. Os usos automáticos respeitam a classe e o nível; outras entradas ficam como referência manual.</p>
               <div class="flex flex-wrap gap-3"><button type="submit" :disabled="addingSpell || !newSpell.name.trim()" class="text-sm text-gold disabled:opacity-40">Confirmar magia</button><button type="button" @click="newSpell = null" :disabled="addingSpell" class="text-sm text-steel-light">Cancelar</button></div>
             </form>
           </div>
@@ -209,10 +209,6 @@
           Efeitos à vontade exigem concentração; efeitos permanentes exigem duração mínima de um turno e afetam o usuário. Limites por tipo de item, múltiplos efeitos, desvantagens e experimentação exigem conferência do mestre. Projetos antigos permanecem em modo manual.
         </div>
       </div>
-      <!-- Datalists by level for autocomplete -->
-      <datalist v-for="l in 6" :key="'dl-'+l" :id="'acks-spell-compendium-' + l">
-        <option v-for="entry in compendiumSpells.filter(s => s.level === l)" :key="entry.id" :value="entry.name" :label="entry.name" />
-      </datalist>
       </div>
     </details>
   </div>
@@ -227,8 +223,9 @@ import SpellLearningPanel from './SpellLearningPanel.vue'
 import api from '../../services/api'
 import { useCharacterRelations } from '../../composables/characterRelations'
 import HelpTooltip from '../HelpTooltip.vue'
-import type { RepertoireDraft } from '../../utils/spellcasting'
+import { manualSpellChoices, type RepertoireDraft } from '../../utils/spellcasting'
 import SpellcastingPanel from './SpellcastingPanel.vue'
+import SearchableChoice from '../SearchableChoice.vue'
 import { useAuthStore } from '../../stores/auth'
 import { notifyError } from '../../utils/toast'
 import { errorMessage } from '../../utils/catalog'
@@ -252,6 +249,12 @@ function isRuleEnabled(key: string) {
 }
 
 const compendiumSpells = ref<any[]>([])
+const spellChoices = ref<{ spells: any[]; pools: any[]; loading: boolean }>({ spells: [], pools: [], loading: true })
+function chooseNewSpell(name: string) {
+  if (!newSpell.value || newSpell.value.tradition) return
+  const choice = manualSpellChoices(spellChoices.value.spells, spellChoices.value.pools, newSpell.value.level).find(spell => spell.value === name)
+  if (choice?.tradition) newSpell.value.tradition = choice.tradition
+}
 const loadingDescriptions = ref(false), descriptionsError = ref('')
 const effectTypes = [
   ['MANUAL', 'Manual / projeto antigo'], ['ONE_USE', 'Uso único'], ['CHARGED', 'Por cargas'],

@@ -4,6 +4,20 @@ export function spellTradition(info: any, spell: any): string {
   return spell.tradition || (info.magic?.length === 1 ? info.magic[0].tradition : '')
 }
 
+export function manualSpellChoices(catalog: SpellChoice[], pools: any[], level: number, tradition = '') {
+  const traditions = tradition ? [tradition] : pools.length ? pools.map(pool => pool.tradition) : ['arcane', 'divine']
+  const choices = new Map<string, { value: string; hint: string; tradition: string }>()
+  for (const spell of catalog) {
+    if (spell.level !== level || !traditions.includes(spell.tradition)) continue
+    const pool = pools.find(pool => pool.tradition === spell.tradition)
+    if (pool?.spellList && !spell.campaignSpellId && !pool.spellList.some((entry: any) => entry.name === spell.name && entry.level === level)) continue
+    const hint = `${spell.tradition === 'divine' ? 'Divina' : 'Arcana'} · ${spell.campaignSpellId ? 'Magia de campanha' : 'Catálogo do livro'}`
+    const previous = choices.get(spell.name)
+    choices.set(spell.name, { value: spell.name, hint: previous ? `${previous.hint} / ${hint}` : hint, tradition: previous ? '' : spell.tradition })
+  }
+  return [...choices.values()].sort((a, b) => a.value.localeCompare(b.value))
+}
+
 export function remainingSpellUses(info: any, tradition: string, level: number): number {
   if (!Number.isInteger(level) || level < 1 || level > 6) return 0
   const pool = info.magic?.find((entry: any) => entry.tradition === tradition)

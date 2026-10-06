@@ -36,7 +36,7 @@
       </section>
       <section class="space-y-3 border-t border-steel-dark pt-4">
         <h3 class="text-gold text-lg">3. Poderes e habilidades</h3>
-        <div class="grid sm:grid-cols-2 gap-3"><label>Proficiência geral inicial<input v-model="form.startingProficiency" class="inp" list="builder-general"/></label><label>Descrição da proficiência inicial<textarea v-model="form.startingDescription" rows="2" class="inp" placeholder="Efeito concedido pela classe"/></label></div>
+        <div class="grid sm:grid-cols-2 gap-3"><label>Proficiência geral inicial<SearchableChoice v-model="form.startingProficiency" :options="general" label="Proficiência geral inicial"/></label><label>Descrição da proficiência inicial<textarea v-model="form.startingDescription" rows="2" class="inp" placeholder="Efeito concedido pela classe"/></label></div>
         <p class="text-sm text-steel-light">O poder inicial gratuito não consome a escolha de proficiência do personagem. Backstabbing custa duas habilidades. Trocas para níveis futuros respeitam a tabela e o nível máximo da classe.</p>
         <div v-if="form.thievery" class="space-y-2"><p>Habilidades de ladrão iniciais: {{ skillCost }} / {{ form.thievery*4 }} escolhas</p><div class="flex flex-wrap gap-x-4 gap-y-2"><label v-for="skill in metadata.thiefSkills" :key="skill"><input v-model="form.thiefSkills" type="checkbox" :value="skill"/> {{ skill }}{{ skill==='Backstabbing'?' (2)':'' }}</label></div></div>
         <div v-if="form.race==='halfling'"><p>Escolha {{ form.racial }} habilidades halfling:</p><div class="flex flex-wrap gap-x-4 gap-y-2"><label v-for="skill in metadata.halflingSkills" :key="skill"><input v-model="form.halflingSkills" type="checkbox" :value="skill"/> {{ skill }}</label></div></div>
@@ -62,7 +62,7 @@
       <p class="text-xs text-steel-light">Ao salvar, a classe entra no catálogo e no assistente de personagens. A definição calculada fica preservada; o editor livre permite criar variantes.</p>
       <button @click="save" :disabled="busy" class="px-4 py-2 bg-gold text-dark-bg rounded-lg">Criar classe na campanha</button>
     </section>
-    <datalist id="builder-general"><option v-for="p in general" :key="p" :value="p"/></datalist><datalist id="builder-skills"><option v-for="p in metadata.thiefSkills" :key="p" :value="p"/></datalist>
+    <datalist id="builder-skills"><option v-for="p in metadata.thiefSkills" :key="p" :value="p"/></datalist>
   </details>
 </template>
 <script setup lang="ts">
@@ -73,6 +73,7 @@ import { getResource } from '../services/resources'
 import {errorMessage,proficiencyOptions} from '../utils/catalog'
 import ClassPowerChoice from './ClassPowerChoice.vue'
 import HelpTooltip from './HelpTooltip.vue'
+import SearchableChoice from './SearchableChoice.vue'
 const props=defineProps<{campaignId:string;open?:boolean}>(),emit=defineEmits<{created:[id:string]}>()
 const form=ref<any>({name:'',race:'human',racial:0,hd:2,fighting:2,thievery:0,divine:0,arcane:0,fightingVariant:'crusader',armorTrade:0,weaponTrade:0,styleTrade:0,damageTrade:'none',startingProficiency:'Manual of Arms',startingDescription:'Reconhece símbolos, equipamentos e patentes militares da terra natal. Para outros reinos: teste 11+. Pode lutar como tropa regular em unidades formadas ou abertas; organização militar inicial a critério do mestre.',keyAttributes:['str'],stronghold:'Castle',smoothXp:true,thiefSkills:[],powerSelections:[],thiefSelections:[],halflingSkills:[],delayedArcane:false,tradeRebuking:false,codeOfBehavior:'',fightingStyles:['Dual Weapon','Two-Handed Weapon','Weapon and Shield'],weaponSelection:'',strongholdPower:'Battlefield Prowess',strongholdDescription:'Retentores e mercenários sob o comando do personagem recebem +1 de moral em batalha.'})
 const points={hd:'Hit Dice',fighting:'Fighting',thievery:'Thievery',divine:'Divine',arcane:'Arcane',racial:'Valor racial'}

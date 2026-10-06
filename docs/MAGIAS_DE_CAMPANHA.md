@@ -16,6 +16,8 @@ Uma magia já presente no repertório precisa ser removida das fichas afetadas a
 
 Na criação, no editor do repertório e nas escolhas de proficiência, abra a lista pela seta ou digite parte do nome para filtrar. A busca ignora diferenças de maiúsculas e acentos. Setas do teclado e Enter selecionam; Escape fecha. As listas de proficiência permanecem separadas entre classe e geral, com as especializações já disponíveis.
 
+O campo **Nome da nova magia** e os nomes já registrados em **Exceções de magia (mestre)** também usam essa lista, filtrada por nível e tradição a partir das listas do Rulebook (p. 186–189), incluindo homebrew autorizadas. Selecionar um nome não cria a magia: use **Confirmar magia** para salvar. A proficiência geral inicial do construtor de classes usa o mesmo seletor pesquisável.
+
 Magias de campanha liberadas mostram essa identificação na ficha. **Conjurar** desconta um uso diário do nível e tradição correspondentes. Requisitos de classe, níveis disponíveis, capacidade do repertório, descanso e proteção contra edições simultâneas continuam valendo. Disponibilizar uma magia divina constitui a autorização do mestre para incluí-la como opção da campanha; não aumenta os usos de magia da classe.
 
 Alcance, duração e efeitos descrevem a magia; o sistema não resolve seus alvos, dano ou duração automaticamente. Entradas antigas livres permanecem referências manuais até corresponderem a uma magia do livro ou a um cadastro homebrew liberado. O cadastro da campanha não acompanha uma exportação JSON individual: uma cópia em outra campanha precisa de cadastro e liberação pelo seu mestre.

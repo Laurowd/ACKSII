@@ -71,13 +71,13 @@ describe('Ficha, persistência e componentes', () => {
   it('mostra nomes nas sugestões de magias e persiste a escolha', function () {
     cy.signIn(this.account, `/character/${this.character.id}`)
     cy.button('Magia').click()
-    cy.get('#acks-spell-compendium-1 option').should('have.length.greaterThan', 1).each(option => {
-      expect(option.attr('label')).to.eq(option.val())
-      expect(option.text().trim()).to.eq('')
-    })
     cy.intercept('PUT', '/api/characters/*/spells/*').as('spell')
     cy.findByText('Exceções de magia (mestre)', {exact:true}).click()
-    cy.findByRole('combobox', { name: 'Magia de nível 1', exact: true }).clear().type('Arcane Armor').blur()
+    cy.button('Mostrar opções de Magia de nível 1').click()
+    cy.findByRole('listbox', { name: 'Opções de Magia de nível 1', exact: true }).should('not.contain.text', 'This spell')
+    cy.findByRole('combobox', { name: 'Magia de nível 1', exact: true }).clear().type('arcane arm')
+    cy.findByRole('listbox', { name: 'Opções de Magia de nível 1', exact: true }).findAllByRole('option').should('have.length', 1)
+    cy.findByRole('listbox', { name: 'Opções de Magia de nível 1', exact: true }).findByText('Arcane Armor', { exact: true }).click()
     cy.wait('@spell').its('response.statusCode').should('eq', 200)
     cy.reload()
     cy.button('Magia').click()
