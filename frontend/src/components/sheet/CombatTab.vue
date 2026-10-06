@@ -29,7 +29,7 @@
         </div>
         <div>
           <label for="sheet-class" class="lbl">Classe</label>
-          <select v-if="customClasses.length > 0" id="sheet-class" :value="character.classKey" @change="requestClassChange" :disabled="!canManage" class="inp">
+          <select v-if="customClasses.length > 0" id="sheet-class" :value="selectedCustomClass?.id || character.classKey" @change="requestClassChange" :disabled="!canManage" class="inp">
             <option v-if="!character.classKey && character.className" value="">{{ character.className }} (cadastro anterior)</option>
             <option v-else value="" disabled>Selecione uma classe</option>
             <option v-for="c in customClasses" :key="c.id" :value="c.id">{{ c.name }} — {{ c.source === 'catalog' ? 'base' : 'campanha' }}</option>
@@ -506,7 +506,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['save', 'campaign-change', 'owner-change', 'class-change', 'level-change', 'open-rules'])
 const relations = useCharacterRelations(() => props.character)
-function requestClassChange(event:Event) {const select=event.target as HTMLSelectElement,key=select.value;select.value=props.character.classKey || '';emit('class-change',key)}
+function requestClassChange(event:Event) {const select=event.target as HTMLSelectElement,key=select.value;select.value=selectedCustomClass.value?.id || props.character.classKey || '';emit('class-change',key)}
 const compendiumWeapons = ref<any[]>([])
 const proficiencyMetadata = ref<any>({})
 function manualProficiencyOptions(category: string) {

@@ -31,7 +31,7 @@ import {errorMessage} from '../utils/catalog'
 const props=defineProps<{character:any;target:any;prepare:()=>Promise<boolean>}>()
 const emit=defineEmits<{close:[];changed:[]}>(), operations=useCharacterOperations()
 const dialog=ref<HTMLDialogElement>(),busy=ref(false),error=ref(''),preview=ref<any>(null),payload=ref<any>(null)
-const same=props.character.classKey===props.target.id || (!props.character.classKey && props.character.className===props.target.name)
+const same=props.character.classKey===props.target.id || props.target.legacyIds?.includes(props.character.classKey) || (!props.character.classKey && props.character.className===props.target.name)
 const allowedKeys=(props.target.rules?.classChoices || []).flatMap((definition:any)=>[definition.id,...['name','description','level'].map(suffix=>`${definition.id}-${suffix}`)])
 const choices=ref<Record<string,string>>(same?Object.fromEntries(Object.entries(selectionsFor(props.character,props.target.rules)).filter(([key])=>allowedKeys.includes(key))):{}),origin=ref(same?abilityState(props.character).proficiencyOrigin || '':''),keep=ref<string[]>([]),reason=ref('')
 const natural=computed(()=>props.character.proficiencies.filter((row:any)=>row.category==='natural'))
