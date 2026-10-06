@@ -71,9 +71,9 @@ test('lightweight character list omits relations and retains access controls and
 });
 
 test('book-mode creation validates proficiencies and magic before creating any records', async () => {
-  const base = { characterName: `Choices ${suffix}`, classKey: 'catalog:venturer', rulesMode: 'standard', str: 10, int: 10, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 6,
+  const base = { characterName: `Choices ${suffix}`, classKey: 'catalog:venturer', rulesMode: 'standard', classChoices: {'expert-traveling':'Driving'}, str: 10, int: 10, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 6,
     proficiencies: [{ name: 'Navigation', category: 'class' }, { name: 'Caving', category: 'general' }] };
-  const mage = { ...base, classKey: 'catalog:mage', hpMax: 4, proficiencies: [{ name: 'Alchemy', category: 'class' }, { name: 'Caving', category: 'general' }] };
+  const mage = { ...base, classKey: 'catalog:mage', classChoices: {}, hpMax: 4, proficiencies: [{ name: 'Alchemy', category: 'class' }, { name: 'Caving', category: 'general' }] };
   const armor = { name: 'Arcane Armor', level: 1, tradition: 'arcane' };
   const before = await db.character.count({ where: { userId: user.id } });
   for (const input of [

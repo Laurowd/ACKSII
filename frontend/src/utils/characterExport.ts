@@ -1,6 +1,7 @@
 import type { CatalogClass } from './catalog'
 import { calculateCharacterMetrics } from './characterMetrics'
 import {classDefinitionFeats} from './classDefinitionFeats'
+import { selectionsFor } from '../../../backend/src/lib/classAbilities'
 
 const privateFields = new Set(['id', 'userId', 'campaignId', 'characterId', 'createdAt', 'updatedAt', 'user', 'auditLogs', 'version'])
 function portable(value: unknown): unknown {
@@ -13,10 +14,11 @@ export function characterExport(character: Record<string, unknown>, definition?:
   const metrics = calculateCharacterMetrics(character, definition)
   if (!automaticProgression) metrics.xpNext = Number(character.xpNext) || 0
   const { armorClass: ac, encumbrance: movement } = metrics
-  const current = { ...character, xpNext: automaticProgression ? metrics.xpNext : character.xpNext,
+  const current: Record<string, unknown> = { ...character, xpNext: automaticProgression ? metrics.xpNext : character.xpNext,
     acNoArmor: ac.noArmor, acNoShield: ac.noShield, acWithShield: ac.withShield,
     initiative: metrics.initiative, moveExploration: movement.moveExploration, moveCombat: movement.moveCombat,
     moveCharge: movement.moveCharge, moveExpedition: movement.moveExpedition, moveStealth: movement.moveStealth }
+  if (definition?.rules?.classChoices?.some((choice:any) => choice.id === 'tradition') && selectionsFor(character).tradition) current.subclass = selectionsFor(character).tradition
   return { format: 'acks-ii-character', version: 1, exportedAt: new Date().toISOString(),
     classDefinition: definition ? portable(definition) : null, character: portable(current), computed: metrics }
 }
@@ -43,7 +45,9 @@ const labels: Record<string, string> = {
 
 export function characterPrintHtml(character: Record<string, unknown>, definition?: CatalogClass, automaticProgression = true) {
   const exported = characterExport(character, definition, automaticProgression)
-  const powers=definition ? classDefinitionFeats(definition,String(character.className||''),Number(character.level)||1,String(character.subclass||'')).powers : []
+  const feats=definition ? classDefinitionFeats(definition,String(character.className||''),Number(character.level)||1,String(character.subclass||''),[],character) : undefined
+  const powers=feats?.powers || []
+  const classStats=(feats?.levelStats || []).filter(section => section.stats.length).map(section => `<section><h2>${escapeHtml(section.sectionTitle)}</h2>${displayStats(section.stats)}</section>`).join('')
   const clean = exported.character as Record<string, unknown>
   clean.healingRate = exported.computed.healingRate
   delete clean.classKey
@@ -74,8 +78,12 @@ export function characterPrintHtml(character: Record<string, unknown>, definitio
   body{font:14px system-ui,sans-serif;color:#222;max-width:960px;margin:24px auto;padding:0 20px}h1,h2{font-family:Georgia,serif}h1{border-bottom:3px solid #9b7b31;padding-bottom:12px}section{margin:14px 0}.core{break-inside:avoid}h2{font-size:16px;margin-bottom:6px;color:#614b1d;break-after:avoid}dl{display:grid;grid-template-columns:minmax(120px,1fr) 3fr;gap:5px 15px}dt{font-weight:bold}dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}li{margin-bottom:8px}button{padding:10px 16px;cursor:pointer}p{white-space:pre-wrap}@media print{button,.hint{display:none}body{margin:0;max-width:none}h2{color:#222}@page{margin:15mm}}
   </style></head><body><p class="hint">Para imprimir ou salvar em PDF, pressione Ctrl+P (⌘+P no Mac) ou use Imprimir no menu do navegador. Escolha Salvar como PDF na janela de impressão.</p><h1>${escapeHtml(character.characterName || 'Personagem')} — ACKS II</h1>
   ${definition ? `<p>Classe: ${escapeHtml(definition.name)} · ${definition.source === 'catalog' ? 'Catálogo base' : 'Campanha'}</p>` : ''}
-  ${core}${powers.length?`<section><h2>Poderes da classe</h2><ul>${powers.map(p=>`<li><strong>${escapeHtml(p.name)}</strong><p>${escapeHtml(p.description)}</p></li>`).join('')}</ul></section>`:''}${definition?.classFeatures&&definition.classFeatures!==character.classFeatures?`<section><h2>Características e restrições da classe</h2><p>${escapeHtml(definition.classFeatures)}</p></section>`:''}${Object.keys(otherScalars).length ? `<section><h2>Outros valores</h2>${display(otherScalars)}</section>` : ''}${details}
+  ${core}${classStats}${powers.length?`<section><h2>Poderes da classe</h2><ul>${powers.map(p=>`<li><strong>${escapeHtml(p.name)}</strong><p>${escapeHtml(p.description)}</p></li>`).join('')}</ul></section>`:''}${definition?.classFeatures&&definition.classFeatures!==character.classFeatures?`<section><h2>Características e restrições da classe</h2><p>${escapeHtml(definition.classFeatures)}</p></section>`:''}${Object.keys(otherScalars).length ? `<section><h2>Outros valores</h2>${display(otherScalars)}</section>` : ''}${details}
   </body></html>`
+}
+
+function displayStats(stats: {label:string;value:string}[]) {
+  return `<dl>${stats.map(stat => `<dt>${escapeHtml(stat.label)}</dt><dd>${escapeHtml(stat.value)}</dd>`).join('')}</dl>`
 }
 
 export function downloadCharacter(content: string, name: string, extension: 'json' | 'html') {

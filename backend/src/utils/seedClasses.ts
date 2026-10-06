@@ -1,3 +1,5 @@
+import rules from '../data/acksRules.json'
+
 export const RAW_DEFAULT_CLASSES = [
   {
     "name": "Fighter",
@@ -3523,7 +3525,7 @@ export const BASE_CLASS_MAX_LEVELS: Record<string, number> = {
   'Zaharan Ruinguard': 12,
 }
 
-export const DEFAULT_CLASSES = RAW_DEFAULT_CLASSES.map((klass) => {
+export const PREVIOUS_DEFAULT_CLASSES = RAW_DEFAULT_CLASSES.map((klass) => {
   const maxLevel = BASE_CLASS_MAX_LEVELS[klass.name] ?? 14
   return {
     ...klass,
@@ -3533,3 +3535,10 @@ export const DEFAULT_CLASSES = RAW_DEFAULT_CLASSES.map((klass) => {
     savingThrows: klass.savingThrows.slice(0, maxLevel),
   }
 })
+
+// The book-checked progression is also used by advancement. Keep historical
+// arrays above only for identifying unmodified campaign copies.
+export const DEFAULT_CLASSES = PREVIOUS_DEFAULT_CLASSES.map(klass => ({
+  ...klass,
+  xpPerLevel: (rules.classes as Record<string, { levels: { xp: number }[] }>)[klass.name]!.levels.map(level => level.xp),
+}))

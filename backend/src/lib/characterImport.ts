@@ -116,6 +116,21 @@ function restoredRulesState(value: unknown, warnings: string[]) {
     if (!BARBARIAN_ORIGINS.some(origin => origin.key === state.proficiencyOrigin)) throw new CharacterImportError('Origem de proficiências inválida.');
     restored.proficiencyOrigin = state.proficiencyOrigin;
   }
+  if (state.classChoices !== undefined) {
+    const choices = jsonObject(state.classChoices, 'Escolhas de classe');
+    if (Object.keys(choices).length > 30 || Object.entries(choices).some(([key, value]) => !/^[a-z0-9-]{1,60}$/.test(key) || typeof value !== 'string' || value.length > 2000)) throw new CharacterImportError('Escolhas de classe inválidas.');
+    restored.classChoices = choices;
+    if (Object.values(choices).includes('judge')) warnings.push('Poderes excepcionais do Bard foram preservados como referência e precisam de nova aprovação do mestre nesta cópia.');
+  }
+  if (state.adventuringProficiencyBonus !== undefined) {
+    if (![0,3].includes(state.adventuringProficiencyBonus)) throw new CharacterImportError('Bônus de conferência de Adventuring inválido.');
+    restored.adventuringProficiencyBonus = state.adventuringProficiencyBonus;
+  }
+  if (state.totemStatus !== undefined) {
+    const status = jsonObject(state.totemStatus, 'Estado do totem');
+    if (typeof status.alive !== 'boolean' || typeof status.nearby !== 'boolean' || Object.keys(status).some(key => !['alive','nearby','lostAtLevel'].includes(key)) || (status.lostAtLevel !== undefined && (!Number.isInteger(status.lostAtLevel) || status.lostAtLevel < 1 || status.lostAtLevel > 14))) throw new CharacterImportError('Estado do totem inválido.');
+    restored.totemStatus = status;
+  }
   if (state.formulas !== undefined) {
     if (!Array.isArray(state.formulas) || state.formulas.length > 100 || state.formulas.some((entry: any) => !entry || typeof entry.name !== 'string' || !entry.name.trim() || entry.name.length > 160 || !Number.isInteger(entry.level) || entry.level < 1 || entry.level > 6 || !['arcane', 'divine'].includes(entry.tradition) || typeof entry.source !== 'string' || entry.source.length > 300)) throw new CharacterImportError('Fórmulas do grimório inválidas.');
     restored.formulas = state.formulas.map((entry: any) => ({ name: entry.name, level: entry.level, tradition: entry.tradition, source: entry.source }));
@@ -141,7 +156,7 @@ function restoredRulesState(value: unknown, warnings: string[]) {
     }
     restored.lastRestDay = state.lastRestDay;
   }
-  if (Object.keys(state).some(key => !['used', 'lastRestDay', 'combat', 'formulas', 'study', 'proficiencyOrigin'].includes(key))) {
+  if (Object.keys(state).some(key => !['used', 'lastRestDay', 'combat', 'formulas', 'study', 'proficiencyOrigin', 'classChoices', 'classChoiceApprovals', 'adventuringProficiencyBonus', 'totemStatus'].includes(key))) {
     warnings.push('O histórico de aventuras, meses e projetos não foi importado; seus registros dependem dos identificadores da ficha original. Saldos e XP atuais foram preservados, sem reaplicar operações.');
   }
   return JSON.stringify(restored);

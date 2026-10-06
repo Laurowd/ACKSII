@@ -17,5 +17,8 @@
 !backend/src/
 !backend/src/data/
 !backend/src/data/domainIncomeFactors.json
+!backend/src/data/acksRules.json
+!backend/src/lib/
+!backend/src/lib/classAbilities.ts
 frontend/src/**/*.spec.ts
 frontend/src/**/*.test.ts

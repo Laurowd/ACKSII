@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client';
 import prisma from '../lib/prisma';
 import { authGuard } from '../middleware/auth';
 import { resolveClass } from '../lib/classCatalog';
+import { rulesFor } from '../lib/gameRules';
+import { classChoiceIssues } from '../lib/classAbilities';
 import { CharacterImportError, assertCharacterImportFields, characterImportBody, importedRelations, prepareCharacterImport } from '../lib/characterImport';
 
 export async function characterImportRoutes(app: FastifyInstance) {
@@ -29,6 +31,11 @@ export async function characterImportRoutes(app: FastifyInstance) {
         if (klass) {
           prepared.fields.classKey = klass.id;
           prepared.fields.className = klass.name;
+          const rules = rulesFor(klass), state = JSON.parse(prepared.fields.rulesState || '{}');
+          if (rules && state.classChoices) {
+            const issues = classChoiceIssues(rules, prepared.fields, state.classChoices).filter(issue => !issue.includes('aprovado pelo mestre responsável'));
+            if (issues.length) throw new CharacterImportError(issues.join(' '));
+          }
         } else {
           prepared.fields.classKey = '';
           if (prepared.fields.className) prepared.warnings.push('A classe não está disponível no catálogo ou na campanha escolhida. Seu nome e valores foram preservados como classe manual; revise a progressão com o mestre.');

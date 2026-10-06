@@ -49,7 +49,7 @@
           <label>Terra natal<input v-model="draft.birthplace" maxlength="200" class="inp" /></label>
           <label>Alinhamento<select v-model="draft.alignment" class="inp"><option value="">A definir</option><option>Lawful</option><option>Neutral</option><option>Chaotic</option></select></label>
           <label>PV iniciais<input v-model.number="draft.hpMax" type="number" min="1" max="1000" required class="inp" /><button type="button" @click="rollHp" class="text-gold underline">Rolar dado da classe (mínimo 4) + CON</button></label>
-          <label v-if="subclasses.length">Subclasse<select v-model="draft.subclass" class="inp"><option value="">A definir</option><option v-for="s in subclasses" :key="s">{{ s }}</option></select></label>
+          <label v-if="subclasses.length && !chosenRules.rules?.classChoices?.some((choice:any) => choice.id === 'tradition')">Subclasse<select v-model="draft.subclass" class="inp"><option value="">A definir</option><option v-for="s in subclasses" :key="s">{{ s }}</option></select></label>
           <label>Idiomas<input v-model="draft.languagesKnown" maxlength="2000" class="inp" /></label>
         </div>
         <label class="flex gap-2"><input v-model="draft.isSpellcaster" type="checkbox" :disabled="draft.rulesMode === 'standard'" /> Este personagem usa magia</label>
@@ -61,13 +61,14 @@
           <p class="text-sm text-steel-light">Origem cultural, independente da cidade natal. As duas proficiências são concedidas pela classe e não gastam escolhas (Rulebook p. 49).</p>
           <p v-if="automaticNotice" role="status" class="text-sm text-gold">{{ automaticNotice }}</p>
         </section>
+        <ClassChoicesForm v-model="draft.classChoices" :rules="chosenRules.rules" :character="{...draft, level:1}" :can-approve="canApproveChoices" :show-errors="choicesReviewed" />
         <h3 class="text-gold">Proficiências</h3>
         <p v-if="draft.rulesMode === 'standard'" class="text-sm">Adventuring e seus cinco testes serão incluídos automaticamente. Escolha ao menos 1 proficiência de classe e 1 geral. Limites: {{ proficiencyCheck.limits.class }} de classe e {{ proficiencyCheck.limits.general }} gerais.</p>
         <p v-else class="text-sm">Adventuring e seus cinco testes serão incluídos automaticamente. Registre as proficiências aprovadas pelo mestre para esta classe.</p>
         <div class="rounded-lg border border-steel-dark p-3 text-sm space-y-1" role="region" aria-label="Proficiências concedidas automaticamente">
           <p class="font-semibold text-gold">Concedidas automaticamente · sem gastar escolhas</p>
           <p>Adventuring · todos os personagens</p>
-          <p v-for="grant in naturalGrants" :key="grant.name">{{ grant.name }} · {{ selectedOrigin?.label }}</p>
+          <p v-for="(grant,i) in naturalGrants" :key="`${grant.name}:${i}`">{{ grant.name }} · {{ grant.source }}<span v-if="grant.ranks > 1"> · {{ grant.ranks }} graduações</span><span v-if="grant.conditional"> · benefício condicionado ao totem</span></p>
         </div>
         <div v-for="(p, i) in draft.proficiencies" :key="i" class="space-y-1">
           <div class="grid items-start grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2">
@@ -127,7 +128,8 @@
         <dl class="grid grid-cols-3 gap-3"><div v-for="a in attributes" :key="a.key"><dt>{{ a.label }}</dt><dd class="text-gold">{{ draft[a.key] }} ({{ formatMod(getModifier(draft[a.key])) }})</dd></div></dl>
         <p>Idiomas: {{ draft.languagesKnown || 'A definir' }} · {{ draft.proficiencies.length }} escolhas de proficiência · Adventuring{{ naturalGrants.length ? ` e ${naturalGrants.length} proficiências naturais gratuitas` : ' automática' }} · {{ draft.items.length }} registros de itens recebidos · {{ useBudget ? draft.purchases.length : 0 }} compras</p>
         <p v-if="selectedOrigin">Origem do bárbaro: {{ selectedOrigin.label }} · {{ naturalGrants.map(grant => grant.name).join(', ') }} (concedidas)</p>
-        <ul class="list-disc pl-5"><li v-for="(p,i) in draft.proficiencies" :key="`p${i}`">{{ p.name }} ({{ p.category === 'class' ? 'classe' : 'geral' }})</li><li v-for="(item,i) in draft.items" :key="`i${i}`">{{ item.quantity }} × {{ item.name }}</li></ul>
+        <ul v-if="classChoiceSummary.length" class="list-disc pl-5"><li v-for="choice in classChoiceSummary" :key="choice">{{ choice }}</li></ul>
+        <ul class="list-disc pl-5"><li v-for="(p,i) in draft.proficiencies" :key="`p${i}`">{{ p.name }} ({{ p.category === 'class' ? 'classe' : 'geral' }})</li><li v-for="(grant,i) in naturalGrants" :key="`g${i}`">{{ grant.name }} (gratuita{{ grant.ranks > 1 ? ` · ${grant.ranks} graduações` : '' }})</li><li v-for="(item,i) in draft.items" :key="`i${i}`">{{ item.quantity }} × {{ item.name }}</li></ul>
         <p>Magias iniciais: {{ draft.spells.length }}.</p><ul v-if="draft.spells.length" class="list-disc pl-5"><li v-for="(spell, i) in draft.spells" :key="i">{{ spell.name }} · {{ traditionName(spell.tradition) }} · nível {{ spell.level }}</li></ul>
         <template v-if="useBudget"><p>Ouro inicial: {{ startingGold }} GP · Compras: {{ purchasesSummary.spentGp.toFixed(2) }} GP</p><ul class="list-disc pl-5"><li v-for="(purchase,i) in purchasesSummary.lines" :key="i">{{ purchase.quantity }} × {{ purchase.name }} — {{ purchase.costGp.toFixed(2) }} GP</li></ul></template>
         <p class="text-sm text-steel-light">A ficha será criada somente ao confirmar. Título, XP do próximo nível e salvamentos vêm da classe selecionada.</p>
@@ -150,12 +152,14 @@ import { choiceMagicPools, proficiencyValidation, spellValidation, traditionName
 import { useAuthStore } from '../stores/auth'
 import { createLocalDraft } from '../utils/localDrafts'
 import SearchableChoice from '../components/SearchableChoice.vue'
+import ClassChoicesForm from '../components/ClassChoicesForm.vue'
+import { classGrants, classChoiceIssues, relevantChoices, choiceOptions, type ClassSelections } from '../../../backend/src/lib/classAbilities'
 const route = useRoute(), router = useRouter()
 const steps = ['Atributos', 'Classe', 'Identidade', 'Equipamento', 'Revisão']
 const attributes = [{ key: 'str', label: 'Força' }, { key: 'int', label: 'Intelecto' }, { key: 'dex', label: 'Destreza' }, { key: 'wil', label: 'Vontade' }, { key: 'con', label: 'Constituição' }, { key: 'cha', label: 'Carisma' }] as const
 const draft = ref({ campaignId: String(route.query.campaignId || ''), classKey: String(route.query.classKey || ''),
   rulesMode:'standard', exceptionReason:'', purchases:[] as {entryId:string;quantity:number}[], spells:[] as {name:string;level:number;tradition:string}[],
-  characterName: '', birthplace: '', alignment: '', subclass: '', languagesKnown: '', notes: '', proficiencyOrigin: '',
+  characterName: '', birthplace: '', alignment: '', subclass: '', languagesKnown: '', notes: '', proficiencyOrigin: '', classChoices: {} as ClassSelections,
   str: 10, int: 10, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 1, coinGP: 0, isSpellcaster: false,
   proficiencies: [] as { name: string; category: string }[], items: [] as { name: string; quantity: number; weight: number }[],
 })
@@ -180,13 +184,15 @@ const initializing = ref(true)
 const purchasesSummary = computed(() => purchaseSummary(startingGold.value, draft.value.purchases, equipment.value))
 const budgetRemaining = computed(() => purchasesSummary.value.remainingGp)
 function rollDie(sides:number) { const values=new Uint32Array(1), ceiling=Math.floor(4294967296/sides)*sides; do {crypto.getRandomValues(values)} while(values[0]!>=ceiling);return values[0]!%sides+1 }
-const campaigns = ref<{ id: string; name: string }[]>([]), classes = ref<CatalogClass[]>([])
+const campaigns = ref<{ id: string; name: string; masterId?: string }[]>([]), classes = ref<CatalogClass[]>([])
+const canApproveChoices = computed(() => useAuthStore().isMaster && (!draft.value.campaignId || campaigns.value.some(campaign => campaign.id === draft.value.campaignId && campaign.masterId === useAuthStore().user?.id)))
 const klass = computed(() => classes.value.find(c => c.id === draft.value.classKey || c.legacyIds?.includes(draft.value.classKey)))
 const priorities = ref(['str', 'dex', 'con'])
 const chosenRules = computed(() => creationSettings(klass.value))
 const proficiencyOrigins = computed<{ key: string; label: string; proficiencies: string[] }[]>(() => chosenRules.value.rules?.proficiencyOrigins || [])
 const selectedOrigin = computed(() => proficiencyOrigins.value.find(origin => origin.key === draft.value.proficiencyOrigin))
-const naturalGrants = computed(() => (selectedOrigin.value?.proficiencies || []).map(name => ({ name })))
+const naturalGrants = computed(() => classGrants(chosenRules.value.rules || {}, {...draft.value,level:1}))
+const classChoiceSummary = computed(() => relevantChoices(chosenRules.value.rules || {}, draft.value).filter(choice => draft.value.classChoices[choice.id]).map(choice => `${choice.label}: ${choiceOptions(choice,draft.value).find(option => option.key === draft.value.classChoices[choice.id])?.label || draft.value.classChoices[choice.id]}`))
 const automaticNotice = ref('')
 function changeOrigin() {
   const previous = draft.value.proficiencies.length
@@ -195,8 +201,8 @@ function changeOrigin() {
   choicesReviewed.value = true; error.value = ''
 }
 function paidProficiencyOptions(category: string) {
-  const single = ['Climbing', 'Riding', 'Running', 'Endurance']
-  return proficiencyOptions(category === 'class' ? chosenRules.value.rules?.proficiencies || [] : metadata.value.generalProficiencies || []).filter(name => name !== 'Adventuring' && !(single.includes(name) && naturalGrants.value.some(grant => grant.name === name)))
+  const single = ['Climbing','Riding','Running','Endurance','Expanded Repertoire','Combat Reflexes','Combat Ferocity','Ambushing','Alertness']
+  return proficiencyOptions(category === 'class' ? chosenRules.value.rules?.proficiencies || [] : metadata.value.generalProficiencies || []).filter(name => name !== 'Adventuring' && !(single.includes(name) && naturalGrants.value.some(grant => grant.name === name && !grant.conditional)))
 }
 const choicesReviewed = ref(false)
 type CreationDraft = { draft: typeof draft.value; step: number; useBudget: boolean; startingGold: number; priorities: string[]; rollLog: string }
@@ -226,7 +232,7 @@ async function restoreCreation() {
     await nextTick(); recovery.value = null; dirty = true
   } finally { restoring = false; persistCreation() }
 }
-const magic = computed(() => choiceMagicPools(chosenRules.value.rules, draft.value.int))
+const magic = computed(() => choiceMagicPools(chosenRules.value.rules, draft.value.int, 1, {...draft.value,level:1}))
 const availableMagic = computed(() => magic.value.filter(pool => pool.slots[0]))
 const proficiencyCheck = computed(() => draft.value.rulesMode === 'standard' && chosenRules.value.rules ? proficiencyValidation(chosenRules.value.rules, draft.value.int, draft.value.proficiencies, metadata.value.generalProficiencies, 1, naturalGrants.value) : { rows: [] as string[], issues: [] as string[], limits: { class: 0, general: 0 } })
 const spellCheck = computed(() => draft.value.rulesMode === 'standard' ? spellValidation(magic.value, draft.value.spells, spellCatalog.value) : { rows: [] as string[], issues: [] as string[] })
@@ -246,9 +252,11 @@ watch(klass, (value) => {
   if (restoring) return
   draft.value.subclass = ''
   draft.value.proficiencyOrigin = ''; automaticNotice.value = ''
+  draft.value.classChoices = {}
   draft.value.isSpellcaster = chosenRules.value?.spellcaster ?? false
   if (value) draft.value.hpMax = Math.max(1, 4 + (value.conBonus ? getModifier(draft.value.con) : 0)) + Number(chosenRules.value.rules?.levels[0]?.hitDice.match(/\+(\d+)/)?.[1] || 0)
 })
+watch(() => draft.value.classChoices, () => { if (!restoring) { changeOrigin(); draft.value.subclass = draft.value.classChoices.tradition || '' } }, {deep:true})
 watch(() => draft.value.rulesMode, mode => { if (!restoring && mode === 'standard') draft.value.isSpellcaster = chosenRules.value.spellcaster ?? false })
 async function loadClasses() {
   const id = ++sequence
@@ -296,7 +304,7 @@ async function next() {
     if (proficiencyOrigins.value.length && !selectedOrigin.value) { error.value = 'Escolha a origem do bárbaro para receber suas proficiências naturais.'; step.value = 2; return }
     const missing = ['class', 'general'].filter(category => !draft.value.proficiencies.some(p => p.category === category && p.name.trim()))
     if (missing.length) { error.value = `Escolha ao menos uma proficiência ${missing.map(c => c === 'class' ? 'de classe' : 'geral').join(' e ')}.`; step.value = 2; return }
-    const issues = [...proficiencyCheck.value.issues, ...spellCheck.value.issues]
+    const issues = [...classChoiceIssues(chosenRules.value.rules, {...draft.value,level:1}, draft.value.classChoices, true, canApproveChoices.value), ...proficiencyCheck.value.issues, ...spellCheck.value.issues]
     for (const pool of availableMagic.value) if (pool.studious && !draft.value.spells.some(spell => spell.tradition === pool.tradition)) issues.push(`Escolha sua primeira magia ${traditionName(pool.tradition)}.`)
     if (issues.length) { error.value = issues.join(' '); step.value = 2; return }
     const con = klass.value!.conBonus ? getModifier(draft.value.con) : 0

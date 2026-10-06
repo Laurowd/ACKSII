@@ -15,7 +15,8 @@ export function creationSettings(klass?: CatalogClass) {
   if (klass.source === 'catalog') return klass
   try {
     const settings = JSON.parse(klass.creationRules || '{}')
-    return settings && typeof settings === 'object' && !Array.isArray(settings) ? settings : {}
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return {}
+    return settings.rules && settings.ruleProfile?.powers ? {...settings,rules:{...settings.rules,abilityPowers:settings.ruleProfile.powers}} : settings
   } catch { return {} }
 }
 

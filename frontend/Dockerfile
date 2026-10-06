@@ -8,6 +8,8 @@ ENV CYPRESS_INSTALL_BINARY=0
 RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 COPY backend/src/data/domainIncomeFactors.json /app/backend/src/data/domainIncomeFactors.json
+COPY backend/src/lib/classAbilities.ts /app/backend/src/lib/classAbilities.ts
+COPY backend/src/data/acksRules.json /app/backend/src/data/acksRules.json
 RUN npm run build
 
 FROM caddy:2-alpine

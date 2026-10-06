@@ -1,18 +1,21 @@
 import tables from '../data/acksRules.json'
 import spellList from '../data/spellAccess.json'
-import { abilityModifier, creationRules, naturalProficiencies, BARBARIAN_ORIGINS, type ProficiencyOrigin } from './creationRules'
+import { abilityModifier, creationRules, BARBARIAN_ORIGINS, type ProficiencyOrigin } from './creationRules'
+import { classChoiceDefinitions, classGrants, abilityProficiencies, type ClassAbilityRules } from './classAbilities'
 
-export type ClassRules = { page: number; proficiencies: string[]; proficiencyPeriod: number; magic: string; bonusGeneral?:number; proficiencyOrigins?: ProficiencyOrigin[]; divineSpellList?:{name:string;level:number;tradition:string}[];
+export type ClassRules = ClassAbilityRules & { page: number; proficiencies: string[]; proficiencyPeriod: number; magic: string; bonusGeneral?:number; proficiencyOrigins?: ProficiencyOrigin[]; divineSpellList?:{name:string;level:number;tradition:string}[];
   levels: { level: number; xp: number; hitDice: string; casterLevel: number; arcaneCasterLevel?: number; divineCasterLevel?: number; spellSlots: number[] }[] }
 export const RULE_CLASSES = tables.classes as Record<string, ClassRules>
-RULE_CLASSES['Dwarven Craftpriest']!.bonusGeneral=3
+for (const [className, rules] of Object.entries(RULE_CLASSES)) { rules.className = className; rules.classChoices = classChoiceDefinitions(className) }
 RULE_CLASSES.Barbarian!.proficiencyOrigins=BARBARIAN_ORIGINS
 export const GENERAL_PROFICIENCIES = tables.generalProficiencies
 export const SPELL_LIST = spellList
 export const normalized = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '')
 export function readState(value: string | undefined) { try { return JSON.parse(value || '{}') } catch { return {} } }
 export function rulesFor(klass: any): ClassRules | undefined {
-  return klass?.id?.startsWith('catalog:') ? RULE_CLASSES[klass.name] : readState(klass?.creationRules).rules
+  if (klass?.id?.startsWith('catalog:')) return RULE_CLASSES[klass.name]
+  const construction = readState(klass?.creationRules)
+  return construction.rules ? {...construction.rules, ...(construction.ruleProfile?.powers ? {abilityPowers:construction.ruleProfile.powers} : {})} : undefined
 }
 export function proficiencyBudget(rules: ClassRules, level: number, intellect: number) {
   return { class: 1 + Math.floor(level / rules.proficiencyPeriod), general: 1 + (rules.bonusGeneral||0) + Math.max(0, abilityModifier(intellect)) + [5,9,13].filter(n => n <= level).length }
@@ -20,10 +23,10 @@ export function proficiencyBudget(rules: ClassRules, level: number, intellect: n
 export function proficiencyIssues(rules: ClassRules, character: any, choices: { name: string; category: string }[], level = character.level || 1) {
   const budget = proficiencyBudget(rules, level, character.int)
   const issues: string[] = []
-  const grants = naturalProficiencies(rules.proficiencyOrigins, character.proficiencyOrigin || readState(character.rulesState).proficiencyOrigin)
+  const grants = classGrants(rules, character, level)
   for (const choice of choices.filter(p => p.category === 'natural')) {
-    if (!grants.some(p => normalized(p.name) === normalized(choice.name))) issues.push(`${choice.name}: não é concedida pela origem registrada.`)
-    if (choices.filter(p => p.category === 'natural' && normalized(p.name) === normalized(choice.name)).length > 1) issues.push(`${choice.name}: concessão de origem repetida.`)
+    if (!grants.some(p => normalized(p.name) === normalized(choice.name))) issues.push(`${choice.name}: não é concedida pelas escolhas de classe registradas.`)
+    if (choices.filter(p => p.category === 'natural' && normalized(p.name) === normalized(choice.name)).length > grants.filter(g => normalized(g.name) === normalized(choice.name)).length) issues.push(`${choice.name}: concessão de classe repetida.`)
   }
   for (const category of ['class', 'general'] as const) {
     const selected = choices.filter(p => p.category === category)
@@ -43,9 +46,10 @@ export function proficiencyIssues(rules: ClassRules, character: any, choices: { 
     }
   }
   // Repeated ranks and specializations require the specific proficiency's permission.
-  const singleRank = new Set(['combatreflexes','combatferocity','alertness','swashbuckling','weaponfinesse','endurance','running','ambushing','blindfighting','climbing','riding'])
-  const ranks = [...choices.filter(p => p.category !== 'adventuring'), ...grants.filter(g => !choices.some(p => p.category === 'natural' && normalized(p.name) === normalized(g.name)))]
+  const singleRank = new Set(['combatreflexes','combatferocity','alertness','swashbuckling','weaponfinesse','endurance','running','ambushing','blindfighting','climbing','riding','expandedrepertoire'])
+  const ranks = [...choices.filter(p => p.category !== 'adventuring' && p.category !== 'natural'), ...grants.filter(g => !g.conditional), ...(rules.abilityPowers || []).filter(power => (power.minimumLevel || 1) <= level)]
   for (const name of singleRank) if (ranks.filter(p => normalized(p.name) === name).length > 1) issues.push(`A proficiência ${ranks.find(p => normalized(p.name) === name)!.name} não pode ser repetida.`)
+  for (const name of new Set(grants.filter(g => g.ranks === 3).map(g => normalized(g.name)))) if (choices.some(p => ['class','general'].includes(p.category) && normalized(p.name) === name)) issues.push('Craft já possui as três graduações concedidas pela classe; escolha outro ofício ou proficiência.')
   return issues
 }
 
@@ -57,7 +61,7 @@ export function magicPools(rules: ClassRules, character: any, level = character.
     const slots = Array.from({ length: 6 }, (_, i) => row.spellSlots[index * 6 + i] || 0)
     const studious = tradition === 'arcane' || rules.magic === 'studious-divine'
     return { tradition, casterLevel: (tradition === 'arcane' ? row.arcaneCasterLevel : row.divineCasterLevel) ?? row.casterLevel, studious, slots,
-      repertoire: slots.map(n => !n ? 0 : studious ? n + Math.max(0, abilityModifier(character.int)) : null),...(tradition==='divine'&&rules.divineSpellList?{spellList:rules.divineSpellList}:{}) }
+      repertoire: slots.map(n => !n ? 0 : studious ? n + Math.max(0, abilityModifier(character.int)) + (abilityProficiencies({...character,level}, rules).some(p => normalized(p.name) === 'expandedrepertoire') ? 1 : 0) : null),...(tradition==='divine'&&rules.divineSpellList?{spellList:rules.divineSpellList}:{}) }
   })
 }
 

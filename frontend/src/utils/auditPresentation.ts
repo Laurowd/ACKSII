@@ -7,6 +7,7 @@ const labels: Record<string, string> = {
   COMBAT_MODIFIERS_UPDATED: 'Modificadores de combate', MAGIC_ITEM_RECORDED: 'Item mágico atualizado',
   ITEM_CHARGE_USED: 'Cargas utilizadas', CHARACTER_IMPORTED: 'Ficha importada',
   PROFICIENCY_ORIGIN_UPDATED: 'Proficiências da origem conferidas',
+  CLASS_CHOICES_UPDATED: 'Concessões da classe conferidas',
 }
 const format = (value: unknown) => Number(value || 0).toLocaleString('pt-BR')
 export function presentAudit(log: any) {
@@ -31,6 +32,10 @@ export function presentAudit(log: any) {
     for (const [key, label] of [['added','Concedidas'], ['converted','Reclassificadas'], ['removed','Removidas']]) {
       if (details[key!]?.length) lines.push(`${label}: ${details[key!].map((p:any) => p.name).join(', ')}`)
     }
+  }
+  if (log.action === 'CLASS_CHOICES_UPDATED' && details) {
+    for (const [key, label] of [['added','Concedidas'],['converted','Reclassificadas'],['removed','Removidas']]) if (details[key!]?.length) lines.push(`${label}: ${details[key!].map((p:any) => p.name).join(', ')}`)
+    if (details.totemStatus) lines.push(`Totem: ${details.totemStatus.alive ? 'vivo' : 'morto'} · ${details.totemStatus.nearby ? 'próximo' : 'distante'}`)
   }
   if (details?.reason) lines.push(`Motivo: ${details.reason}`)
   if (!details && typeof log.details === 'string') lines.push(log.details)

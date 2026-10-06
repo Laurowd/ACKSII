@@ -33,11 +33,11 @@ export function creationRules(name: string) {
   return { keyAttributes, minimumAttributes, spellcaster, proficiencyOrigins: name === 'Barbarian' ? BARBARIAN_ORIGINS : [] }
 }
 
-export function initialAdventuring(str: number, className = '', profile?: {perceptive?:boolean;race?:string}) {
+export function initialAdventuring(str: number, className = '', profile?: {perceptive?:boolean;race?:string;proficiencyBonus?:number}) {
   const perceptive = profile?.perceptive ?? (className === 'Explorer' || /^(Dwarven|Elven) /.test(className))
   return [
     { name: 'Dungeonbashing', throwTarget: 18 - 4 * abilityModifier(str) + (profile?.race==='halfling'?4:0) },
     { name: 'Climbing', throwTarget: 8 }, { name: 'Searching', throwTarget: perceptive ? 14 : 18 },
     { name: 'Trapbreaking', throwTarget: 18 }, { name: 'Listening', throwTarget: perceptive ? 14 : 18 },
-  ].map(p => ({ ...p, category: 'adventuring' }))
+  ].map(p => ({ ...p, throwTarget: p.throwTarget - (profile?.proficiencyBonus ?? (className === 'Dwarven Craftpriest' ? 3 : 0)), category: 'adventuring' }))
 }

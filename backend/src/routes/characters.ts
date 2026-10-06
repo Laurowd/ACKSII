@@ -513,6 +513,10 @@ export async function characterRoutes(app: FastifyInstance) {
       const level = Number(allowed.level ?? existing.level);
       if (!Number.isInteger(level) || level < 1 || level > JSON.parse(klass.xpPerLevel).length) return reply.code(400).send({ error: 'Nível fora da progressão desta classe.' });
       allowed.className = klass.name;
+      const tradition = readState(existing.rulesState).classChoices?.tradition;
+      if (klass.name === existing.className && rulesFor(klass)?.classChoices?.some(choice => choice.id === 'tradition') && tradition && data.subclass !== undefined && data.subclass !== tradition) {
+        return reply.code(400).send({ code: 'CLASS_CHOICE_REQUIRED', error: 'Revise a tradição pelo fluxo Escolhas próprias da classe em Evolução & Regras; a mudança exige conferência e justificativa do mestre.' });
+      }
       const campaign = existing.campaignId ? await prisma.campaign.findUnique({ where: { id: existing.campaignId } }) : null;
       if (parseJsonSafe<Record<string, boolean>>(campaign?.optionalRules, {}).enableClassAutoProgression !== false) {
         const previousClass = await resolveClass(existing.classKey || '', existing.campaignId, existing.className);

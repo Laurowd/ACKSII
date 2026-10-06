@@ -4,11 +4,13 @@ import prisma from '../lib/prisma'
 import { authGuard } from '../middleware/auth'
 import { resolveClass, progressionFields } from '../lib/classCatalog'
 import { GENERAL_PROFICIENCIES, RULE_CLASSES, SPELL_LIST, rulesFor, proficiencyBudget, proficiencyIssues, spellIssues, spellCastIssues, magicPools, readState, advancement, allocateAdventure, xpAdjustment, monsterXp } from '../lib/gameRules'
-import { initialAdventuring, naturalProficiencies } from '../lib/creationRules'
+import { initialAdventuring } from '../lib/creationRules'
 import { combatConfigurationSchema, validateCombatConfiguration } from '../lib/combatConfiguration'
 import { formulaKey, studyPlan } from '../lib/spellLearning'
 import { characterSpellCatalog } from '../lib/campaignSpells'
 import { proficiencyOriginPlan } from '../lib/proficiencyOrigin'
+import { abilityState, selectionsFor, classGrants, classChoiceIssues, approvedChoiceSignature, completeAutomaticSelections, type ClassSelections } from '../lib/classAbilities'
+import { classChoicePlan } from '../lib/classChoicePlan'
 
 const integer = (max = 2147483647) => ({ type: 'integer', minimum: 0, maximum: max })
 const text = { type: 'string', minLength: 1, maxLength: 160 }
@@ -39,8 +41,8 @@ const overview = (c: any, klass: any, catalog: any[]) => {
   if (!rules) return { supported:false, version:c.version, campaignSpells, reason:'Classe livre: configure a construção por pontos ou use os campos manuais.' }
   const state = readState(c.rulesState)
   return {supported:true,version:c.version, rules, budget:proficiencyBudget(rules,c.level,c.int),
-    proficiencyOrigin: state.proficiencyOrigin || '', grantedProficiencies: naturalProficiencies(rules.proficiencyOrigins, state.proficiencyOrigin, c.level),
-    campaignSpells, issues:[...proficiencyIssues(rules,c,c.proficiencies),...spellIssues(rules,c,c.spells,c.level,catalog)],
+    proficiencyOrigin: state.proficiencyOrigin || '', grantedProficiencies: classGrants(rules, c), classChoices: selectionsFor(c), totemStatus: state.totemStatus,
+    campaignSpells, issues:[...classChoiceIssues(rules,c,selectionsFor(c),true),...proficiencyIssues(rules,c,c.proficiencies),...spellIssues(rules,c,c.spells,c.level,catalog)],
     magic:magicPools(rules,c), used:state.used || {}, lastRestDay:state.lastRestDay ?? null,
     next:rules.levels[c.level] || null, standardAdventuring:initialAdventuring(c.str,klass.id.startsWith('catalog:')?klass.name:'',readState((klass as any).creationRules).ruleProfile) }
 }
@@ -126,6 +128,50 @@ export async function gameRulesRoutes(app: FastifyInstance) {
     return overview(c,await resolveClass(c.classKey,c.campaignId,c.className),await characterSpellCatalog(c,req.user as any))
   })
 
+  const classChoicesSchema = { type: 'object', maxProperties: 30, propertyNames: { pattern: '^[a-z0-9-]{1,60}$' }, additionalProperties: { type: 'string', maxLength: 2000 } }
+  const totemSchema = body({ alive: {type: 'boolean'}, nearby: {type: 'boolean'} }, ['alive','nearby'])
+  for (const action of ['preview','apply']) app.post(`/characters/:id/class-choices/${action}`, { schema: { body: body({ version, choices: classChoicesSchema, totemStatus: totemSchema, reconcileAdventuring: {type: 'boolean'}, reason: {type: 'string', maxLength: 1000} }, ['version','choices']) } }, async req => {
+    const input = req.body as any, user = req.user as any
+    return prisma.$transaction(async tx => {
+      const c = await accessibleCharacter((req.params as any).id, user, tx)
+      const receipt = createHash('sha256').update(`class-choices:${c.id}:${input.version}:${JSON.stringify(input)}`).digest('hex')
+      if (action === 'apply' && await tx.auditLog.findUnique({where:{id:receipt}})) return {character: await mutationCharacter(tx,c.id), alreadyApplied:true}
+      if (c.version !== input.version) throw Object.assign(operationError('A ficha mudou. Confira as escolhas de classe novamente.',409), {code:'CHARACTER_CONFLICT'})
+      const klass = await resolveClass(c.classKey, c.campaignId, c.className), rules = rulesFor(klass)
+      if (!rules?.classChoices?.length) throw operationError('Esta classe não possui escolhas próprias configuradas.')
+      const canApprove = user.role === 'MASTER' && (!c.campaignId || (await tx.campaign.findUnique({where: {id: c.campaignId}}))?.masterId === user.id)
+      const previous = selectionsFor(c), choices: ClassSelections = completeAutomaticSelections(rules, c, { ...previous, ...input.choices })
+      const changing = Object.entries(previous).some(([key, value]) => value && choices[key] !== value)
+      if (changing && !canApprove) throw operationError('As escolhas de classe registradas só podem ser revisadas pelo mestre responsável.', 403)
+      if (changing && (!input.reason?.trim() || input.reason.trim().length < 3)) throw operationError('Registre a justificativa do mestre para revisar uma escolha já concedida.')
+      if (input.reconcileAdventuring && !canApprove) throw operationError('Somente o mestre responsável pode conferir os alvos antigos.', 403)
+      const state = { ...abilityState(c), classChoices: choices }
+      const issues = classChoiceIssues(rules, { ...c, classChoices: choices }, choices, false, canApprove)
+      if (issues.length) throw operationError(issues.join(' '))
+      if (input.totemStatus && rules.className !== 'Shaman') throw operationError('Estado do totem só está disponível para Shaman.')
+      if (rules.className === 'Shaman' && choices.totem) {
+        const old = state.totemStatus || {alive: true, nearby: true}
+        const status = input.totemStatus || old
+        if (!old.alive && status.alive && c.level <= Number(old.lostAtLevel ?? c.level) && !canApprove) throw operationError('Um novo totem do mesmo tipo aparece somente após ganhar um nível. Confira a morte e suas consequências com o mestre.')
+        if (!old.alive && status.alive && c.level <= Number(old.lostAtLevel ?? c.level) && !input.reason?.trim()) throw operationError('Registre a decisão do mestre para a reposição excepcional do totem.')
+        state.totemStatus = { ...status, ...(!status.alive ? {lostAtLevel: old.lostAtLevel ?? c.level} : {}) }
+      }
+      state.classChoiceApprovals = { ...state.classChoiceApprovals }
+      if (canApprove) for (const definition of rules.classChoices) if (choices[definition.id] === 'judge') state.classChoiceApprovals[definition.id] = approvedChoiceSignature(choices, definition.id)
+      const plan = classChoicePlan(c, rules, choices, state, input.reconcileAdventuring)
+      const next = { ...c, classChoices: choices, rulesState: JSON.stringify(state), proficiencies: plan.proficiencies }
+      const preview = { ...plan, proficiencies: undefined, choices, totemStatus: state.totemStatus, version: c.version, issues: [...proficiencyIssues(rules,next,plan.proficiencies), ...classChoiceIssues(rules,next,choices,true,canApprove)], reason:input.reason?.trim() || '' }
+      if (action === 'preview') return preview
+      await updateVersion(tx,c,input.version,{rulesState: JSON.stringify(state), ...(choices.tradition ? {subclass:choices.tradition} : {})})
+      for (const prof of plan.converted) await tx.proficiency.update({where:{id:prof.id},data:{name:prof.name,category:'natural'}})
+      for (const prof of plan.targets) await tx.proficiency.update({where:{id:prof.id},data:{throwTarget:prof.throwTarget}})
+      if (plan.removed.length) await tx.proficiency.deleteMany({where:{characterId:c.id,id:{in:plan.removed.map((p:any)=>p.id)}}})
+      if (plan.added.length) await tx.proficiency.createMany({data:plan.added.map((p:any)=>({...p,characterId:c.id}))})
+      await tx.auditLog.create({data:{id:receipt,characterId:c.id,campaignId:c.campaignId,userId:user.id,action:'CLASS_CHOICES_UPDATED',details:JSON.stringify(preview)}})
+      return {...preview,character:await mutationCharacter(tx,c.id)}
+    }, {isolationLevel:'Serializable'})
+  })
+
   const advancementBody=body({version,dice:{type:'array',maxItems:9,items:{type:'integer',minimum:1,maximum:12}},
     proficiencies:{type:'array',maxItems:30,items:choiceSchema}},['version','dice'])
   for(const action of ['preview','apply']) app.post(`/characters/:id/advance/${action}`,{schema:{body:advancementBody}},async req=>{
@@ -146,8 +192,16 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       for(const key of ['saveDeath','saveParalysis','saveBlast','saveImplements','saveSpells']) saves[key]=(c as any)[key]+(after as any)[key]-(before as any)[key]
       const preview={...result,title:after.title,saves,attack:JSON.parse(klass.attackThrows)[result.level-1], additions,version:c.version}
       if(action==='preview')return preview
-      await updateVersion(tx,c,input.version,{level:result.level,hpMax:result.hpMax,hpCurr:result.hpCurr,hitDice:result.hitDice,xpNext:result.xpNext,title:after.title,...saves})
+      const state = readState(c.rulesState)
+      state.classChoices = completeAutomaticSelections(rules, c, selectionsFor(c), result.level)
+      if (state.totemStatus?.alive === false && result.level > Number(state.totemStatus.lostAtLevel ?? c.level)) state.totemStatus = {alive:true,nearby:true}
+      await updateVersion(tx,c,input.version,{level:result.level,hpMax:result.hpMax,hpCurr:result.hpCurr,hitDice:result.hitDice,xpNext:result.xpNext,title:after.title,rulesState:JSON.stringify(state),...saves})
       await tx.weapon.updateMany({where:{characterId:c.id},data:{attackThrow:preview.attack}})
+      if (rules.classChoices?.length) {
+        const plan = classChoicePlan(c, rules, state.classChoices, state, false, result.level, false)
+        if (plan.added.length) await tx.proficiency.createMany({data:plan.added.map((p:any)=>({...p,characterId:c.id}))})
+        for (const prof of plan.targets) if (rules.className !== 'Barbarian') await tx.proficiency.update({where:{id:prof.id},data:{throwTarget:prof.throwTarget}})
+      }
       // Climbing granted by the origin follows thief progression; retain situational adjustments.
       if (rules.proficiencyOrigins?.length && readState(c.rulesState).proficiencyOrigin === 'jutland') {
         const climbingIds = c.proficiencies.filter((p: any) => p.category === 'natural' && p.name.trim().toLowerCase() === 'climbing').map((p: any) => p.id)

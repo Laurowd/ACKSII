@@ -8,6 +8,7 @@
     <RewardsPanel v-if="canCloseAdventure" :key="`${character.id}:${character.campaignId || 'unassigned'}`" :characters="participants" :campaign-id="character.campaignId" :selected-id="character.id" :prepare="prepare" :refresh="refresh" />
     <p v-else class="rounded-lg border border-gold/20 p-4 text-sm text-steel-light">O mestre registra o XP e o ouro da sessão. As recompensas aparecem automaticamente nesta ficha.</p>
     <template v-if="info.supported">
+      <ClassChoicesPanel :character="character" :info="info" :can-manage="canCloseAdventure" :prepare="prepare" @changed="load" />
       <section v-if="info.rules.proficiencyOrigins?.length" class="rounded-xl border border-gold/30 bg-dark-card p-4 space-y-3">
         <h2 class="text-xl text-gold">Origem e proficiências naturais</h2>
         <p v-if="info.proficiencyOrigin" class="text-sm">{{ info.rules.proficiencyOrigins.find((origin:any) => origin.key === info.proficiencyOrigin)?.label }} · {{ info.grantedProficiencies.map((p:any) => p.name).join(', ') }} · sem gastar escolhas.</p>
@@ -90,6 +91,7 @@ import { proficiencyValidation } from '../../utils/ruleChoices'
 import CampaignWorkflows from './CampaignWorkflows.vue'
 import RewardsPanel from '../RewardsPanel.vue'
 import SearchableChoice from '../SearchableChoice.vue'
+import ClassChoicesPanel from './ClassChoicesPanel.vue'
 import { useAuthStore } from '../../stores/auth'
 import { useCharacterOperations } from '../../composables/characterOperations'
 const props=defineProps<{character:any;prepare:()=>Promise<boolean>;refresh:()=>Promise<void>;canManage?:boolean}>()

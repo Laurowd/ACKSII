@@ -1,4 +1,5 @@
-export const CLASS_POWERS: Record<string, {name: string, description: string}[]> = {
+import { WITCH_POWERS, CRAFTPRIEST_POWERS } from './revisedClassPowers'
+export const CLASS_POWERS: Record<string, {name: string, description: string, minimumLevel?: number, subPath?: string}[]> = {
   "fighter": [
     {
       "name": "Manual of Arms",
@@ -445,40 +446,7 @@ export const CLASS_POWERS: Record<string, {name: string, description: string}[]>
       "description": "Shamans must uphold the traditions of their ancestors and the gods and spirits they serve. The shaman must always display a holy symbol of his tribe and totem somewhere on his person when in public."
     }
   ],
-  "witch": [
-    {
-      "name": "Familiar",
-      "description": "Every witch has a familiar as a companion. It serves the witch and grants a passive sensory benefit based on its type."
-    },
-    {
-      "name": "Arcane Magic",
-      "description": "Witches can cast arcane spells, specializing in enchantments and curses."
-    },
-    {
-      "name": "Minor Magical Research (5th level)",
-      "description": "The witch can research spells, scribe magical scrolls, and brew potions."
-    },
-    {
-      "name": "Major Magical Research (9th level)",
-      "description": "The witch can create more powerful magic items such as weapons, rings, and staffs."
-    },
-    {
-      "name": "Coven (9th level)",
-      "description": "By acquiring a sanctum, the witch can attract apprentices and form a coven."
-    },
-    {
-      "name": "Tradition: Antiquarian",
-      "description": "Wise women who focus on healing and beneficial potions."
-    },
-    {
-      "name": "Tradition: Chthonic",
-      "description": "Malefic practitioners who associate with darker powers, reveling in seduction and corruption."
-    },
-    {
-      "name": "Tradition: Sylvan",
-      "description": "Reclusive witches who travel the borders between human settlements and fairy forests."
-    }
-  ],
+  "witch": WITCH_POWERS,
   "elven nightblade": [
     {
       "name": "Arcane Magic (2nd level)",
@@ -683,40 +651,7 @@ export const CLASS_POWERS: Record<string, {name: string, description: string}[]>
       "description": "The priestess can learn and cast ritual divine spells of great power and craft magical constructs."
     }
   ],
-  "dwarven craftpriest": [
-    {
-      "name": "Divine Magic",
-      "description": "Craftpriests can manifest their gods’ power in the form of divine spells, which are granted through prayer and worship."
-    },
-    {
-      "name": "Divine Smith",
-      "description": "By combining mundane crafting proficiency with their divine power, craftpriests are exceptionally gifted at brewing potions and permanently enchanting magic items."
-    },
-    {
-      "name": "Knowledge of Artifice",
-      "description": "A craftpriest has great knowledge of all types of magic items. He can easily glean the history of any magic item he discovers with a proficiency throw of 11+."
-    },
-    {
-      "name": "Theology",
-      "description": "He can automatically identify religious symbols, spell signatures, trappings, and holy days of his own faith, and can recognize those of other faiths."
-    },
-    {
-      "name": "Major Magical Research (5th level)",
-      "description": "The craftpriest can create permanent magic items such as enchanted armor, rings, or weapons."
-    },
-    {
-      "name": "Supreme Magical Research (7th level)",
-      "description": "The craftpriest can learn and cast ritual divine spells of great power and craft magical constructs like golems."
-    },
-    {
-      "name": "Vault (9th level)",
-      "description": "By acquiring a vault worth at least 15,000gp, the craftpriest can attract followers to his service."
-    },
-    {
-      "name": "Racial Traits",
-      "description": "As dwarves, craftpriests have Attunement to Stone and Connection to Stone."
-    }
-  ],
+  "dwarven craftpriest": CRAFTPRIEST_POWERS,
   "dwarven vaultguard": [
     {
       "name": "Cleave",

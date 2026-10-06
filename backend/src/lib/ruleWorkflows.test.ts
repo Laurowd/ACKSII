@@ -18,7 +18,7 @@ describe('rulebook character workflows',()=>{
       expect(proficiencyBudget(RULE_CLASSES.Barbarian!, 1, 10)).toEqual({ class: 1, general: 1 })
     }
     expect(naturalProficiencies(BARBARIAN_ORIGINS, 'jutland', 2)[0]?.throwTarget).toBe(5)
-    expect(proficiencyIssues(RULE_CLASSES.Barbarian!, character, [{ name: 'Running', category: 'natural' }]).join(' ')).toContain('origem registrada')
+    expect(proficiencyIssues(RULE_CLASSES.Barbarian!, character, [{ name: 'Running', category: 'natural' }]).join(' ')).toContain('escolhas de classe registradas')
     expect(proficiencyIssues(RULE_CLASSES.Barbarian!, character, [{ name: 'Adventuring', category: 'general' }]).join(' ')).toContain('automaticamente')
     const precise = { ...character, proficiencyOrigin: 'skysostan' }
     expect(proficiencyIssues(RULE_CLASSES.Barbarian!, precise, [{ name: 'Precise Shooting', category: 'class' }])).toEqual([])
@@ -47,7 +47,7 @@ describe('rulebook character workflows',()=>{
     expect(magicPools(RULE_CLASSES.Witch!,character)[0]!.studious).toBe(true)
   })
   it('rejects illegal repertoire and duplicate proficiencies',()=>{
-    expect(proficiencyBudget(RULE_CLASSES['Dwarven Craftpriest']!,1,10).general).toBe(4)
+    expect(proficiencyBudget(RULE_CLASSES['Dwarven Craftpriest']!,1,10).general).toBe(1)
     expect(proficiencyIssues(RULE_CLASSES.Fighter!,character,[{name:'Combat Trickery (disarm, force back, knock down, overrun, sunder, wrestling)',category:'class'}]).length).toBeGreaterThan(0)
     expect(spellIssues(RULE_CLASSES.Mage!,character,[{name:'Fireball',level:3,tradition:'arcane'}]).length).toBeGreaterThan(0)
     expect(proficiencyIssues(RULE_CLASSES.Fighter!,{...character,level:3},[{name:'Combat Reflexes',category:'class'},{name:'Combat Reflexes',category:'class'}]).join(' ')).toContain('repetida')

@@ -1,4 +1,5 @@
 import { getModifier } from './mechanics'
+import { abilityProficiencies } from '../../../backend/src/lib/classAbilities'
 
 export interface ProficiencyChoice { name: string; category: string }
 export interface SpellChoice { name: string; level: number; tradition: string; campaignSpellId?: string; description?: string; range?: string; duration?: string }
@@ -17,12 +18,12 @@ export function allowedProficiency(name: string, entries: string[] = []) {
   })
 }
 
-export function proficiencyValidation(rules: any, intellect: number, choices: ProficiencyChoice[], general: string[] = [], level = 1, grants: { name: string }[] = []) {
+export function proficiencyValidation(rules: any, intellect: number, choices: ProficiencyChoice[], general: string[] = [], level = 1, grants: { name: string; ranks?: number; conditional?: boolean }[] = []) {
   const limits = { class: 1 + Math.floor(level / rules.proficiencyPeriod), general: 1 + (rules.bonusGeneral || 0) + Math.max(0, getModifier(intellect)) + [5, 9, 13].filter(n => n <= level).length }
   const rows = choices.map(choice => {
     if (!choice.name.trim()) return 'Preencha o nome da proficiência.'
     if (choice.category === 'adventuring') return ''
-    if (choice.category === 'natural') return grants.some(grant => normalized(grant.name) === normalized(choice.name)) ? '' : `${choice.name}: não é concedida pela origem registrada.`
+    if (choice.category === 'natural') return grants.some(grant => normalized(grant.name) === normalized(choice.name)) ? '' : `${choice.name}: não é concedida pelas escolhas de classe registradas.`
     if (normalized(choice.name) === 'adventuring') return 'Adventuring já é concedida automaticamente; não gasta uma escolha.'
     const allowed = choice.category === 'class' ? rules.proficiencies : general
     if (allowedProficiency(choice.name, allowed)) return ''
@@ -34,20 +35,22 @@ export function proficiencyValidation(rules: any, intellect: number, choices: Pr
     const count = choices.filter(p => p.category === category).length
     if (count > limits[category]) issues.push(`Proficiências ${categoryName(category)}: ${count} escolhas; limite ${limits[category]}.`)
   }
-  const singleRank = ['combatreflexes', 'combatferocity', 'alertness', 'swashbuckling', 'weaponfinesse', 'endurance', 'running', 'ambushing', 'blindfighting', 'climbing', 'riding']
-  const ranks = [...choices.filter(p => p.category !== 'adventuring'), ...grants.filter(grant => !choices.some(p => p.category === 'natural' && normalized(p.name) === normalized(grant.name)))]
+  const singleRank = ['combatreflexes', 'combatferocity', 'alertness', 'swashbuckling', 'weaponfinesse', 'endurance', 'running', 'ambushing', 'blindfighting', 'climbing', 'riding', 'expandedrepertoire']
+  const ranks = [...choices.filter(p => !['adventuring','natural'].includes(p.category)), ...grants.filter(grant => !grant.conditional), ...(rules.abilityPowers || []).filter((power:any) => (power.minimumLevel || 1) <= level)]
   for (const name of singleRank) if (ranks.filter(p => normalized(p.name) === name).length > 1) issues.push(`A proficiência ${ranks.find(p => normalized(p.name) === name)!.name} não pode ser repetida.`)
+  for (const grant of grants.filter(grant => grant.ranks === 3)) if (choices.some(choice => ['class','general'].includes(choice.category) && normalized(choice.name) === normalized(grant.name))) issues.push('Craft já possui as três graduações concedidas pela classe; escolha outro ofício ou proficiência.')
   return { rows, issues, limits }
 }
 
-export function choiceMagicPools(rules: any, intellect: number, level = 1): MagicChoicePool[] {
+export function choiceMagicPools(rules: any, intellect: number, level = 1, character: any = {}): MagicChoicePool[] {
   const row = rules?.levels?.[level - 1]
   if (!row || rules.magic === 'none') return []
   const kinds = rules.magic === 'dual' ? ['arcane', 'divine'] : [rules.magic === 'studious-divine' ? 'divine' : rules.magic]
   return kinds.map((tradition, index) => {
     const slots = Array.from({ length: 6 }, (_, i) => row.spellSlots[index * 6 + i] || 0)
     const studious = tradition === 'arcane' || rules.magic === 'studious-divine'
-    return { tradition, studious, slots, repertoire: slots.map(n => !n ? 0 : studious ? n + Math.max(0, getModifier(intellect)) : null),...(tradition==='divine'&&rules.divineSpellList?{spellList:rules.divineSpellList}:{}) }
+    const expanded = abilityProficiencies({ ...character, level }, rules).some(proficiency => normalized(proficiency.name) === 'expandedrepertoire') ? 1 : 0
+    return { tradition, studious, slots, repertoire: slots.map(n => !n ? 0 : studious ? n + Math.max(0, getModifier(intellect)) + expanded : null),...(tradition==='divine'&&rules.divineSpellList?{spellList:rules.divineSpellList}:{}) }
   })
 }
 

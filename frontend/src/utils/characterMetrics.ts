@@ -2,6 +2,7 @@ import type { CatalogClass } from './catalog'
 import { classEffects } from './classEffects'
 import { activeCombatModifiers, combatConfiguration } from './combatModifiers'
 import { calculateAC, calculateEncumbrance, calculateHealingRate, getEncumbranceMovement, getMaximumEncumbrance, getModifier } from './mechanics'
+import { abilityProficiencies, chosenClassPowers } from '../../../backend/src/lib/classAbilities'
 
 const number = (value: unknown, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback
 
@@ -19,7 +20,7 @@ export function calculateCharacterMetrics(character: any = {}, definition?: Cata
   const armorSources = [{ source: 'DEX', value: getModifier(dex) }, { source: character.armorName || 'Armadura/efeitos já registrados', value: number(character.armorAcBonus) }, { source: 'Ajuste manual existente', value: adjustment }]
   const initiativeSources = [...effects.initiativeSources]
   for (const modifier of modifiers) (modifier.stat === 'ac' ? armorSources : initiativeSources).push({ source: modifier.source, value: modifier.value })
-  const powers = [...(character.proficiencies || []), ...(definition?.ruleProfile?.powers || []).filter((p: any) => p.minimumLevel <= number(character.level, 1))]
+  const powers = [...abilityProficiencies(character, definition?.ruleProfile), ...chosenClassPowers(definition?.ruleProfile || {}, character), ...(definition?.ruleProfile?.powers || []).filter((p: any) => p.minimumLevel <= number(character.level, 1))]
   const has = (name: string) => powers.some((power: any) => String(power.name).trim().toLowerCase() === name.toLowerCase())
   const eligible = configuration.powersEnabled && configuration.lightArmor && number(character.armorWeight) <= 2 && weight <= 5
   if (eligible) {
@@ -33,13 +34,20 @@ export function calculateCharacterMetrics(character: any = {}, definition?: Cata
   if (definition) {
     try { xpNext = number(JSON.parse(definition.xpPerLevel)[number(character.level, 1)]) } catch { /* Keep manual progression if the table is unavailable. */ }
   }
+  const encumbrance = getEncumbranceMovement(weight, getMaximumEncumbrance(getModifier(number(character.str ?? 10, 10))) - (definition?.ruleProfile?.race === 'halfling' ? 8 : 0), definition?.ruleProfile?.race)
+  // Standard medium armor weighs up to 4 stone.
+  const running = has('Running') && weight <= 7 && number(character.armorWeight) <= 4 && !encumbrance.overCapacity
+  if (running) {
+    encumbrance.moveExploration += 30; encumbrance.moveCombat += 10; encumbrance.moveCharge += 30
+    encumbrance.moveExpedition += 6; encumbrance.moveStealth += 10; encumbrance.moveClimb += 10
+  }
   return {
     armorClass: { noArmor: base.noArmor + adjustment + extraArmor, noShield: base.noShield + adjustment + extraArmor, withShield: base.withShield + adjustment + extraArmor },
     armorSources, initiativeSources,
     initiative: initiativeSources.reduce((sum, entry) => sum + entry.value, 0),
     castingInitiative: effects.castingInitiative + modifiers.filter(entry => entry.stat === 'initiative').reduce((sum, entry) => sum + entry.value, 0),
     healingRate: calculateHealingRate(),
-    encumbrance: getEncumbranceMovement(weight, getMaximumEncumbrance(getModifier(number(character.str ?? 10, 10))) - (definition?.ruleProfile?.race==='halfling'?8:0), definition?.ruleProfile?.race),
+    encumbrance, movementSources: running ? [{source: 'Running', value: 30}] : [],
     xpNext,
   }
 }

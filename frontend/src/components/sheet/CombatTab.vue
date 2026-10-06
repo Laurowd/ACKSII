@@ -37,6 +37,12 @@
           <input v-else v-model="character.className" @input="emit('save')" @change="emit('save')" class="inp" />
         </div>
         <div v-if="levelFeats?.availableSubclasses && levelFeats.availableSubclasses.length > 0">
+          <template v-if="usesStructuredTradition">
+            <label for="sheet-class-tradition" class="lbl">Tradição da Witch</label>
+            <output id="sheet-class-tradition" class="inp block">{{ selectionsFor(character).tradition || character.subclass || 'Escolha pendente' }}</output>
+            <p class="text-xs text-steel-light mt-1">Confira a tradição em Evolução &amp; Regras → Escolhas próprias da classe.</p>
+          </template>
+          <template v-else>
           <label class="lbl" v-if="character.className.toLowerCase() === 'warlock'">Dark Path</label>
           <label class="lbl" v-else-if="character.className.toLowerCase() === 'witch'">Tradition</label>
           <label class="lbl" v-else>Subclass</label>
@@ -44,6 +50,7 @@
             <option value="">(Select)</option>
             <option v-for="sub in levelFeats.availableSubclasses" :key="sub" :value="sub">{{ sub }}</option>
           </select>
+          </template>
         </div>
         <div>
           <label class="lbl">Título</label>
@@ -366,7 +373,7 @@
               </td>
               <td class="py-2 px-1 text-center">
                 <input v-model="w.damage" @input="w.automaticDamage = false" @blur="saveWeapon(w)" class="w-16 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-dark-text text-center focus:outline-none focus:border-gold" />
-                <p class="text-xs text-steel-light">{{ w.automaticDamage ? 'Base por estilo' : 'Manual' }} · classe {{ formatMod(effects.damageBonusFor(w.style === 'Missile Weapon')) }}</p>
+                <p class="text-xs text-steel-light">{{ w.automaticDamage ? 'Base por estilo' : 'Manual' }} · classe {{ formatMod(effects.damageBonusFor(w.style === 'Missile Weapon', w)) }}</p>
               </td>
               <td class="py-2 px-1">
                 <div class="flex gap-1.5 justify-center">
@@ -426,14 +433,17 @@
           <button v-if="canManage" type="button" @click="addProficiency(cat.key)" :aria-label="`Adicionar proficiência: ${cat.label}`" class="text-sm text-gold hover:text-gold-light transition-colors">+</button>
         </div>
         <p v-if="cat.key === 'natural'" class="text-sm text-steel-light mb-3">{{ naturalOriginLabel }} · concedidas pela classe, sem gastar escolhas.</p>
-        <div v-for="p in getProfsByCategory(cat.key)" :key="p.id" class="flex items-center gap-2 mb-2 bg-dark-bg/35 border border-steel-dark/50 rounded-lg px-2.5 py-2 hover:bg-dark-bg/50 transition-colors">
+        <div v-for="p in getProfsByCategory(cat.key)" :key="p.id" class="mb-2">
+        <div class="flex items-center gap-2 bg-dark-bg/35 border border-steel-dark/50 rounded-lg px-2.5 py-2 hover:bg-dark-bg/50 transition-colors">
           <SearchableChoice v-if="canManage" v-model="p.name" @change="saveProficiency(p)" :options="manualProficiencyOptions(cat.key)" :label="`Nome da proficiência ${p.name || 'nova'}`" class="flex-1" placeholder="Proficiência" />
           <input v-else :value="p.name" readonly :aria-label="`Nome da proficiência ${p.name || 'nova'}`" class="flex-1 min-w-0 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-dark-text text-sm" placeholder="Proficiência" />
-          <template v-if="cat.key !== 'natural' || p.name.trim().toLowerCase() === 'climbing'">
+          <template v-if="cat.key !== 'natural' || p.name.trim().toLowerCase() === 'climbing' || p.name.startsWith('Craft (')">
             <label :for="`proficiency-target-${p.id}`" class="text-[10px] uppercase tracking-wider text-steel w-10 text-right font-semibold shrink-0">Alvo</label>
             <input :id="`proficiency-target-${p.id}`" v-model.number="p.throwTarget" @change="saveProficiency(p)" :aria-label="`Alvo da proficiência ${p.name || 'nova'}`" type="number" class="w-14 shrink-0 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-gold text-center text-sm font-bold focus:outline-none focus:border-gold" />
           </template>
           <button v-if="canManage || !['adventuring','natural'].includes(cat.key)" type="button" @click="removeProficiency(p.id)" :aria-label="`Remover proficiência ${p.name || 'sem nome'}`" class="text-crimson-light hover:text-crimson text-xs font-bold px-1.5 py-0.5 rounded border border-transparent hover:border-crimson/40 shrink-0">X</button>
+        </div>
+        <p v-if="cat.key === 'natural' && naturalGrantFor(p)" class="text-xs text-steel-light mt-1">{{ naturalGrantFor(p)?.source }}<span v-if="(naturalGrantFor(p)?.ranks || 0) > 1"> · {{ naturalGrantFor(p)?.ranks }} graduações</span><span v-if="naturalGrantFor(p)?.conditional" :class="activeTotem(character) ? 'text-green-400' : 'text-gold'"> · benefício {{ activeTotem(character) ? 'ativo' : 'inativo' }}</span></p>
         </div>
       </div>
     </div>
@@ -471,6 +481,7 @@ import { getResource } from '../../services/resources'
 import { creationSettings } from '../../utils/creation'
 import { classEffects } from '../../utils/classEffects'
 import { calculateCharacterMetrics } from '../../utils/characterMetrics'
+import { classGrants, activeTotem, selectionsFor } from '../../../../backend/src/lib/classAbilities'
 import { getModifier, formatMod, calculateAttackThrow, getWeaponAbilityModifier } from '../../utils/mechanics'
 import { notifyError } from '../../utils/toast'
 import { errorMessage, selectedClass, proficiencyOptions } from '../../utils/catalog'
@@ -502,8 +513,9 @@ function manualProficiencyOptions(category: string) {
 const naturalOriginLabel = computed(() => {
   let origin = ''; try { origin = JSON.parse(props.character.rulesState || '{}').proficiencyOrigin || '' } catch { /* Legacy manual grants have no recorded origin. */ }
   const origins = creationSettings(selectedClass(props.customClasses, props.character)).rules?.proficiencyOrigins || []
-  return origins.find((entry: any) => entry.key === origin)?.label || 'Origem definida pelo mestre'
+  return origins.find((entry: any) => entry.key === origin)?.label || props.character.className || 'Concessões do mestre'
 })
+function naturalGrantFor(proficiency:any) { return classGrants(creationSettings(selectedClass(props.customClasses, props.character)).rules || {}, props.character).find(grant => grant.name.toLowerCase() === proficiency.name.trim().toLowerCase()) }
 onMounted(async () => { try { proficiencyMetadata.value = (await getResource('/api/game-rules/metadata')).data } catch { /* Manual names remain available if the reference catalog fails. */ } })
 
 // Constants and local logic
@@ -572,6 +584,7 @@ async function saveProficiency(p: any) {
 
 
 const selectedCustomClass = computed(() => selectedClass(props.customClasses, props.character) || null)
+const usesStructuredTradition = computed(() => selectedCustomClass.value?.rules?.classChoices?.some((choice:any) => choice.id === 'tradition'))
 
 
 
@@ -588,7 +601,7 @@ const levelFeats = computed(() => {
   const className = props.character.className || ''
   const level = props.character.level || 1
   const customClass = selectedCustomClass.value
-  const baseFeats = classDefinitionFeats(customClass || undefined,className,level,props.character.subclass,props.customClasses)
+  const baseFeats = classDefinitionFeats(customClass || undefined,className,level,props.character.subclass,props.customClasses,props.character)
 
   if (customClass) {
     let thiefSkillsData = customClass.thiefSkills

@@ -19,6 +19,14 @@ async function start(page: Page, klass: string) {
   await page.getByRole('combobox', { name: 'Classe', exact: true }).selectOption(`catalog:${klass}`)
   await page.getByRole('button', { name: 'Continuar', exact: true }).click()
   await page.getByLabel('Nome', { exact: true }).fill(`Choices ${klass}`)
+  if (klass === 'barbarian') {
+    await page.getByRole('combobox', {name:'Especialização de dano',exact:true}).fill('Corpo a corpo')
+    await page.getByRole('listbox', {name:'Opções de Especialização de dano',exact:true}).getByText('Corpo a corpo',{exact:true}).click()
+  }
+  if (klass === 'venturer') {
+    await page.getByRole('combobox', {name:'Expert Traveling · escolha gratuita',exact:true}).fill('Driving')
+    await page.getByRole('listbox', {name:'Opções de Expert Traveling · escolha gratuita',exact:true}).getByText('Driving',{exact:true}).click()
+  }
 }
 async function addProf(page: Page, name: string, category: string) {
   await page.getByRole('button', { name: '+ Proficiência', exact: true }).click()

@@ -1,4 +1,5 @@
 import { CLASS_POWERS } from './classPowers';
+import { TOTEM_ANIMALS } from '../../../backend/src/lib/classAbilities';
 
 export interface ClassSpecificTable {
   title: string;       
@@ -102,7 +103,7 @@ export function getClassFeats(classNameRaw: string, level: number, subclassName?
     ['D', 'D', 'D', 'D', 'D', 'D', 'D', 'D', 'D']
   ];
 
-  if (className === 'crusader') {
+  if (className === 'crusader' || className === 'dwarven craftpriest') {
     const row = getRow(crusaderUndead);
     levelStats.push({
       sectionTitle: 'Rebuking Undead',
@@ -258,26 +259,8 @@ export function getClassFeats(classNameRaw: string, level: number, subclassName?
     tables.push({
       title: 'Totem Animals (Base)',
       columns: ['Animal', 'Key Attr', 'Benefit', 'Characteristics'],
-      rows: [
-        ['Bear', 'STR', 'Berserkergang', 'Move 120’, AC 3, HD 4, #AT 3, Dmg 1d3/1d3/1d6, bear hug'],
-        ['Cheetah', 'DEX', 'Running', 'Move 360’, AC 5, HD 2+2, #AT 3, Dmg 1d2/1d2/1d4, +1 initiative, pounce'],
-        ['Crocodile', 'CON', 'Combat Ferocity', 'Move 60’/90’ swim, AC 4, HD 2, #AT 1, Dmg 1d8, stealthy'],
-        ['Crow/Raven', 'INT', 'Divine Blessing', 'Move 330’ fly, AC 1, HD ¼, #AT 1, Dmg 1d3-1'],
-        ['Dog', 'CHA', 'Alertness', 'Move 180’, AC 2, HD 1+1, #AT 1, Dmg 1d4, tracking'],
-        ['Eagle/Hawk', 'CHA', 'Command', 'Move 480’ fly, AC 3, HD 1+1, #AT 2, Dmg 1d3/1d3, dive attack'],
-        ['Elk', 'CON', 'Contemplation', 'Move 180’, AC 2, HD 4, #AT 1, Dmg 1d10, surefooted'],
-        ['Goat', 'WIL', 'Climbing', 'Move 150’, AC 2, HD 1, Dmg 1d4, climbing 2+'],
-        ['Horse', 'CON', 'Mounted Combat', 'Move 210’, AC 2, HD 2, #AT 2, Dmg 1d4/1d4, sturdy, rugged, grazer'],
-        ['Hyena', 'CHA', 'Weapon Focus', 'Move 150’, AC 2, HD 2+1, #AT 2, Dmg 1d8 + bone crush'],
-        ['Jackal', 'INT', 'Combat Trickery', 'Move 180’, AC 2, HD 1-1, #AT 1, Dmg 1d4, tracking'],
-        ['Lion', 'STR', 'Divine Health', 'Move 180’, AC 3, HD 5, #AT 3, Dmg 1d4+1/1d4+1/1d10, +1 init., pounce'],
-        ['Monkey', 'DEX', 'Prestidigitation', 'Move 120’, AC 2, HD 1, #AT 1, Dmg 1d3, climbing'],
-        ['Rat', 'WIL', 'Quiet Magic', 'Move 120’/ 60’ swim, AC 2, HD 1/2, #AT 1, Dmg 1d3'],
-        ['Owl', 'INT', 'Sensing Power', 'Move 480’ fly, AC 3, HD 1+1, #AT 2, Dmg 1d3/1d3, dive attack'],
-        ['Python', 'STR', 'Laying on Hands', 'Move 90’, AC 3, HD 5, #AT 2, Dmg 1d4/2d8 + constriction'],
-        ['Viper', 'DEX', 'Combat Reflexes', 'Move 90’, AC 3, HD 2, #AT 1, Dmg 1d4 + poison, +2 initiative'],
-        ['Wolf', 'WIL', 'Ambushing', 'Move 180’, AC 2, HD 2+2, #AT 1, Dmg 1d6, tracking']
-      ]
+      description: 'Características de animais comuns (Rulebook p. 69). O totem usa HD e características ajustados conforme p. 70.',
+      rows: TOTEM_ANIMALS.map(animal => [animal.name, animal.attribute.toUpperCase(), animal.benefit, animal.characteristics])
     });
   }
 
@@ -294,7 +277,7 @@ export function getClassFeats(classNameRaw: string, level: number, subclassName?
   }
 
   // Existing source labels explicitly identify powers acquired after level 1.
-  powers = powers.map(p => ({ ...p, minimumLevel: p.minimumLevel ?? Number(p.name.match(/\((\d+)(?:st|nd|rd|th)\s+level\)/i)?.[1] ?? 1) }));
+  powers = powers.map(p => ({ ...p, minimumLevel: p.minimumLevel ?? Number(p.name.match(/\((\d+)(?:st|nd|rd|th)(?:\s+level)?\)/i)?.[1] ?? 1) }));
   const futurePowers = powers.filter(p => p.minimumLevel! > level);
   return { 
     levelStats, 

@@ -1,10 +1,11 @@
 import { getModifier } from './mechanics'
+import { abilityProficiencies, selectionsFor, chosenClassPowers, nameKey } from '../../../backend/src/lib/classAbilities'
 
 /** Catalog profiles arrive from the API; custom classes opt into their own profile. */
 export function classEffects(character: any, profile: any = {}) {
-  const profs: any[] = character.proficiencies || []
+  const profs: any[] = abilityProficiencies(character, profile)
   const level = character.level || 1
-  const powers: any[] = (profile.powers || []).filter((p:any)=>p.minimumLevel<=level)
+  const powers: any[] = [...(profile.powers || []).filter((p:any)=>p.minimumLevel<=level), ...chosenClassPowers(profile, character)]
   const has = (name: string) => [...profs,...powers].some(p => p.name.trim().toLowerCase() === name.toLowerCase())
   const sources = [{ source: 'DEX', value: getModifier(character.dex) }]
   if (profile.initiative) sources.push({ source: profile.initiativeSource, value: profile.initiative })
@@ -20,13 +21,19 @@ export function classEffects(character: any, profile: any = {}) {
     castingInitiative: sources.reduce((sum,e)=>sum+e.value,0)-combatOnly, conditional,
     avoidSurprise: (profile.alertness || has('Alertness') ? 1 : 0) + combatOnly,
     damageBonus: profile.damageProgression === 'fighter' ? 1 + Math.floor(level / 3) : 0,
-    damageBonusFor(missile:boolean) {return profile.damageProgression==='fighter' && profile.damageTrade!=='both' && profile.damageTrade!==(missile?'missile':'melee') ? 1+Math.floor(level/3):0},
+    damageBonusFor(missile:boolean, weapon?: {name?:string;catalogId?:string}) {
+      if (profile.damageProgression !== 'fighter' || profile.damageTrade === 'both' || profile.damageTrade === (missile ? 'missile' : 'melee')) return 0
+      if (profile.className === 'Barbarian' && selectionsFor(character)['damage-specialization'] !== (missile ? 'missile' : 'melee')) return 0
+      if (profile.damageWeapons && (!weapon || !profile.damageWeapons.some((name:string) => nameKey(name) === nameKey(weapon.name || '') || nameKey(`w-${name}`) === nameKey(weapon.catalogId || '')))) return 0
+      return 1 + Math.floor(level / 3)
+    },
     cleaves: (profile.cleaveProgression === 'full' ? level : profile.cleaveProgression === 'half' ? Math.floor(level / 2) : 0) + (has('Combat Ferocity') ? 1 : 0),
     // Show recommendations alongside stored throws; old manual adjustments remain intact.
     adventuringTarget(name: string) {
-      if (name === 'Dungeonbashing') return 18 - 4 * getModifier(character.str) + (profile.race==='halfling'?4:0)
-      if (name === 'Climbing') return 8
-      return profile.perceptive && ['Searching', 'Listening'].includes(name) ? 14 : 18
+      const bonus = profile.proficiencyBonus || 0
+      if (name === 'Dungeonbashing') return 18 - 4 * getModifier(character.str) + (profile.race==='halfling'?4:0) - bonus
+      if (name === 'Climbing') return 8 - bonus
+      return (profile.perceptive && ['Searching', 'Listening'].includes(name) ? 14 : 18) - bonus
     },
   }
 }

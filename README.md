@@ -22,6 +22,8 @@ O **Painel do Mestre** oferece uma visão compacta dos recursos do grupo. Fichas
 
 O mestre pode usar **Classes → Criar classe** para construir uma classe por pontos, com prévia de progressão, poderes por nível e validação de magia e requisitos raciais. Veja [criação de classes e tratamento das cópias antigas](docs/CRIACAO_CLASSES.md).
 
+A criação distingue as [concessões gratuitas de cada classe](docs/PROFICIENCIAS_INICIAIS.md), incluindo origem e especialização do Barbarian, Expert Traveling, Jack of All Trades, ofício do Craftpriest, totem do Shaman e tradição da Witch. Fichas anteriores podem ser conferidas em **Evolução & Regras → Escolhas próprias da classe**. A [auditoria das classes](docs/AUDITORIA_CLASSES_2026-10-06.md) registra as divergências corrigidas e o alcance da conferência.
+
 ## Pré-requisitos
 
 - **Node.js** 24 LTS (24.14 ou posterior na série 24)

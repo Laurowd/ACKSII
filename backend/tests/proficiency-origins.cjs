@@ -10,7 +10,7 @@ const { buildApp } = require('../dist/app');
 const db = require('../dist/lib/prisma').default;
 let app, actor, token, masterToken;
 const heroes = {};
-const base = { characterName: 'Tribal Warrior', classKey: 'catalog:barbarian', rulesMode: 'standard', str: 13, int: 10, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 6,
+const base = { characterName: 'Tribal Warrior', classKey: 'catalog:barbarian', rulesMode: 'standard', classChoices: {'damage-specialization':'melee'}, str: 13, int: 10, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 6,
   proficiencies: [{ name: 'Ambushing', category: 'class' }, { name: 'Tracking', category: 'general' }] };
 const request = (method, url, payload, credential = token) => app.inject({ method, url, payload, headers: { authorization: `Bearer ${credential}` } });
 before(async () => {
@@ -42,7 +42,7 @@ test('all book origins grant exactly two natural proficiencies outside the level
 
 test('missing origins, forged grants and paid Adventuring are rejected without creating a sheet', async () => {
   const before = await db.character.count({ where: { userId: actor.id } });
-  for (const input of [base, { ...base, proficiencyOrigin: 'invented' }, { ...base, classKey: 'catalog:fighter', proficiencyOrigin: 'jutland' },
+  for (const input of [base, { ...base, proficiencyOrigin: 'invented' }, { ...base, classKey: 'catalog:fighter', classChoices: {}, proficiencyOrigin: 'jutland' },
     { ...base, proficiencyOrigin: 'ivory-kingdoms', proficiencies: [...base.proficiencies, { name: 'Adventuring', category: 'general' }] },
     { ...base, proficiencyOrigin: 'ivory-kingdoms', proficiencies: [...base.proficiencies, { name: 'Running', category: 'natural' }] },
     { ...base, proficiencyOrigin: 'ivory-kingdoms', proficiencies: [...base.proficiencies, { name: 'Caving', category: 'general' }] }]) {
