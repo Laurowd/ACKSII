@@ -420,17 +420,20 @@
       <p v-if="canManage" class="text-xs">Os nomes e botões de inclusão abaixo são ajustes manuais do mestre para exceções da campanha.</p>
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-      <div v-for="cat in PROF_CATS" :key="cat.key" class="bg-dark-card border border-gold/20 rounded-xl p-5">
+      <div v-for="cat in PROF_CATS.filter(cat => cat.key !== 'natural' || getProfsByCategory('natural').length)" :key="cat.key" class="bg-dark-card border border-gold/20 rounded-xl p-5" :class="cat.key === 'natural' ? 'lg:col-span-3' : ''">
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-lg font-bold text-gold">{{ cat.icon }} {{ cat.label }}</h3>
           <button v-if="canManage" type="button" @click="addProficiency(cat.key)" :aria-label="`Adicionar proficiência: ${cat.label}`" class="text-sm text-gold hover:text-gold-light transition-colors">+</button>
         </div>
+        <p v-if="cat.key === 'natural'" class="text-sm text-steel-light mb-3">{{ naturalOriginLabel }} · concedidas pela classe, sem gastar escolhas.</p>
         <div v-for="p in getProfsByCategory(cat.key)" :key="p.id" class="flex items-center gap-2 mb-2 bg-dark-bg/35 border border-steel-dark/50 rounded-lg px-2.5 py-2 hover:bg-dark-bg/50 transition-colors">
           <SearchableChoice v-if="canManage" v-model="p.name" @change="saveProficiency(p)" :options="manualProficiencyOptions(cat.key)" :label="`Nome da proficiência ${p.name || 'nova'}`" class="flex-1" placeholder="Proficiência" />
           <input v-else :value="p.name" readonly :aria-label="`Nome da proficiência ${p.name || 'nova'}`" class="flex-1 min-w-0 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-dark-text text-sm" placeholder="Proficiência" />
-          <label :for="`proficiency-target-${p.id}`" class="text-[10px] uppercase tracking-wider text-steel w-10 text-right font-semibold shrink-0">Alvo</label>
-          <input :id="`proficiency-target-${p.id}`" v-model.number="p.throwTarget" @change="saveProficiency(p)" :aria-label="`Alvo da proficiência ${p.name || 'nova'}`" type="number" class="w-14 shrink-0 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-gold text-center text-sm font-bold focus:outline-none focus:border-gold" />
-          <button v-if="canManage || cat.key !== 'adventuring'" type="button" @click="removeProficiency(p.id)" :aria-label="`Remover proficiência ${p.name || 'sem nome'}`" class="text-crimson-light hover:text-crimson text-xs font-bold px-1.5 py-0.5 rounded border border-transparent hover:border-crimson/40 shrink-0">X</button>
+          <template v-if="cat.key !== 'natural' || p.name.trim().toLowerCase() === 'climbing'">
+            <label :for="`proficiency-target-${p.id}`" class="text-[10px] uppercase tracking-wider text-steel w-10 text-right font-semibold shrink-0">Alvo</label>
+            <input :id="`proficiency-target-${p.id}`" v-model.number="p.throwTarget" @change="saveProficiency(p)" :aria-label="`Alvo da proficiência ${p.name || 'nova'}`" type="number" class="w-14 shrink-0 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-gold text-center text-sm font-bold focus:outline-none focus:border-gold" />
+          </template>
+          <button v-if="canManage || !['adventuring','natural'].includes(cat.key)" type="button" @click="removeProficiency(p.id)" :aria-label="`Remover proficiência ${p.name || 'sem nome'}`" class="text-crimson-light hover:text-crimson text-xs font-bold px-1.5 py-0.5 rounded border border-transparent hover:border-crimson/40 shrink-0">X</button>
         </div>
       </div>
     </div>
@@ -494,8 +497,13 @@ const compendiumWeapons = ref<any[]>([])
 const proficiencyMetadata = ref<any>({})
 function manualProficiencyOptions(category: string) {
   const rules = creationSettings(selectedClass(props.customClasses, props.character)).rules
-  return proficiencyOptions(category === 'class' ? rules?.proficiencies || [] : category === 'general' ? proficiencyMetadata.value.generalProficiencies || [] : ['Adventuring', ...getProfsByCategory('adventuring').map((p: any) => p.name).filter(Boolean)])
+  return proficiencyOptions(category === 'class' ? rules?.proficiencies || [] : category === 'general' ? proficiencyMetadata.value.generalProficiencies || [] : category === 'natural' ? (rules?.proficiencyOrigins || []).flatMap((origin: any) => origin.proficiencies) : ['Adventuring', ...getProfsByCategory('adventuring').map((p: any) => p.name).filter(Boolean)])
 }
+const naturalOriginLabel = computed(() => {
+  let origin = ''; try { origin = JSON.parse(props.character.rulesState || '{}').proficiencyOrigin || '' } catch { /* Legacy manual grants have no recorded origin. */ }
+  const origins = creationSettings(selectedClass(props.customClasses, props.character)).rules?.proficiencyOrigins || []
+  return origins.find((entry: any) => entry.key === origin)?.label || 'Origem definida pelo mestre'
+})
 onMounted(async () => { try { proficiencyMetadata.value = (await getResource('/api/game-rules/metadata')).data } catch { /* Manual names remain available if the reference catalog fails. */ } })
 
 // Constants and local logic
@@ -529,6 +537,7 @@ const PROF_CATS = [
   { key: 'adventuring', label: 'Proficiências de aventura', icon: '' },
   { key: 'class', label: 'Proficiências de classe', icon: '' },
   { key: 'general', label: 'Proficiências gerais', icon: '' },
+  { key: 'natural', label: 'Proficiências naturais', icon: '' },
 ]
 
 

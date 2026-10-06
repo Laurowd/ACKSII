@@ -5,6 +5,17 @@ import tables from '../../../backend/src/data/acksRules.json'
 import spells from '../../../backend/src/data/spellAccess.json'
 
 describe('choices shown by the book-rule editors', () => {
+  it('keeps origin grants outside budgets without allowing repeated single-rank benefits', () => {
+    const grants = [{ name: 'Running' }, { name: 'Endurance' }]
+    const paid = [{ name: 'Ambushing', category: 'class' }, { name: 'Tracking', category: 'general' }]
+    const check = proficiencyValidation(tables.classes.Barbarian, 10, paid, tables.generalProficiencies, 1, grants)
+    expect(check.issues).toEqual([])
+    expect(check.limits).toEqual({ class: 1, general: 1 })
+    expect(proficiencyValidation(tables.classes.Barbarian, 10, [...paid, { name: 'Running', category: 'class' }], tables.generalProficiencies, 3, grants).issues.join(' ')).toContain('não pode ser repetida')
+    expect(proficiencyValidation(tables.classes.Barbarian, 10, [{ name: 'Adventuring', category: 'general' }], tables.generalProficiencies).rows[0]).toContain('automaticamente')
+    const precise = [{ name: 'Precise Shooting', category: 'class' }, { name: 'Tracking', category: 'general' }]
+    expect(proficiencyValidation(tables.classes.Barbarian, 10, precise, tables.generalProficiencies, 1, [{ name: 'Precise Shooting' }, { name: 'Riding' }]).issues).toEqual([])
+  })
   it('rejects Seduction as a Venturer class choice and identifies the general category', () => {
     const result = proficiencyValidation(tables.classes.Venturer, 12, [{ name: 'Seduction', category: 'class' }, { name: 'Caving', category: 'general' }], tables.generalProficiencies)
     expect(result.rows[0]).toContain('categoria Geral')

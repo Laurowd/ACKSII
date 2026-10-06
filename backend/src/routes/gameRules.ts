@@ -4,10 +4,11 @@ import prisma from '../lib/prisma'
 import { authGuard } from '../middleware/auth'
 import { resolveClass, progressionFields } from '../lib/classCatalog'
 import { GENERAL_PROFICIENCIES, RULE_CLASSES, SPELL_LIST, rulesFor, proficiencyBudget, proficiencyIssues, spellIssues, spellCastIssues, magicPools, readState, advancement, allocateAdventure, xpAdjustment, monsterXp } from '../lib/gameRules'
-import { initialAdventuring } from '../lib/creationRules'
+import { initialAdventuring, naturalProficiencies } from '../lib/creationRules'
 import { combatConfigurationSchema, validateCombatConfiguration } from '../lib/combatConfiguration'
 import { formulaKey, studyPlan } from '../lib/spellLearning'
 import { characterSpellCatalog } from '../lib/campaignSpells'
+import { proficiencyOriginPlan } from '../lib/proficiencyOrigin'
 
 const integer = (max = 2147483647) => ({ type: 'integer', minimum: 0, maximum: max })
 const text = { type: 'string', minLength: 1, maxLength: 160 }
@@ -38,6 +39,7 @@ const overview = (c: any, klass: any, catalog: any[]) => {
   if (!rules) return { supported:false, version:c.version, campaignSpells, reason:'Classe livre: configure a construção por pontos ou use os campos manuais.' }
   const state = readState(c.rulesState)
   return {supported:true,version:c.version, rules, budget:proficiencyBudget(rules,c.level,c.int),
+    proficiencyOrigin: state.proficiencyOrigin || '', grantedProficiencies: naturalProficiencies(rules.proficiencyOrigins, state.proficiencyOrigin, c.level),
     campaignSpells, issues:[...proficiencyIssues(rules,c,c.proficiencies),...spellIssues(rules,c,c.spells,c.level,catalog)],
     magic:magicPools(rules,c), used:state.used || {}, lastRestDay:state.lastRestDay ?? null,
     next:rules.levels[c.level] || null, standardAdventuring:initialAdventuring(c.str,klass.id.startsWith('catalog:')?klass.name:'',readState((klass as any).creationRules).ruleProfile) }
@@ -146,10 +148,39 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       if(action==='preview')return preview
       await updateVersion(tx,c,input.version,{level:result.level,hpMax:result.hpMax,hpCurr:result.hpCurr,hitDice:result.hitDice,xpNext:result.xpNext,title:after.title,...saves})
       await tx.weapon.updateMany({where:{characterId:c.id},data:{attackThrow:preview.attack}})
+      // Climbing granted by the origin follows thief progression; retain situational adjustments.
+      if (rules.proficiencyOrigins?.length && readState(c.rulesState).proficiencyOrigin === 'jutland') {
+        const climbingIds = c.proficiencies.filter((p: any) => p.category === 'natural' && p.name.trim().toLowerCase() === 'climbing').map((p: any) => p.id)
+        await tx.proficiency.updateMany({ where: { characterId: c.id, id: { in: climbingIds } }, data: { throwTarget: { increment: c.level - result.level } } })
+      }
       if(additions.length)await tx.proficiency.createMany({data:additions.map((p:any)=>({...p,characterId:c.id}))})
       await tx.auditLog.create({data:{characterId:c.id,campaignId:c.campaignId,userId:(req.user as any).id,action:'LEVEL_ADVANCEMENT',details:JSON.stringify({dice:input.dice,preview})}})
       return {...preview, character: await mutationCharacter(tx,c.id)}
     }, {isolationLevel:'Serializable'})
+  })
+
+  for (const action of ['preview','apply']) app.post(`/characters/:id/proficiency-origin/${action}`, { schema: { body: body({ version, origin: text }, ['version','origin']) } }, async req => {
+    const input = req.body as any, user = req.user as any
+    return prisma.$transaction(async tx => {
+      const c = await accessibleCharacter((req.params as any).id, user, tx)
+      if (user.role !== 'MASTER' || (c.campaignId && (await tx.campaign.findUnique({ where: { id: c.campaignId } }))?.masterId !== user.id)) throw operationError('Somente o mestre responsável pode corrigir concessões de origem.', 403)
+      const rules = rulesFor(await resolveClass(c.classKey, c.campaignId, c.className))
+      const origins = rules?.proficiencyOrigins || []
+      if (!origins.some(origin => origin.key === input.origin)) throw operationError('Escolha uma origem disponível para esta classe.')
+      const receipt = createHash('sha256').update(`proficiency-origin:${c.id}:${input.version}:${input.origin}`).digest('hex')
+      if (action === 'apply' && await tx.auditLog.findUnique({ where: { id: receipt } })) return { character: await mutationCharacter(tx, c.id), alreadyApplied: true }
+      if (c.version !== input.version) throw operationError('A ficha mudou. Confira a origem novamente.', 409)
+      const plan = proficiencyOriginPlan(c, origins, input.origin)
+      const state = { ...readState(c.rulesState), proficiencyOrigin: input.origin }
+      const preview = { ...plan, choices: undefined, version: c.version, issues: proficiencyIssues(rules!, { ...c, rulesState: JSON.stringify(state) }, plan.choices) }
+      if (action === 'preview') return preview
+      await updateVersion(tx, c, input.version, { rulesState: JSON.stringify(state) })
+      for (const prof of plan.converted) await tx.proficiency.update({ where: { id: prof.id }, data: { category: 'natural' } })
+      if (plan.removed.length) await tx.proficiency.deleteMany({ where: { characterId: c.id, id: { in: plan.removed.map((p: any) => p.id) } } })
+      if (plan.added.length) await tx.proficiency.createMany({ data: plan.added.map((p: any) => ({ ...p, characterId: c.id })) })
+      await tx.auditLog.create({ data: { id: receipt, characterId: c.id, campaignId: c.campaignId, userId: user.id, action: 'PROFICIENCY_ORIGIN_UPDATED', details: JSON.stringify(preview) } })
+      return { ...preview, character: await mutationCharacter(tx, c.id) }
+    }, { isolationLevel: 'Serializable' })
   })
 
   app.post('/characters/:id/proficiencies',{schema:{body:body({version,choices:{type:'array',maxItems:30,items:choiceSchema}},['version','choices'])}},async req=>{

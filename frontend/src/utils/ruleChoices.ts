@@ -17,10 +17,13 @@ export function allowedProficiency(name: string, entries: string[] = []) {
   })
 }
 
-export function proficiencyValidation(rules: any, intellect: number, choices: ProficiencyChoice[], general: string[] = [], level = 1) {
+export function proficiencyValidation(rules: any, intellect: number, choices: ProficiencyChoice[], general: string[] = [], level = 1, grants: { name: string }[] = []) {
   const limits = { class: 1 + Math.floor(level / rules.proficiencyPeriod), general: 1 + (rules.bonusGeneral || 0) + Math.max(0, getModifier(intellect)) + [5, 9, 13].filter(n => n <= level).length }
   const rows = choices.map(choice => {
     if (!choice.name.trim()) return 'Preencha o nome da proficiência.'
+    if (choice.category === 'adventuring') return ''
+    if (choice.category === 'natural') return grants.some(grant => normalized(grant.name) === normalized(choice.name)) ? '' : `${choice.name}: não é concedida pela origem registrada.`
+    if (normalized(choice.name) === 'adventuring') return 'Adventuring já é concedida automaticamente; não gasta uma escolha.'
     const allowed = choice.category === 'class' ? rules.proficiencies : general
     if (allowedProficiency(choice.name, allowed)) return ''
     const other = choice.category === 'class' ? general : rules.proficiencies
@@ -31,8 +34,9 @@ export function proficiencyValidation(rules: any, intellect: number, choices: Pr
     const count = choices.filter(p => p.category === category).length
     if (count > limits[category]) issues.push(`Proficiências ${categoryName(category)}: ${count} escolhas; limite ${limits[category]}.`)
   }
-  const singleRank = ['combatreflexes', 'combatferocity', 'alertness', 'swashbuckling', 'weaponfinesse', 'endurance', 'running', 'ambushing', 'blindfighting']
-  for (const name of singleRank) if (choices.filter(p => normalized(p.name) === name).length > 1) issues.push(`A proficiência ${choices.find(p => normalized(p.name) === name)!.name} não pode ser repetida.`)
+  const singleRank = ['combatreflexes', 'combatferocity', 'alertness', 'swashbuckling', 'weaponfinesse', 'endurance', 'running', 'ambushing', 'blindfighting', 'climbing', 'riding']
+  const ranks = [...choices.filter(p => p.category !== 'adventuring'), ...grants.filter(grant => !choices.some(p => p.category === 'natural' && normalized(p.name) === normalized(grant.name)))]
+  for (const name of singleRank) if (ranks.filter(p => normalized(p.name) === name).length > 1) issues.push(`A proficiência ${ranks.find(p => normalized(p.name) === name)!.name} não pode ser repetida.`)
   return { rows, issues, limits }
 }
 

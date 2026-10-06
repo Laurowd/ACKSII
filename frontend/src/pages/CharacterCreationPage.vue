@@ -55,14 +55,23 @@
         <label class="flex gap-2"><input v-model="draft.isSpellcaster" type="checkbox" :disabled="draft.rulesMode === 'standard'" /> Este personagem usa magia</label>
         <p v-if="draft.rulesMode === 'standard'" class="text-sm text-steel-light">O uso de magia é definido pela classe. {{ availableMagic.length ? 'As tradições disponíveis neste nível aparecem abaixo.' : 'Esta classe não possui magias disponíveis no nível 1.' }}</p>
         <p class="text-sm text-steel-light">Escolha as proficiências e magias iniciais. O modo do livro confere as listas e os limites; idiomas, especializações e repertórios religiosos devem ser conferidos com o mestre.</p>
+        <section v-if="proficiencyOrigins.length" class="rounded-xl border border-gold/30 p-4 space-y-2" aria-labelledby="creation-origin-title">
+          <h3 id="creation-origin-title" class="text-gold">Proficiências naturais do bárbaro</h3>
+          <label class="block">Origem do bárbaro<select v-model="draft.proficiencyOrigin" @change="changeOrigin" aria-label="Origem do bárbaro" :aria-required="draft.rulesMode === 'standard'" class="inp mt-1"><option value="">Selecione a origem</option><option v-for="origin in proficiencyOrigins" :key="origin.key" :value="origin.key">{{ origin.label }}</option></select></label>
+          <p class="text-sm text-steel-light">Origem cultural, independente da cidade natal. As duas proficiências são concedidas pela classe e não gastam escolhas (Rulebook p. 49).</p>
+          <p v-if="automaticNotice" role="status" class="text-sm text-gold">{{ automaticNotice }}</p>
+        </section>
         <h3 class="text-gold">Proficiências</h3>
         <p v-if="draft.rulesMode === 'standard'" class="text-sm">Adventuring e seus cinco testes serão incluídos automaticamente. Escolha ao menos 1 proficiência de classe e 1 geral. Limites: {{ proficiencyCheck.limits.class }} de classe e {{ proficiencyCheck.limits.general }} gerais.</p>
         <p v-else class="text-sm">Adventuring e seus cinco testes serão incluídos automaticamente. Registre as proficiências aprovadas pelo mestre para esta classe.</p>
-        <datalist id="creation-class-profs"><option v-for="name in proficiencyOptions(chosenRules.rules?.proficiencies || [])" :key="name" :value="name" /></datalist>
-        <datalist id="creation-general-profs"><option v-for="name in proficiencyOptions(metadata.generalProficiencies || [])" :key="name" :value="name" /></datalist>
+        <div class="rounded-lg border border-steel-dark p-3 text-sm space-y-1" role="region" aria-label="Proficiências concedidas automaticamente">
+          <p class="font-semibold text-gold">Concedidas automaticamente · sem gastar escolhas</p>
+          <p>Adventuring · todos os personagens</p>
+          <p v-for="grant in naturalGrants" :key="grant.name">{{ grant.name }} · {{ selectedOrigin?.label }}</p>
+        </div>
         <div v-for="(p, i) in draft.proficiencies" :key="i" class="space-y-1">
           <div class="grid items-start grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2">
-            <SearchableChoice v-model="p.name" @change="choicesReviewed = true" :options="proficiencyOptions(p.category === 'class' ? chosenRules.rules?.proficiencies || [] : metadata.generalProficiencies || [])" label="Nome da proficiência" :aria-invalid="choicesReviewed && !!proficiencyCheck.rows[i]" :aria-describedby="`creation-prof-error-${i}`" required maxlength="200" class="col-span-2 sm:col-span-1" />
+            <SearchableChoice v-model="p.name" @change="choicesReviewed = true" :options="paidProficiencyOptions(p.category)" label="Nome da proficiência" :aria-invalid="choicesReviewed && !!proficiencyCheck.rows[i]" :aria-describedby="`creation-prof-error-${i}`" required maxlength="200" class="col-span-2 sm:col-span-1" />
             <select v-model="p.category" @change="choicesReviewed = true" aria-label="Categoria" class="inp min-w-0"><option value="general">Geral</option><option value="class">Classe</option></select>
             <button type="button" @click="draft.proficiencies.splice(i, 1)" :aria-label="`Remover proficiência ${i + 1}`" class="text-red-400">Remover</button>
           </div>
@@ -116,7 +125,8 @@
         <p>Modo: {{ draft.rulesMode === 'standard' ? 'Regras do livro' : 'Ajustes aprovados pelo mestre' }}. Classe: {{ klass?.source === 'catalog' ? 'catálogo base' : 'campanha' }}.</p>
         <p v-if="draft.rulesMode === 'manual'">Decisão do mestre: {{ draft.exceptionReason }}</p>
         <dl class="grid grid-cols-3 gap-3"><div v-for="a in attributes" :key="a.key"><dt>{{ a.label }}</dt><dd class="text-gold">{{ draft[a.key] }} ({{ formatMod(getModifier(draft[a.key])) }})</dd></div></dl>
-        <p>Idiomas: {{ draft.languagesKnown || 'A definir' }} · {{ draft.proficiencies.length }} proficiências · {{ draft.items.length }} registros de itens recebidos · {{ useBudget ? draft.purchases.length : 0 }} compras</p>
+        <p>Idiomas: {{ draft.languagesKnown || 'A definir' }} · {{ draft.proficiencies.length }} escolhas de proficiência · Adventuring{{ naturalGrants.length ? ` e ${naturalGrants.length} proficiências naturais gratuitas` : ' automática' }} · {{ draft.items.length }} registros de itens recebidos · {{ useBudget ? draft.purchases.length : 0 }} compras</p>
+        <p v-if="selectedOrigin">Origem do bárbaro: {{ selectedOrigin.label }} · {{ naturalGrants.map(grant => grant.name).join(', ') }} (concedidas)</p>
         <ul class="list-disc pl-5"><li v-for="(p,i) in draft.proficiencies" :key="`p${i}`">{{ p.name }} ({{ p.category === 'class' ? 'classe' : 'geral' }})</li><li v-for="(item,i) in draft.items" :key="`i${i}`">{{ item.quantity }} × {{ item.name }}</li></ul>
         <p>Magias iniciais: {{ draft.spells.length }}.</p><ul v-if="draft.spells.length" class="list-disc pl-5"><li v-for="(spell, i) in draft.spells" :key="i">{{ spell.name }} · {{ traditionName(spell.tradition) }} · nível {{ spell.level }}</li></ul>
         <template v-if="useBudget"><p>Ouro inicial: {{ startingGold }} GP · Compras: {{ purchasesSummary.spentGp.toFixed(2) }} GP</p><ul class="list-disc pl-5"><li v-for="(purchase,i) in purchasesSummary.lines" :key="i">{{ purchase.quantity }} × {{ purchase.name }} — {{ purchase.costGp.toFixed(2) }} GP</li></ul></template>
@@ -135,7 +145,7 @@ import { getResource } from '../services/resources'
 import { classRows, errorMessage, proficiencyOptions, type CatalogClass } from '../utils/catalog'
 import { formatMod, getModifier } from '../utils/mechanics'
 import { getClassFeats } from '../utils/classFeats'
-import { creationSettings, purchaseSummary } from '../utils/creation'
+import { creationSettings, purchaseSummary, absorbAutomaticProficiencies } from '../utils/creation'
 import { choiceMagicPools, proficiencyValidation, spellValidation, traditionName } from '../utils/ruleChoices'
 import { useAuthStore } from '../stores/auth'
 import { createLocalDraft } from '../utils/localDrafts'
@@ -145,7 +155,7 @@ const steps = ['Atributos', 'Classe', 'Identidade', 'Equipamento', 'Revisão']
 const attributes = [{ key: 'str', label: 'Força' }, { key: 'int', label: 'Intelecto' }, { key: 'dex', label: 'Destreza' }, { key: 'wil', label: 'Vontade' }, { key: 'con', label: 'Constituição' }, { key: 'cha', label: 'Carisma' }] as const
 const draft = ref({ campaignId: String(route.query.campaignId || ''), classKey: String(route.query.classKey || ''),
   rulesMode:'standard', exceptionReason:'', purchases:[] as {entryId:string;quantity:number}[], spells:[] as {name:string;level:number;tradition:string}[],
-  characterName: '', birthplace: '', alignment: '', subclass: '', languagesKnown: '', notes: '',
+  characterName: '', birthplace: '', alignment: '', subclass: '', languagesKnown: '', notes: '', proficiencyOrigin: '',
   str: 10, int: 10, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 1, coinGP: 0, isSpellcaster: false,
   proficiencies: [] as { name: string; category: string }[], items: [] as { name: string; quantity: number; weight: number }[],
 })
@@ -174,6 +184,20 @@ const campaigns = ref<{ id: string; name: string }[]>([]), classes = ref<Catalog
 const klass = computed(() => classes.value.find(c => c.id === draft.value.classKey || c.legacyIds?.includes(draft.value.classKey)))
 const priorities = ref(['str', 'dex', 'con'])
 const chosenRules = computed(() => creationSettings(klass.value))
+const proficiencyOrigins = computed<{ key: string; label: string; proficiencies: string[] }[]>(() => chosenRules.value.rules?.proficiencyOrigins || [])
+const selectedOrigin = computed(() => proficiencyOrigins.value.find(origin => origin.key === draft.value.proficiencyOrigin))
+const naturalGrants = computed(() => (selectedOrigin.value?.proficiencies || []).map(name => ({ name })))
+const automaticNotice = ref('')
+function changeOrigin() {
+  const previous = draft.value.proficiencies.length
+  draft.value.proficiencies = absorbAutomaticProficiencies(draft.value.proficiencies, naturalGrants.value)
+  automaticNotice.value = previous > draft.value.proficiencies.length ? 'As entradas já concedidas foram movidas para o grupo automático. Suas escolhas restantes foram preservadas.' : ''
+  choicesReviewed.value = true; error.value = ''
+}
+function paidProficiencyOptions(category: string) {
+  const single = ['Climbing', 'Riding', 'Running', 'Endurance']
+  return proficiencyOptions(category === 'class' ? chosenRules.value.rules?.proficiencies || [] : metadata.value.generalProficiencies || []).filter(name => name !== 'Adventuring' && !(single.includes(name) && naturalGrants.value.some(grant => grant.name === name)))
+}
 const choicesReviewed = ref(false)
 type CreationDraft = { draft: typeof draft.value; step: number; useBudget: boolean; startingGold: number; priorities: string[]; rollLog: string }
 const localDraft = createLocalDraft<CreationDraft>(useAuthStore().user?.id || '', `creation:${String(route.query.campaignId || '')}:${String(route.query.classKey || '')}`)
@@ -204,7 +228,7 @@ async function restoreCreation() {
 }
 const magic = computed(() => choiceMagicPools(chosenRules.value.rules, draft.value.int))
 const availableMagic = computed(() => magic.value.filter(pool => pool.slots[0]))
-const proficiencyCheck = computed(() => draft.value.rulesMode === 'standard' && chosenRules.value.rules ? proficiencyValidation(chosenRules.value.rules, draft.value.int, draft.value.proficiencies, metadata.value.generalProficiencies) : { rows: [] as string[], issues: [] as string[], limits: { class: 0, general: 0 } })
+const proficiencyCheck = computed(() => draft.value.rulesMode === 'standard' && chosenRules.value.rules ? proficiencyValidation(chosenRules.value.rules, draft.value.int, draft.value.proficiencies, metadata.value.generalProficiencies, 1, naturalGrants.value) : { rows: [] as string[], issues: [] as string[], limits: { class: 0, general: 0 } })
 const spellCheck = computed(() => draft.value.rulesMode === 'standard' ? spellValidation(magic.value, draft.value.spells, spellCatalog.value) : { rows: [] as string[], issues: [] as string[] })
 function initialSpellOptions(tradition: string): any[] { const pool = magic.value.find(p=>p.tradition===tradition); return spellCatalog.value.filter((spell: any) => spell.level === 1 && spell.tradition === tradition && (!pool?.spellList || spell.campaignSpellId || pool.spellList.some((entry:any)=>entry.name===spell.name&&entry.level===spell.level))) }
 const supportsStandard = computed(() => !!chosenRules.value.rules)
@@ -221,6 +245,7 @@ watch(() => draft.value.campaignId, () => { if (!restoring) { draft.value.classK
 watch(klass, (value) => {
   if (restoring) return
   draft.value.subclass = ''
+  draft.value.proficiencyOrigin = ''; automaticNotice.value = ''
   draft.value.isSpellcaster = chosenRules.value?.spellcaster ?? false
   if (value) draft.value.hpMax = Math.max(1, 4 + (value.conBonus ? getModifier(draft.value.con) : 0)) + Number(chosenRules.value.rules?.levels[0]?.hitDice.match(/\+(\d+)/)?.[1] || 0)
 })
@@ -268,6 +293,7 @@ async function next() {
   if (step.value >= 1 && requirementErrors.value.length) { error.value = `Requisitos: ${requirementErrors.value.join(', ')}`; return }
   if (step.value >= 2 && draft.value.rulesMode === 'standard') {
     choicesReviewed.value = true
+    if (proficiencyOrigins.value.length && !selectedOrigin.value) { error.value = 'Escolha a origem do bárbaro para receber suas proficiências naturais.'; step.value = 2; return }
     const missing = ['class', 'general'].filter(category => !draft.value.proficiencies.some(p => p.category === category && p.name.trim()))
     if (missing.length) { error.value = `Escolha ao menos uma proficiência ${missing.map(c => c === 'class' ? 'de classe' : 'geral').join(' e ')}.`; step.value = 2; return }
     const issues = [...proficiencyCheck.value.issues, ...spellCheck.value.issues]

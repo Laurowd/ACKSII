@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { creationSettings, purchaseSummary } from './creation'
+import { creationSettings, purchaseSummary, absorbAutomaticProficiencies } from './creation'
 import type { CatalogClass } from './catalog'
 
 describe('guided creation choices', () => {
+  it('moves the reported Tribal Warrior grants out of paid choices', () => {
+    const paid = [{ name: 'Ambushing', category: 'class' }, { name: 'Tracking', category: 'general' }]
+    const choices = [{ name: 'Adventuring', category: 'general' }, ...paid, { name: 'Running', category: 'class' }, { name: 'Endurance', category: 'general' }]
+    expect(absorbAutomaticProficiencies(choices, [{ name: 'Running' }, { name: 'Endurance' }])).toEqual(paid)
+    expect(choices).toHaveLength(5)
+    expect(absorbAutomaticProficiencies([{ name: 'Seafaring', category: 'general' }, { name: 'Seafaring', category: 'class' }], [{ name: 'Seafaring' }])).toEqual([{ name: 'Seafaring', category: 'class' }])
+  })
   it('does not infer book rules from the name or base of a free campaign class', () => {
     const free = { id: 'custom', name: 'Fighter', source: 'campaign', baseClassKey: 'catalog:fighter', creationRules: '{}' } as CatalogClass
     expect(creationSettings(free).rules).toBeUndefined()

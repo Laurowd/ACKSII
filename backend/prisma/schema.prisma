@@ -316,7 +316,7 @@ model Proficiency {
 
   name        String
   throwTarget Int    @default(11)
-  category    String @default("general") // "adventuring", "class", "general"
+  category    String @default("general") // "adventuring", "class", "general", "natural" (origin grants)
   @@index([characterId])
 }
 

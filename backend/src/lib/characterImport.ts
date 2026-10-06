@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { scalarBody } from './inputSchemas';
 import { validateCombatConfiguration } from './combatConfiguration';
-import { abilityModifier } from './creationRules';
+import { abilityModifier, BARBARIAN_ORIGINS } from './creationRules';
 
 export const importedRelations = {
   weapons: 'Weapon', proficiencies: 'Proficiency', items: 'Item', spells: 'Spell', rituals: 'Ritual',
@@ -112,6 +112,10 @@ function restoredRulesState(value: unknown, warnings: string[]) {
   if (value === undefined) return '{}';
   const state = jsonObject(value, 'Estado de regras', 80000);
   const restored: Record<string, any> = {};
+  if (state.proficiencyOrigin !== undefined) {
+    if (!BARBARIAN_ORIGINS.some(origin => origin.key === state.proficiencyOrigin)) throw new CharacterImportError('Origem de proficiências inválida.');
+    restored.proficiencyOrigin = state.proficiencyOrigin;
+  }
   if (state.formulas !== undefined) {
     if (!Array.isArray(state.formulas) || state.formulas.length > 100 || state.formulas.some((entry: any) => !entry || typeof entry.name !== 'string' || !entry.name.trim() || entry.name.length > 160 || !Number.isInteger(entry.level) || entry.level < 1 || entry.level > 6 || !['arcane', 'divine'].includes(entry.tradition) || typeof entry.source !== 'string' || entry.source.length > 300)) throw new CharacterImportError('Fórmulas do grimório inválidas.');
     restored.formulas = state.formulas.map((entry: any) => ({ name: entry.name, level: entry.level, tradition: entry.tradition, source: entry.source }));
@@ -137,7 +141,7 @@ function restoredRulesState(value: unknown, warnings: string[]) {
     }
     restored.lastRestDay = state.lastRestDay;
   }
-  if (Object.keys(state).some(key => !['used', 'lastRestDay', 'combat', 'formulas', 'study'].includes(key))) {
+  if (Object.keys(state).some(key => !['used', 'lastRestDay', 'combat', 'formulas', 'study', 'proficiencyOrigin'].includes(key))) {
     warnings.push('O histórico de aventuras, meses e projetos não foi importado; seus registros dependem dos identificadores da ficha original. Saldos e XP atuais foram preservados, sem reaplicar operações.');
   }
   return JSON.stringify(restored);

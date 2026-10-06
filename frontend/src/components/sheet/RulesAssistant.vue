@@ -8,10 +8,28 @@
     <RewardsPanel v-if="canCloseAdventure" :key="`${character.id}:${character.campaignId || 'unassigned'}`" :characters="participants" :campaign-id="character.campaignId" :selected-id="character.id" :prepare="prepare" :refresh="refresh" />
     <p v-else class="rounded-lg border border-gold/20 p-4 text-sm text-steel-light">O mestre registra o XP e o ouro da sessão. As recompensas aparecem automaticamente nesta ficha.</p>
     <template v-if="info.supported">
+      <section v-if="info.rules.proficiencyOrigins?.length" class="rounded-xl border border-gold/30 bg-dark-card p-4 space-y-3">
+        <h2 class="text-xl text-gold">Origem e proficiências naturais</h2>
+        <p v-if="info.proficiencyOrigin" class="text-sm">{{ info.rules.proficiencyOrigins.find((origin:any) => origin.key === info.proficiencyOrigin)?.label }} · {{ info.grantedProficiencies.map((p:any) => p.name).join(', ') }} · sem gastar escolhas.</p>
+        <p v-else class="text-sm text-steel-light">A origem ainda não foi registrada. O mestre pode conferir as concessões da classe sem recriar a ficha.</p>
+        <template v-if="canCloseAdventure">
+          <label class="block">Origem a conferir<select v-model="originChoice" @change="originPreview = null" aria-label="Origem a conferir" class="inp mt-1"><option value="">Selecione a origem</option><option v-for="origin in info.rules.proficiencyOrigins" :key="origin.key" :value="origin.key">{{ origin.label }}</option></select></label>
+          <p class="text-xs text-steel-light">A prévia mostra inclusões, reclassificações e remoções de concessões anteriores. A primeira graduação já registrada passa para o grupo gratuito; escolhas adicionais permanecem. Alvos ajustados são preservados.</p>
+          <button type="button" @click="previewOrigin" :disabled="busy || !originChoice" class="btn">Conferir proficiências da origem</button>
+          <div v-if="originPreview" class="rounded-lg border border-gold/30 p-3 space-y-2">
+            <p>{{ originPreview.label }}</p>
+            <p>Conceder: {{ originPreview.added.map((p:any) => p.name).join(', ') || 'nenhuma' }}</p>
+            <p>Mover para gratuitas: {{ originPreview.converted.map((p:any) => p.name).join(', ') || 'nenhuma' }}</p>
+            <p>Remover concessões anteriores ou Adventuring redundante: {{ originPreview.removed.map((p:any) => p.name).join(', ') || 'nenhuma' }}</p>
+            <p v-if="originPreview.issues.length" class="text-sm text-gold">Escolhas ainda para conferir: {{ originPreview.issues.join(' ') }}</p>
+            <button type="button" @click="applyOrigin" :disabled="busy" class="btn">Confirmar proficiências da origem</button>
+          </div>
+        </template>
+      </section>
       <details v-if="info.issues?.length" class="border border-gold/30 rounded p-3"><summary>Escolhas para conferir com o mestre ({{ info.issues.length }})</summary><ul class="list-disc pl-5"><li v-for="issue in info.issues" :key="issue">{{ issue }}</li></ul></details>
       <section class="bg-dark-card border border-steel-dark rounded-xl p-5 space-y-3">
         <h2 class="text-xl text-gold">Avanço de nível</h2>
-        <p>Proficiências permitidas no nível atual: {{ info.budget?.class }} de classe e {{ info.budget?.general }} gerais.</p>
+        <p>Escolhas permitidas no nível atual: {{ info.budget?.class }} de classe e {{ info.budget?.general }} gerais. Adventuring e proficiências naturais não gastam essas escolhas.</p>
         <template v-if="info.next">
           <p>Próximo nível: {{ info.next.level }} · {{ info.next.xp }} XP · {{ info.next.hitDice }} PV, respeitando ganho mínimo de 1 PV.</p>
           <label>Resultados individuais dos dados<input v-model="diceText" class="inp" placeholder="4, 6, 3" /></label>
@@ -26,7 +44,7 @@
           </div>
         </template><p v-else>Nível máximo da classe.</p>
         <h3 class="text-gold">Preencher escolhas de proficiência pendentes</h3>
-        <div class="flex flex-wrap gap-2"><select v-model="choice.category" aria-label="Categoria da escolha de proficiência" class="inp"><option value="class">Classe</option><option value="general">Geral</option></select><SearchableChoice v-model="choice.name" label="Nome da escolha de proficiência" :options="proficiencyOptions(choice.category==='class' ? info.rules.proficiencies : metadata.generalProficiencies)" :disabled="busy" placeholder="Proficiência ou especialização" class="flex-1"/><button @click="addProficiency" :disabled="busy || !choice.name.trim()" class="btn">Adicionar escolha</button></div>
+        <div class="flex flex-wrap gap-2"><select v-model="choice.category" aria-label="Categoria da escolha de proficiência" class="inp"><option value="class">Classe</option><option value="general">Geral</option></select><SearchableChoice v-model="choice.name" label="Nome da escolha de proficiência" :options="proficiencyOptions(choice.category==='class' ? info.rules.proficiencies : metadata.generalProficiencies).filter(name => name !== 'Adventuring')" :disabled="busy" placeholder="Proficiência ou especialização" class="flex-1"/><button @click="addProficiency" :disabled="busy || !choice.name.trim()" class="btn">Adicionar escolha</button></div>
         <p class="text-xs">As descrições individuais determinam especializações, requisitos e graduações permitidas.</p>
       </section>
 
@@ -80,11 +98,12 @@ const authStore=useAuthStore()
 const operations=useCharacterOperations()
 const canCloseAdventure=computed(()=>authStore.isMaster && (!props.character.campaignId || props.canManage === true))
 const info=ref<any>({}),metadata=ref<any>({}),busy=ref(false),error=ref(''),notice=ref('')
+const originChoice=ref(''),originPreview=ref<any>(null)
 const diceText=ref(''),advancePreview=ref<any>(null),advanceInput=ref<any>(null),choice=ref({name:'',category:'class'})
 const awardId=ref(''),treasureGp=ref(0),monsters=ref<any[]>([]),participants=ref<any[]>([]),xpPreview=ref<any>(null),xpInput=ref<any>(null)
 const xpAdjustment=ref({delta:0,reason:''})
 let previewRevision=0
-function invalidatePreviews(){previewRevision++;advancePreview.value=xpPreview.value=null}
+function invalidatePreviews(){previewRevision++;advancePreview.value=xpPreview.value=originPreview.value=null}
 function checkPreview(revision:number){if(revision!==previewRevision)throw Error('Os dados mudaram durante a conferência. Confira novamente antes de confirmar.')}
 onBeforeUnmount(invalidatePreviews)
 const url=()=>`/api/game-rules/characters/${props.character.id}`
@@ -113,8 +132,8 @@ async function applyAdvance(){await run(async()=>{
 })}
 async function addProficiency(){await run(async()=>{
   await prepared()
-  const choices = [...(props.character.proficiencies || []).filter((p:any) => ['class','general'].includes(p.category)), choice.value]
-  const validation = proficiencyValidation(info.value.rules, props.character.int, choices, metadata.value.generalProficiencies, props.character.level)
+  const choices = [...(props.character.proficiencies || []).filter((p:any) => ['class','general','natural'].includes(p.category)), choice.value]
+  const validation = proficiencyValidation(info.value.rules, props.character.int, choices, metadata.value.generalProficiencies, props.character.level, info.value.grantedProficiencies || [])
   if (validation.issues.length) throw Error(validation.issues.join(' '))
   const input={choices:[{...choice.value}]}
   const data=await operations.run('proficiencies:validated:add',version=>api.post(`${url()}/proficiencies`,{...input,version}))
@@ -122,6 +141,19 @@ async function addProficiency(){await run(async()=>{
   choice.value={name:'',category:'class'}
   info.value=(await api.get(url())).data
   notice.value='Proficiência adicionada.'
+})}
+async function previewOrigin(){await run(async()=>{
+  originPreview.value=null
+  const version=await prepared(),revision=previewRevision
+  const data=(await api.post(`${url()}/proficiency-origin/preview`,{version,origin:originChoice.value})).data
+  checkPreview(revision);originPreview.value=data
+})}
+async function applyOrigin(){await run(async()=>{
+  const input={version:originPreview.value.version,origin:originPreview.value.origin}
+  originPreview.value=null
+  const data=await operations.run('proficiencies:origin:update',()=>api.post(`${url()}/proficiency-origin/apply`,input))
+  if(!data)throw operations.getLastError() || Error('A origem não foi atualizada. Confira os dados e tente novamente.')
+  await complete('Origem registrada. As concessões foram separadas das escolhas pagas.')
 })}
 async function previewAdventure(){await run(async()=>{
   xpPreview.value=null

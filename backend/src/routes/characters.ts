@@ -102,7 +102,7 @@ export async function characterRoutes(app: FastifyInstance) {
     properties: {
       name: { type: 'string', minLength: 1, maxLength: 160 },
       throwTarget: { type: 'integer', minimum: -100, maximum: 100 },
-      category: { type: 'string', enum: ['adventuring', 'class', 'general'] },
+      category: { type: 'string', enum: ['adventuring', 'class', 'general', 'natural'] },
     },
   } as const;
   const purchaseBodySchema = {
@@ -781,7 +781,7 @@ export async function characterRoutes(app: FastifyInstance) {
     const changesChoice = (data.name !== undefined && data.name !== existing.name) || (data.category !== undefined && data.category !== existing.category);
     if (changesChoice && !await canAdjustProficiencies(access.character!, id, role, tx)) {
       const choices = await tx.proficiency.findMany({ where: { characterId } });
-      if ((data.category || existing.category) === 'adventuring' || existing.category === 'adventuring') return mutationResponse(403, { error: 'Poderes de aventura são ajustados pelo mestre. Use as escolhas de classe ou gerais.' });
+      if (['adventuring','natural'].includes(data.category || existing.category) || ['adventuring','natural'].includes(existing.category)) return mutationResponse(403, { error: 'Proficiências concedidas pela aventura ou origem são ajustadas pelo mestre. Use as escolhas de classe ou gerais.' });
       const issue = await checkProficiencies(access.character, choices.map(p => p.id === profId ? { ...p, ...data } : p));
       if (issue) return mutationResponse(400, { error: issue });
     }
@@ -795,7 +795,7 @@ export async function characterRoutes(app: FastifyInstance) {
     if (!character) return mutationResponse(404, { error: 'Character not found' });
     if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
     if (!await canAdjustProficiencies(character, id, role, tx)) {
-      if (data.category === 'adventuring') return mutationResponse(403, { error: 'Proficiências de aventura são ajustadas pelo mestre.' });
+      if (['adventuring','natural'].includes(data.category)) return mutationResponse(403, { error: 'Proficiências concedidas pela aventura ou origem são ajustadas pelo mestre.' });
       const choices = await tx.proficiency.findMany({ where: { characterId } });
       const issue = await checkProficiencies(character, [...choices, { name: data.name || '', category: data.category || 'general' }]);
       if (issue) return mutationResponse(400, { error: issue });
@@ -814,7 +814,7 @@ export async function characterRoutes(app: FastifyInstance) {
     if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
     const proficiency = await tx.proficiency.findFirst({ where: { id: profId, characterId } });
     if (!proficiency) return mutationResponse(404, { error: 'Proficiency not found' });
-    if (proficiency.category === 'adventuring' && !await canAdjustProficiencies(character, id, role, tx)) return mutationResponse(403, { error: 'Proficiências de aventura são ajustadas pelo mestre.' });
+    if (['adventuring','natural'].includes(proficiency.category) && !await canAdjustProficiencies(character, id, role, tx)) return mutationResponse(403, { error: 'Proficiências concedidas pela aventura ou origem são ajustadas pelo mestre.' });
     await tx.proficiency.delete({ where: { id: profId } });
     return mutationResponse(200, { message: 'Proficiency deleted' });
   }));

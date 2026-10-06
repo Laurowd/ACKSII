@@ -22,6 +22,7 @@ export interface CatalogClass {
   creationRules?: string
   ruleProfile?: any
   rules?: any
+  proficiencyOrigins?: { key: string; label: string; proficiencies: string[] }[]
 }
 
 export function classRows(c: CatalogClass) {

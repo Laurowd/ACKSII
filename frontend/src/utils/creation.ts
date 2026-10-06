@@ -1,5 +1,15 @@
 import type { CatalogClass } from './catalog'
 
+export function absorbAutomaticProficiencies(choices: { name: string; category: string }[], grants: { name: string }[]) {
+  const key = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const remaining = new Set(grants.map(grant => key(grant.name)))
+  return choices.filter(choice => {
+    if (key(choice.name) === 'adventuring') return false
+    if (remaining.has(key(choice.name))) { remaining.delete(key(choice.name)); return false }
+    return true
+  })
+}
+
 export function creationSettings(klass?: CatalogClass) {
   if (!klass) return {}
   if (klass.source === 'catalog') return klass

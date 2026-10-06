@@ -226,4 +226,6 @@ A migração `20260911140000_acks_rules_alignment` acrescenta campos de pesquisa
 
 Magias homebrew possuem cadastro na campanha, visibilidade secreta ou por ficha e conjuração com os usos normais. Magias e proficiências têm escolhas pesquisáveis; veja [magias de campanha](docs/MAGIAS_DE_CAMPANHA.md). A migration `20261005203000_campaign_spells` deve ser aplicada antes de iniciar esta versão.
 
+A criação separa Adventuring e as concessões de origem do bárbaro das escolhas de classe e gerais. Fichas antigas podem ser conferidas pelo mestre com prévia e confirmação; veja [proficiências iniciais](docs/PROFICIENCIAS_INICIAIS.md).
+
 Os testes unitários não escrevem no Neon; os testes de backend usam banco simulado. Rode `npm.cmd test` em `backend` e `frontend`. Cypress, Playwright e os testes de integração usam PostgreSQL local isolado, conforme [o guia de testes](docs/TESTES_CYPRESS.md).

@@ -1,11 +1,12 @@
 import tables from '../data/acksRules.json'
 import spellList from '../data/spellAccess.json'
-import { abilityModifier, creationRules } from './creationRules'
+import { abilityModifier, creationRules, naturalProficiencies, BARBARIAN_ORIGINS, type ProficiencyOrigin } from './creationRules'
 
-export type ClassRules = { page: number; proficiencies: string[]; proficiencyPeriod: number; magic: string; bonusGeneral?:number; divineSpellList?:{name:string;level:number;tradition:string}[];
+export type ClassRules = { page: number; proficiencies: string[]; proficiencyPeriod: number; magic: string; bonusGeneral?:number; proficiencyOrigins?: ProficiencyOrigin[]; divineSpellList?:{name:string;level:number;tradition:string}[];
   levels: { level: number; xp: number; hitDice: string; casterLevel: number; arcaneCasterLevel?: number; divineCasterLevel?: number; spellSlots: number[] }[] }
 export const RULE_CLASSES = tables.classes as Record<string, ClassRules>
 RULE_CLASSES['Dwarven Craftpriest']!.bonusGeneral=3
+RULE_CLASSES.Barbarian!.proficiencyOrigins=BARBARIAN_ORIGINS
 export const GENERAL_PROFICIENCIES = tables.generalProficiencies
 export const SPELL_LIST = spellList
 export const normalized = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -19,11 +20,17 @@ export function proficiencyBudget(rules: ClassRules, level: number, intellect: n
 export function proficiencyIssues(rules: ClassRules, character: any, choices: { name: string; category: string }[], level = character.level || 1) {
   const budget = proficiencyBudget(rules, level, character.int)
   const issues: string[] = []
+  const grants = naturalProficiencies(rules.proficiencyOrigins, character.proficiencyOrigin || readState(character.rulesState).proficiencyOrigin)
+  for (const choice of choices.filter(p => p.category === 'natural')) {
+    if (!grants.some(p => normalized(p.name) === normalized(choice.name))) issues.push(`${choice.name}: não é concedida pela origem registrada.`)
+    if (choices.filter(p => p.category === 'natural' && normalized(p.name) === normalized(choice.name)).length > 1) issues.push(`${choice.name}: concessão de origem repetida.`)
+  }
   for (const category of ['class', 'general'] as const) {
     const selected = choices.filter(p => p.category === category)
     if (selected.length > budget[category]) issues.push(`${category}: ${selected.length} escolhas; limite ${budget[category]}.`)
     const allowed = category === 'class' ? rules.proficiencies : GENERAL_PROFICIENCIES
     for (const p of selected) {
+      if (normalized(p.name) === 'adventuring') { issues.push('Adventuring já é concedida automaticamente; não gasta uma escolha.'); continue }
       const match = allowed.some(entry => {
         const base = entry.split('(')[0]!.trim()
         if (normalized(p.name) === normalized(entry)) return !entry.includes(',')
@@ -36,8 +43,9 @@ export function proficiencyIssues(rules: ClassRules, character: any, choices: { 
     }
   }
   // Repeated ranks and specializations require the specific proficiency's permission.
-  const singleRank = new Set(['combatreflexes','combatferocity','alertness','swashbuckling','weaponfinesse','endurance','running','ambushing','blindfighting'])
-  for (const name of singleRank) if (choices.filter(p => normalized(p.name) === name).length > 1) issues.push(`A proficiência ${choices.find(p => normalized(p.name) === name)!.name} não pode ser repetida.`)
+  const singleRank = new Set(['combatreflexes','combatferocity','alertness','swashbuckling','weaponfinesse','endurance','running','ambushing','blindfighting','climbing','riding'])
+  const ranks = [...choices.filter(p => p.category !== 'adventuring'), ...grants.filter(g => !choices.some(p => p.category === 'natural' && normalized(p.name) === normalized(g.name)))]
+  for (const name of singleRank) if (ranks.filter(p => normalized(p.name) === name).length > 1) issues.push(`A proficiência ${ranks.find(p => normalized(p.name) === name)!.name} não pode ser repetida.`)
   return issues
 }
 

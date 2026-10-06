@@ -15,6 +15,36 @@ const proficiencies = () => {
 describe('Criação guiada', () => {
   beforeEach(() => cy.makeUser('MASTER').as('account'))
 
+  it('concede Running e Endurance ao Tribal Warrior sem gastar as duas escolhas iniciais', function () {
+    cy.signIn(this.account, '/characters/new')
+    cy.button('Continuar').click()
+    cy.findByRole('combobox', { name: 'Classe', exact: true }).select('catalog:barbarian')
+    cy.button('Continuar').click()
+    cy.field('Nome').type('Cypress Tribal Warrior')
+    cy.field('PV iniciais').clear().type('6')
+    cy.findByRole('combobox', { name: 'Origem do bárbaro', exact: true }).select('ivory-kingdoms')
+    cy.findByRole('region', { name: 'Proficiências concedidas automaticamente', exact: true }).should('contain.text', 'Running').and('contain.text', 'Endurance')
+    cy.button('+ Proficiência').click()
+    cy.findAllByRole('combobox', { name: 'Nome da proficiência', exact: true }).eq(0).type('Ambushing')
+    cy.findAllByLabelText('Categoria', { exact: true }).eq(0).select('class')
+    cy.button('+ Proficiência').click()
+    cy.findAllByRole('combobox', { name: 'Nome da proficiência', exact: true }).eq(1).type('Tracking')
+    cy.button('Continuar').click(); cy.button('Continuar').click()
+    cy.contains('Origem do bárbaro: Ivory Kingdoms').should('be.visible')
+    cy.intercept('POST', '/api/characters/guided').as('createOrigin')
+    cy.button('Confirmar e abrir ficha').click()
+    cy.wait('@createOrigin').then(({ response }) => {
+      expect(response.statusCode).to.eq(201)
+      cy.api(this.account, 'GET', `/characters/${response.body.character.id}`).its('character').then(hero => {
+        expect(JSON.parse(hero.rulesState).proficiencyOrigin).to.eq('ivory-kingdoms')
+        expect(hero.proficiencies.filter(p => p.category === 'natural')).to.have.length(2)
+        expect(hero.proficiencies.filter(p => p.category === 'class')).to.have.length(1)
+        expect(hero.proficiencies.filter(p => p.category === 'general')).to.have.length(1)
+      })
+    })
+    cy.findByRole('heading', { name: 'Proficiências naturais', exact: true }).should('be.visible')
+  })
+
   it('aguarda campanhas e catálogo antes de habilitar Continuar', function () {
     cy.intercept('GET', '/api/campaigns', req => req.on('response', res => res.setDelay(1500))).as('campaigns')
     cy.intercept('GET', '/api/game-rules/metadata').as('metadata')

@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify'
 import prisma from '../lib/prisma'
 import { authGuard } from '../middleware/auth'
 import { canReadCampaign, resolveClass, progressionFields } from '../lib/classCatalog'
-import { creationRules, initialAdventuring, abilityModifier, ATTRIBUTE_KEYS } from '../lib/creationRules'
+import { creationRules, initialAdventuring, naturalProficiencies, abilityModifier, ATTRIBUTE_KEYS } from '../lib/creationRules'
 import { rulesFor, proficiencyIssues, spellIssues, magicPools } from '../lib/gameRules'
 import { characterSpellCatalog, campaignSpellError } from '../lib/campaignSpells'
 import { findCompendiumEntry } from './compendium'
@@ -23,6 +23,7 @@ const body = {
     str: attribute, int: attribute, dex: attribute, wil: attribute, con: attribute, cha: attribute,
     birthplace: text, alignment: { type: 'string', enum: ['', 'Lawful', 'Neutral', 'Chaotic'] },
     subclass: text, languagesKnown: { type: 'string', maxLength: 2000 },
+    proficiencyOrigin: { type: 'string', maxLength: 100 },
     notes: { type: 'string', maxLength: 10000 }, isSpellcaster: { type: 'boolean' },
     hpMax: { type: 'integer', minimum: 1, maximum: 1000 }, coinGP: { type: 'integer', minimum: 0, maximum: 2147483647 },
     proficiencies: { type: 'array', maxItems: 50, items: {
@@ -42,6 +43,7 @@ interface CreationBody {
   characterName: string; classKey: string; campaignId?: string | null;
   str: number; int: number; dex: number; wil: number; con: number; cha: number;
   hpMax: number; coinGP?: number; birthplace?: string; alignment?: string; subclass?: string;
+  proficiencyOrigin?: string;
   languagesKnown?: string; notes?: string; isSpellcaster?: boolean;
   proficiencies?: { name: string; category: string }[];
   items?: { name: string; quantity: number; weight: number }[];
@@ -70,10 +72,13 @@ export async function characterCreationRoutes(app: FastifyInstance) {
       if (data.rulesMode !== 'manual' && (data.hpMax < Math.max(1, 4 + con) + racial || data.hpMax > max)) return reply.code(400).send({ message: `PV iniciais devem estar entre ${Math.max(1, 4 + con) + racial} e ${max} para esta classe (regra padrão).` })
     }
     if (!data.characterName.trim() || data.items?.some(i => !i.name.trim()) || data.proficiencies?.some(p => !p.name.trim())) return reply.code(400).send({ message: 'Preencha os nomes do personagem e das escolhas adicionadas.' })
-    const { classKey, items, proficiencies, rulesMode, exceptionReason, startingGoldGp, purchases, spells, ...fields } = data
+    const { classKey, items, proficiencies, rulesMode, exceptionReason, startingGoldGp, purchases, spells, proficiencyOrigin, ...fields } = data
     const ruleData = rulesFor(klass)
+    const origins = ruleData?.proficiencyOrigins || []
+    if (proficiencyOrigin && !origins.some(origin => origin.key === proficiencyOrigin)) return reply.code(400).send({ message: 'Escolha uma origem disponível para esta classe.', step: 2 })
     if (rulesMode === 'standard') {
       if (!ruleData) return reply.code(400).send({message:'Classe livre: selecione o modo manual e registre a decisão do mestre.'})
+      if (origins.length && !proficiencyOrigin) return reply.code(400).send({ message: 'Escolha a origem do bárbaro para receber suas proficiências naturais.', step: 2 })
       const issues = [...proficiencyIssues(ruleData,data,proficiencies || []),...spellIssues(ruleData,data,spells || [],1,await characterSpellCatalog({campaignId},{id:userId}))]
       for (const category of ['class','general']) if (!proficiencies?.some(p=>p.category===category)) issues.push(`Escolha ao menos uma proficiência ${category}.`)
       for (const pool of magicPools(ruleData,data)) if (pool.studious && pool.slots[0] && !spells?.some(s=>s.tradition===pool.tradition && s.level===1)) issues.push(`Escolha sua primeira magia ${pool.tradition}.`)
@@ -104,14 +109,14 @@ export async function characterCreationRoutes(app: FastifyInstance) {
       }
       return tx.character.create({ data: {
       ...fields, ...coins, userId, campaignId, characterName: data.characterName.trim(),
-      rulesState: JSON.stringify({creationMode:rulesMode||'legacy',exceptionReason:exceptionReason||''}),
+      rulesState: JSON.stringify({creationMode:rulesMode||'legacy',exceptionReason:exceptionReason||'', ...(proficiencyOrigin ? { proficiencyOrigin } : {})}),
       classKey: klass.id, className: klass.name, classFeatures: rules.build ? '' : klass.classFeatures,
       isSpellcaster: rules.spellcaster ?? data.isSpellcaster ?? false,
       level: 1, xp: 0, hpCurr: data.hpMax, ...progressionFields(klass, 1, data.wil),
       ...(ruleData ? Object.fromEntries(Array.from({length:6},(_,i)=>[`spellSlotsLevel${i+1}`,magicPools(ruleData,data).reduce((sum,p)=>sum+p.slots[i]!,0)])) : {}),
       items: { create: [...(items ?? []).map(i => ({ name: i.name.trim(), quantity: i.quantity, weight: i.weight })),...purchasedItems] },
       weapons:{create:purchasedWeapons}, spells:{create:(spells||[]).map(spell => ({ ...spell, name: spell.name.trim() }))},
-      proficiencies: { create: [...initialAdventuring(data.str, official ? klass.name : '', rules.ruleProfile), ...(proficiencies ?? []).filter(p => p.category !== 'adventuring').map(p => ({ name: p.name.trim(), category: p.category }))] },
+      proficiencies: { create: [...initialAdventuring(data.str, official ? klass.name : '', rules.ruleProfile), ...naturalProficiencies(origins, proficiencyOrigin), ...(proficiencies ?? []).filter(p => p.category !== 'adventuring' && p.name.trim().toLowerCase() !== 'adventuring').map(p => ({ name: p.name.trim(), category: p.category }))] },
     } })
     }, { isolationLevel: 'Serializable' })
     return reply.code(201).send({ character })

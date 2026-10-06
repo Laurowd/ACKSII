@@ -3,11 +3,26 @@ import {RULE_CLASSES,magicPools,advancement,allocateAdventure,monsterXp,proficie
 import {defaultWeaponStyle,weaponCatalogValues} from './equipment'
 import {settleDomainMonth,researchPlan,researchOutcome} from './campaignRules'
 import {buildClass,ClassBuild} from './classBuilder'
-import {initialAdventuring} from './creationRules'
+import {initialAdventuring,naturalProficiencies,BARBARIAN_ORIGINS} from './creationRules'
 
 const character={level:1,int:10,con:10,hpMax:6,hpCurr:3,xp:2000}
 const build:ClassBuild={name:'Test fighter',race:'human',racial:0,hd:2,fighting:2,thievery:0,divine:0,arcane:0,fightingVariant:'crusader',armorTrade:0,weaponTrade:0,styleTrade:0,damageTrade:'none',thiefSkills:[],powers:[],startingProficiency:'Manual of Arms',keyAttributes:['str'],stronghold:'Castle',smoothXp:true,proficiencies:Array.from({length:28},(_,i)=>`Campaign proficiency ${i}`)}
 describe('rulebook character workflows',()=>{
+  it('grants each barbarian origin in addition to normal proficiency choices', () => {
+    const paid = [{ name: 'Ambushing', category: 'class' }, { name: 'Tracking', category: 'general' }]
+    for (const [origin, names] of [['jutland', ['Climbing', 'Seafaring']], ['skysostan', ['Precise Shooting', 'Riding']], ['ivory-kingdoms', ['Running', 'Endurance']]] as const) {
+      const grants = naturalProficiencies(BARBARIAN_ORIGINS, origin)
+      expect(grants.map(grant => grant.name)).toEqual(names)
+      const hero = { ...character, rulesState: JSON.stringify({ proficiencyOrigin: origin }) }
+      expect(proficiencyIssues(RULE_CLASSES.Barbarian!, hero, [...initialAdventuring(10), ...grants, ...paid])).toEqual([])
+      expect(proficiencyBudget(RULE_CLASSES.Barbarian!, 1, 10)).toEqual({ class: 1, general: 1 })
+    }
+    expect(naturalProficiencies(BARBARIAN_ORIGINS, 'jutland', 2)[0]?.throwTarget).toBe(5)
+    expect(proficiencyIssues(RULE_CLASSES.Barbarian!, character, [{ name: 'Running', category: 'natural' }]).join(' ')).toContain('origem registrada')
+    expect(proficiencyIssues(RULE_CLASSES.Barbarian!, character, [{ name: 'Adventuring', category: 'general' }]).join(' ')).toContain('automaticamente')
+    const precise = { ...character, proficiencyOrigin: 'skysostan' }
+    expect(proficiencyIssues(RULE_CLASSES.Barbarian!, precise, [{ name: 'Precise Shooting', category: 'class' }])).toEqual([])
+  })
   it('has ordered progression for all 21 catalog classes',()=>{
     expect(Object.keys(RULE_CLASSES)).toHaveLength(21)
     for(const r of Object.values(RULE_CLASSES)){expect(r.levels.length).toBeGreaterThanOrEqual(10);r.levels.forEach((l,i)=>{expect(l.level).toBe(i+1);expect(l.hitDice).toMatch(/^\d+d\d+(\+\d+)?$/);if(i)expect(l.xp).toBeGreaterThan(r.levels[i-1]!.xp)})}

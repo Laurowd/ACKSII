@@ -44,6 +44,60 @@ async function confirm(page: Page) {
   return (await response.json()).character
 }
 
+test('Tribal Warrior receives origin proficiencies without consuming class or general choices', async ({ page }, info) => {
+  await start(page, 'barbarian')
+  await page.getByLabel('Nome', { exact: true }).fill('Roderick')
+  await page.getByLabel('Terra natal', { exact: true }).fill('Corvanthis')
+  await page.getByLabel('PV iniciais').fill('6')
+  await addProf(page, 'Adventuring', 'general'); await addProf(page, 'Ambushing', 'class'); await addProf(page, 'Tracking', 'general')
+  await addProf(page, 'Running', 'class'); await addProf(page, 'Endurance', 'general')
+  await page.getByRole('button', { name: 'Continuar', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('Escolha a origem do bárbaro')
+  const origin = page.getByRole('combobox', { name: 'Origem do bárbaro', exact: true })
+  const free = page.getByRole('region', { name: 'Proficiências concedidas automaticamente', exact: true })
+  await origin.selectOption('jutland'); await expect(free).toContainText('Climbing'); await expect(free).toContainText('Seafaring')
+  await origin.selectOption('skysostan'); await expect(free).toContainText('Precise Shooting'); await expect(free).not.toContainText('Climbing')
+  await origin.selectOption('ivory-kingdoms')
+  await expect(free).toContainText('Running'); await expect(free).toContainText('Endurance'); await expect(free).not.toContainText('Riding')
+  await expect(page.getByLabel('Nome da proficiência', { exact: true })).toHaveCount(2)
+  await expect(page.getByLabel('Nome da proficiência', { exact: true }).first()).toHaveValue('Ambushing')
+  await expect(page.getByLabel('Nome da proficiência', { exact: true }).last()).toHaveValue('Tracking')
+  await page.setViewportSize({ width: 320, height: 812 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+  await page.screenshot({ path: info.outputPath('barbarian-origin-creation-mobile.png'), fullPage: true })
+  await review(page)
+  await expect(page.getByText('Origem do bárbaro: Ivory Kingdoms · Running, Endurance (concedidas)', { exact: true })).toBeVisible()
+  const hero = await confirm(page)
+  const saved = (await (await page.request.get(`/api/characters/${hero.id}`, { headers: { authorization: `Bearer ${account.token}` } })).json()).character
+  expect(saved.proficiencies.filter((p: any) => p.category === 'natural').map((p: any) => p.name).sort()).toEqual(['Endurance', 'Running'])
+  expect(saved.proficiencies.filter((p: any) => p.category === 'class')).toHaveLength(1)
+  expect(saved.proficiencies.filter((p: any) => p.category === 'general')).toHaveLength(1)
+  await expect(page.getByRole('heading', { name: 'Proficiências naturais', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Alvo da proficiência Running', { exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Evolução & Regras', exact: true }).click()
+  await expect(page.getByText('Escolhas permitidas no nível atual:', { exact: false })).toContainText('1 de classe e 1 gerais')
+})
+
+test('masters preview and confirm the correction of a legacy barbarian sheet', async ({ page }) => {
+  const headers = await signIn(page)
+  const response = await page.request.post('/api/characters/guided', { headers, data: { characterName: 'Bárbaro antigo', classKey: 'catalog:barbarian', str: 13, int: 10, dex: 10, wil: 10, con: 10, cha: 10, hpMax: 6, rulesMode: 'manual', exceptionReason: 'Ficha anterior à correção.', proficiencies: [{ name: 'Ambushing', category: 'class' }, { name: 'Tracking', category: 'general' }, { name: 'Running', category: 'class' }, { name: 'Endurance', category: 'general' }] } })
+  expect(response.status()).toBe(201); const hero = (await response.json()).character
+  await page.goto(`/character/${hero.id}`)
+  await page.getByRole('button', { name: 'Evolução & Regras', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Origem a conferir', exact: true }).selectOption('ivory-kingdoms')
+  await page.getByRole('button', { name: 'Conferir proficiências da origem', exact: true }).click()
+  await expect(page.getByText('Mover para gratuitas:', { exact: false })).toContainText('Running')
+  const before = (await (await page.request.get(`/api/characters/${hero.id}`, { headers })).json()).character
+  expect(before.proficiencies.filter((p:any) => p.category === 'natural')).toHaveLength(0)
+  await page.getByRole('button', { name: 'Confirmar proficiências da origem', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Origem registrada.' })).toBeVisible()
+  const stored = (await (await page.request.get(`/api/characters/${hero.id}`, { headers })).json()).character
+  expect(stored.proficiencies.filter((p:any) => p.category === 'natural')).toHaveLength(2)
+  expect(stored.proficiencies.filter((p:any) => ['class','general'].includes(p.category))).toHaveLength(2)
+  await page.getByRole('button', { name: 'Geral & Combate', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Proficiências naturais', exact: true })).toBeVisible()
+})
+
 test('reported Venturer choices are corrected in identity before any creation request', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message))
   await start(page, 'venturer')
