@@ -23,6 +23,8 @@ describe('Criação guiada', () => {
     cy.field('Nome').type('Cypress Tribal Warrior')
     cy.field('PV iniciais').clear().type('6')
     cy.findByRole('combobox', { name: 'Origem do bárbaro', exact: true }).select('ivory-kingdoms')
+    cy.findByRole('combobox', { name: 'Especialização de dano', exact: true }).click()
+    cy.findByRole('listbox', { name: 'Opções de Especialização de dano', exact: true }).findByRole('option', { name: 'Corpo a corpo', exact: true }).click()
     cy.findByRole('region', { name: 'Proficiências concedidas automaticamente', exact: true }).should('contain.text', 'Running').and('contain.text', 'Endurance')
     cy.button('+ Proficiência').click()
     cy.findAllByRole('combobox', { name: 'Nome da proficiência', exact: true }).eq(0).type('Ambushing')
@@ -37,6 +39,7 @@ describe('Criação guiada', () => {
       expect(response.statusCode).to.eq(201)
       cy.api(this.account, 'GET', `/characters/${response.body.character.id}`).its('character').then(hero => {
         expect(JSON.parse(hero.rulesState).proficiencyOrigin).to.eq('ivory-kingdoms')
+        expect(JSON.parse(hero.rulesState).classChoices['damage-specialization']).to.eq('melee')
         expect(hero.proficiencies.filter(p => p.category === 'natural')).to.have.length(2)
         expect(hero.proficiencies.filter(p => p.category === 'class')).to.have.length(1)
         expect(hero.proficiencies.filter(p => p.category === 'general')).to.have.length(1)
