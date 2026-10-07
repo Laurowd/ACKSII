@@ -347,6 +347,7 @@ async function openHpControls() {
   document.getElementById('session-hp-amount')?.focus()
 }
 async function navigateTabs(event: KeyboardEvent, id: string) {
+  if (event.altKey || event.ctrlKey || event.metaKey) return
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
   event.preventDefault()
   const index = TABS.findIndex(tab => tab.id === id)

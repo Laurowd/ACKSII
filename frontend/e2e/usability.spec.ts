@@ -27,6 +27,8 @@ test('last tab survives reload, stays scoped to the character and supports keybo
   await page.reload()
   const magic = page.getByRole('button', { name: 'Magia', exact: true })
   await expect(magic).toHaveAttribute('aria-pressed', 'true')
+  await magic.focus(); await magic.press('Control+Home')
+  await expect(magic).toHaveAttribute('aria-pressed', 'true')
   await magic.focus(); await magic.press('ArrowLeft')
   await expect(page.getByRole('button', { name: 'Inventário & Tesouro', exact: true })).toBeFocused()
   await page.keyboard.press('Home')
