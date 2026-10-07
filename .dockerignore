@@ -18,8 +18,17 @@
 !backend/src/data/
 !backend/src/data/domainIncomeFactors.json
 !backend/src/data/acksRules.json
+!backend/src/data/spellAccess.json
 !backend/src/lib/
 !backend/src/lib/classAbilities.ts
+!backend/src/lib/classChoicePlan.ts
+!backend/src/lib/classProficiencies.ts
+!backend/src/lib/combatEquipment.ts
+!backend/src/lib/creationRules.ts
+!backend/src/lib/gameRules.ts
+!backend/src/lib/levelReconciliation.ts
+!backend/src/lib/proficiencyBonus.ts
+!backend/src/lib/researchAssistance.ts
 !backend/src/lib/proficiencyRanks.ts
 !backend/src/lib/warlockPaths.ts
 !backend/src/lib/weaponAttacks.ts

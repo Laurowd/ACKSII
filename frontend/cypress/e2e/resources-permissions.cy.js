@@ -16,7 +16,7 @@ const resources = [
 ]
 describe('Recursos da ficha e permissões (API)', () => {
   beforeEach(() => {
-    cy.makeUser().as('account').then(account => cy.character(account, { classKey: 'catalog:mage', int: 16, hpMax: 4 }).as('character'))
+    cy.makeUser('MASTER').as('account').then(account => cy.character(account, { classKey: 'catalog:mage', int: 16, hpMax: 4 }).as('character'))
     cy.makeUser().as('stranger')
   })
   for (const [route, key, relation, create, update, status] of resources) {
@@ -40,6 +40,20 @@ describe('Recursos da ficha e permissões (API)', () => {
     cy.api(null, 'GET', `/characters/${this.character.id}`, undefined, 401)
     cy.api(this.stranger, 'DELETE', `/characters/${this.character.id}`, undefined, 403)
     cy.api(this.account, 'PUT', `/characters/${this.character.id}`, { coinGP: 200 }, 400)
+  })
+  it('jogador não usa os editores manuais para acrescentar, trocar ou remover uma magia de estudo',function(){
+    cy.makeUser('PLAYER').then(player=>cy.character(player,{classKey:'catalog:mage',hpMax:4,spells:[{name:'Slumber',level:1,tradition:'arcane'}]}).then(c=>{
+      cy.api(player,'GET',`/characters/${c.id}`).its('character').then(current=>{
+        const spell=current.spells[0],base=`/characters/${c.id}/spells`
+        cy.api(player,'POST',base,{version:current.version,name:'Arcane Armor',level:1,tradition:'arcane'},403)
+        cy.api(player,'PUT',`${base}/${spell.id}`,{version:current.version,name:'Arcane Armor'},403)
+        cy.api(player,'DELETE',`${base}/${spell.id}`,{version:current.version},403)
+        cy.api(player,'GET',`/characters/${c.id}`).its('character').then(saved=>{
+          expect(saved.version).to.eq(current.version)
+          expect(saved.spells.map(entry=>entry.name)).to.deep.eq(['Slumber'])
+        })
+      })
+    }))
   })
   it('rejeita compra sem dinheiro e mantém inventário e moedas', function () {
     cy.api(this.account, 'PUT', `/characters/${this.character.id}`, { version: 0, coinGP: 0 })

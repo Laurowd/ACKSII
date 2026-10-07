@@ -8,11 +8,9 @@ ENV CYPRESS_INSTALL_BINARY=0
 RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 COPY backend/src/data/domainIncomeFactors.json /app/backend/src/data/domainIncomeFactors.json
-COPY backend/src/lib/classAbilities.ts /app/backend/src/lib/classAbilities.ts
-COPY backend/src/lib/proficiencyRanks.ts /app/backend/src/lib/proficiencyRanks.ts
-COPY backend/src/lib/warlockPaths.ts /app/backend/src/lib/warlockPaths.ts
-COPY backend/src/lib/weaponAttacks.ts /app/backend/src/lib/weaponAttacks.ts
+COPY backend/src/lib/classAbilities.ts backend/src/lib/classChoicePlan.ts backend/src/lib/classProficiencies.ts backend/src/lib/combatEquipment.ts backend/src/lib/creationRules.ts backend/src/lib/gameRules.ts backend/src/lib/levelReconciliation.ts backend/src/lib/proficiencyBonus.ts backend/src/lib/proficiencyRanks.ts backend/src/lib/researchAssistance.ts backend/src/lib/warlockPaths.ts backend/src/lib/weaponAttacks.ts /app/backend/src/lib/
 COPY backend/src/data/acksRules.json /app/backend/src/data/acksRules.json
+COPY backend/src/data/spellAccess.json /app/backend/src/data/spellAccess.json
 RUN npm run build
 
 FROM caddy:2-alpine

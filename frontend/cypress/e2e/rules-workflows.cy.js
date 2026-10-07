@@ -24,11 +24,12 @@ describe('Regras, magia e pesquisa', () => {
     }).then(c => {
       cy.signIn(this.account, `/character/${c.id}`)
       cy.button('Magia').click()
-      cy.findByText('Editar repertório com validação', { exact: true }).click()
+      cy.findByText('Ajustar repertório com validação (mestre)', { exact: true }).click()
       cy.field('Nome da magia 1').clear().type('Not a catalog spell')
       cy.button('Salvar repertório').click()
       cy.findByRole('alert').should('be.visible')
       cy.field('Nome da magia 1').clear().type('Arcane Armor')
+      cy.field('Justificativa do ajuste de estudo').type('Corrigir magia inicial cadastrada')
       cy.button('Salvar repertório').click()
       cy.contains('[role=status]', 'Repertório registrado').should('be.visible')
       cy.api(this.account, 'GET', `/characters/${c.id}`).its('character.spells').then(rows => {
@@ -108,7 +109,8 @@ describe('Regras, magia e pesquisa', () => {
 
   it('inicia pesquisa, registra trabalho e consome componentes para criar item', function () {
     cy.character(this.account, { classKey: 'catalog:mage', int: 16, hpMax: 4, coinGP: 1000 }).then(c => {
-      cy.api(this.account, 'PUT', `/characters/${c.id}`, { version: c.version, level: 5, workshopValue: 4000 })
+      cy.api(this.account, 'PUT', `/characters/${c.id}`, { version: c.version, workshopValue: 4000 })
+      cy.api(this.account,'GET',`/characters/${c.id}`).its('character').then(current=>cy.api(this.account,'POST',`/game-rules/characters/${c.id}/level-adjustment`,{version:current.version,level:5,hpMax:current.hpMax,reason:'Preparar pesquisador do teste isolado'}))
       mutateCharacter(this.account, 'POST', `/characters/${c.id}/magic-research`, { itemName: 'Test scroll', effectType: 'ONE_USE', spellLevel: 1, hasFormula: true }, 201).its('research').as('project')
       mutateCharacter(this.account, 'POST', `/characters/${c.id}/items`, { name: 'Monster component', quantity: 1, weight: 1 }, 201).its('item').as('component')
       cy.signIn(this.account, `/character/${c.id}`)
