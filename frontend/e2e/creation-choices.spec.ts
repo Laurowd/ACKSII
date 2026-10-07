@@ -237,7 +237,7 @@ test('validated repertoire keeps draft on disclosure reopen and rejects invalid 
   expect(await page.getByLabel('Nível da magia 1', { exact: true }).locator('option').allTextContents()).toEqual(['1'])
   await page.getByLabel('Nome da magia 1', { exact: true }).fill('Arcane Armor')
   await approveStudyCorrection(page); await page.getByRole('button', { name: 'Salvar repertório', exact: true }).click()
-  await expect(page.getByRole('status')).toContainText('Repertório registrado')
+  await expect(page.getByRole('status').filter({ hasText: 'Repertório registrado' })).toBeVisible()
   const stored = (await (await page.request.get(`/api/characters/${character.id}`, { headers })).json()).character
   expect(stored.spells[0].name).toBe('Arcane Armor')
 })
