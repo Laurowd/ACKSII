@@ -1,6 +1,8 @@
 import { Prisma } from '@prisma/client';
 import { mutateCharacter, mutationResponse, relationFields, versionedBody } from '../lib/characterMutation';
 import { scalarBody, spellEditorBody, characterUpdateBody, characterCreateBody } from '../lib/inputSchemas';
+import { isResponsibleMaster } from '../lib/masterAuthority';
+import { shieldProficiency } from '../lib/combatEquipment';
 import { FastifyInstance } from 'fastify';
 import prisma, { type TransactionClient } from '../lib/prisma';
 import { authGuard } from '../middleware/auth';
@@ -362,6 +364,7 @@ export async function characterRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: 'Forbidden' });
     }
 
+
     if (body.userId !== undefined && role !== 'MASTER') {
       return reply.status(403).send({ error: 'Only master can transfer character ownership' });
     }
@@ -468,6 +471,8 @@ export async function characterRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: 'Forbidden' });
     }
 
+    if (existing.version !== data.version) return reply.code(409).send({ code: 'CHARACTER_CONFLICT', error: 'A ficha foi alterada em outra sessão. Exporte suas alterações e recarregue a versão atual.' });
+    if(data.level!==undefined && data.level!==existing.level)return reply.code(400).send({code:'LEVEL_WORKFLOW_REQUIRED',error:'Use Avanço de nível em Evolução & Regras. Ajustes excepcionais exigem justificativa do mestre.'});
     const changesXp = ['xp', 'xpFromTreasure'].some(key => data[key] !== undefined && data[key] !== (existing as any)[key]);
     if (changesXp) {
       const campaign = existing.campaignId
@@ -539,8 +544,8 @@ export async function characterRoutes(app: FastifyInstance) {
     const armor = Number(allowed.armorAcBonus ?? existing.armorAcBonus ?? 0);
     const dex = abilityModifier(Number(allowed.dex ?? existing.dex ?? 10));
     const adjustment = Number(allowed.acAdjustment ?? existing.acAdjustment ?? 0);
-    Object.assign(allowed, { acNoArmor: dex + adjustment, acNoShield: armor + dex + adjustment, acWithShield: armor + dex + adjustment + 1 });
-    if (existing.version !== data.version) return reply.code(409).send({ code: 'CHARACTER_CONFLICT', error: 'A ficha foi alterada em outra sessão. Exporte suas alterações e recarregue a versão atual.' });
+    const shieldAllowed=shieldProficiency({...existing,proficiencies:await prisma.proficiency.findMany({where:{characterId}})},klass);
+    Object.assign(allowed, { acNoArmor: dex + adjustment, acNoShield: armor + dex + adjustment, acWithShield: armor + dex + adjustment + (shieldAllowed?1:0) });
     let character;
     try {
       character = await prisma.$transaction(async tx => {
@@ -907,11 +912,13 @@ export async function characterRoutes(app: FastifyInstance) {
     if (!character) return mutationResponse(404, { error: 'Character not found' });
     if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
     const name = String(data.name || '').trim();
+    if (!await isResponsibleMaster(request.user,character,tx)) return mutationResponse(403,{error:'O editor manual de magias é exclusivo do mestre responsável. Use Aprendizado de magias ou o repertório religioso.'});
     if (!name) return mutationResponse(400, { error: 'Informe o nome da magia antes de adicioná-la.' });
     const level = data.level ?? 1;
     const spell = await tx.spell.create({
       data: { characterId, level, name, tradition: data.tradition ?? '' }
     });
+    await tx.auditLog.create({data:{characterId,campaignId:character.campaignId,userId:id,action:'SPELL_MANUALLY_ADDED',details:JSON.stringify({spell})}});
     return mutationResponse(201, { spell });
   }));
 
@@ -924,11 +931,13 @@ export async function characterRoutes(app: FastifyInstance) {
     if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
     const existing = await tx.spell.findFirst({ where: { id: spellId, characterId } });
     if (!existing) return mutationResponse(404, { error: 'Spell not found' });
+    if (!await isResponsibleMaster(request.user,character,tx)) return mutationResponse(403,{error:'Somente o mestre responsável pode editar magias manualmente.'});
     if (data.name !== undefined && !data.name.trim()) return mutationResponse(400, { error: 'Informe o nome da magia ou remova a entrada.' });
     const spell = await tx.spell.update({
       where: { id: spellId },
       data: { name: data.name?.trim(), level: data.level, tradition: data.tradition },
     });
+    await tx.auditLog.create({data:{characterId,campaignId:character.campaignId,userId:id,action:'SPELL_MANUALLY_UPDATED',details:JSON.stringify({before:existing,after:spell})}});
     return mutationResponse(200, { spell });
   }));
 
@@ -940,7 +949,9 @@ export async function characterRoutes(app: FastifyInstance) {
     if (!(await canAccessCharacter(character, id, role, tx))) return mutationResponse(403, { error: 'Forbidden' });
     const spell = await tx.spell.findFirst({ where: { id: spellId, characterId } });
     if (!spell) return mutationResponse(404, { error: 'Spell not found' });
+    if (!await isResponsibleMaster(request.user,character,tx)) return mutationResponse(403,{error:'Somente o mestre responsável pode remover magias manualmente.'});
     await tx.spell.delete({ where: { id: spellId } });
+    await tx.auditLog.create({data:{characterId,campaignId:character.campaignId,userId:id,action:'SPELL_MANUALLY_REMOVED',details:JSON.stringify({spell})}});
     return mutationResponse(200, { message: 'Spell deleted' });
   }));
 

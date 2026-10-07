@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify'
 import { learnedProficiencyRows } from '../lib/levelReconciliation'
+import { proficiencyBonus, adventuringBonus } from '../lib/proficiencyBonus'
 import prisma from '../lib/prisma'
 import { authGuard } from '../middleware/auth'
 import { canReadCampaign, resolveClass, progressionFields } from '../lib/classCatalog'
@@ -116,7 +117,7 @@ export async function characterCreationRoutes(app: FastifyInstance) {
       }
       return tx.character.create({ data: {
       ...fields, ...coins, userId, campaignId, characterName: data.characterName.trim(),
-      rulesState: JSON.stringify({creationMode:rulesMode||'legacy',exceptionReason:exceptionReason||'', ...(proficiencyOrigin ? { proficiencyOrigin } : {}), classChoices, adventuringProficiencyBonus: ruleData?.className === 'Dwarven Craftpriest' ? 3 : 0,
+      rulesState: JSON.stringify({creationMode:rulesMode||'legacy',exceptionReason:exceptionReason||'', ...(proficiencyOrigin ? { proficiencyOrigin } : {}), classChoices, adventuringProficiencyBonus: proficiencyBonus(ruleData || {}), adventuringProficiencyBonuses:Object.fromEntries(initialAdventuring(data.str).map(p=>[p.name,adventuringBonus(p.name,ruleData || {})])),
         ...(ruleData?.className === 'Shaman' && classChoices.totem ? { totemStatus: { alive: true, nearby: true } } : {}),
         classChoiceApprovals: Object.fromEntries(Object.keys(classChoices).filter(key => classChoices[key] === 'judge').map(key => [key, approvedChoiceSignature(classChoices, key)])) }),
       ...(classChoices.tradition || classChoices['dark-path'] ? { subclass: classChoices.tradition || classChoices['dark-path'] } : {}),

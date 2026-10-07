@@ -14,7 +14,7 @@ describe('combat sources and compatibility', () => {
     expect(characterExport(character, definition).computed.armorSources.map(entry => entry.source)).toContain('Swashbuckling')
   })
   it('stops conditional bonuses when heavy armor or load violates the condition', () => {
-    expect(calculateCharacterMetrics({ ...character, armorWeight: 3 }, definition).armorClass.noShield).toBe(1)
+    expect(calculateCharacterMetrics({ ...character, armorName:'Chain Mail',armorWeight: 3 }, definition).armorClass.noShield).toBe(1)
     expect(calculateCharacterMetrics({ ...character, items: [{ weight: 5, quantity: 1 }] }, definition).initiative).toBe(0)
   })
   it('requires an identified, carried item and applies a source only once', () => {

@@ -1,5 +1,5 @@
 export interface CombatModifier { source: string; stat: 'ac' | 'initiative'; value: number; active: boolean; itemId?: string }
-export interface CombatConfiguration { powersEnabled: boolean; lightArmor: boolean; modifiers: CombatModifier[] }
+export interface CombatConfiguration { powersEnabled: boolean; lightArmor: boolean; armorCategory?: 'auto'|'none'|'very-light'|'light'|'medium'|'heavy'; armorCategoryFor?:string; modifiers: CombatModifier[] }
 export function combatConfiguration(character: any): CombatConfiguration {
   try {
     const state = typeof character.rulesState === 'string' ? JSON.parse(character.rulesState) : character.rulesState

@@ -70,7 +70,7 @@ export async function campaignRuleRoutes(app:FastifyInstance){
       return {...result, character: await mutationCharacter(tx,c.id)}
     },serial)
   })
-  const assistant=body({name:text,casterLevel:int(0,14),rateBonusPercent:number(0,100),dedication:{type:'string',enum:['dedicated','ancillary']}})
+  const assistant=body({name:text,casterLevel:int(1,14),rateBonusPercent:number(0,100),dedication:{type:'string',enum:['dedicated','ancillary']}})
   const planBody=body({version:int(),casterLevel:int(1,14),tradition:{type:'string',enum:['arcane','divine']},rateBonusPercent:number(0,100),
     dedication:{type:'string',enum:['dedicated','ancillary']},assistants:{type:'array',maxItems:20,items:assistant},duration:{type:'string',enum:['instant','round','turn','hour','day','concentration']},
     affectsUser:{type:'boolean'},esoteric:{type:'boolean'},healing:{type:'boolean'},eligible:{type:'boolean'},itemKind:{type:'string',enum:['wand','rod','staff','other']},fingerprint:{type:'string',maxLength:64}},
@@ -87,7 +87,7 @@ export async function campaignRuleRoutes(app:FastifyInstance){
       const rules=rulesFor(await resolveClass(c.classKey,c.campaignId,c.className))
       if(!rules||!magicPools(rules,c).some(p=>p.tradition===input.tradition&&p.casterLevel>=input.casterLevel))throw operationError('Nível de conjurador incompatível com a classe.')
       let plan
-      try{plan=researchPlan(project,c,input)}catch(e){throw operationError((e as Error).message)}
+      try{plan=researchPlan(project,c,input,rules)}catch(e){throw operationError((e as Error).message)}
       if(action==='preview')return {...plan,fingerprint}
       if(state.research?.[project.id])throw operationError('Este projeto já foi iniciado.',409)
       if(c.coinGP<plan.materialsPaidGp)throw operationError('GP insuficientes para os materiais iniciais. Converta outras moedas antes de iniciar.')

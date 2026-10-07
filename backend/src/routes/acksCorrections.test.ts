@@ -9,7 +9,7 @@ const { db } = vi.hoisted(() => ({ db: {
   character: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   campaign: { findUnique: vi.fn() }, customClass: { findFirst: vi.fn() }, auditLog: { create: vi.fn() },
   weapon: { create: vi.fn(), updateMany: vi.fn() }, item: { create: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
-  proficiency: { findFirst: vi.fn(), update: vi.fn() }, domain: { findUnique: vi.fn(), upsert: vi.fn() }, $transaction: vi.fn(), $queryRaw: vi.fn(),
+  proficiency: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn() }, domain: { findUnique: vi.fn(), upsert: vi.fn() }, $transaction: vi.fn(), $queryRaw: vi.fn(),
 } }))
 vi.mock('../lib/prisma', () => ({ default: db }))
 import { characterRoutes } from './characters'
@@ -28,6 +28,7 @@ async function request(method: 'POST' | 'PUT', url: string, payload: any, userId
 describe('ACKS II corrections through the API', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    db.proficiency.findMany.mockResolvedValue([])
     db.character.findUnique.mockResolvedValue({ ...character })
     db.character.findUniqueOrThrow.mockResolvedValue({ ...character })
     db.character.update.mockImplementation(async ({ data }: any) => ({ ...character, ...data }))

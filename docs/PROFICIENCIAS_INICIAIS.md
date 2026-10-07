@@ -2,6 +2,8 @@
 
 No nível 1, as escolhas normais são **uma de classe e uma geral**, com escolhas gerais extras iguais ao bônus positivo de Intelecto. Adventuring é gratuita; o sistema inclui seus cinco testes básicos. Ela não deve ser adicionada novamente à lista de escolhas (Rulebook p. 101).
 
+Poderes fixos equivalentes a proficiências também contam como graduações, sem gastar escolhas ou criar linhas adicionais na ficha. Por exemplo, Theology inicial do Dwarven Craftpriest conta antes da graduação comprada: o novo alvo é 4+ (11 − 4 pela segunda graduação − 3 por Attention to Detail). Diplomacy do Venturer já é concedida e não permite comprar novamente a mesma proficiência. Graduações adicionais de Manual of Arms, Siege Engineering, Collegiate Wizardry, Streetwise e Gambling seguem as permissões de suas descrições. Fichas anteriores preservam alvos editados; o mestre pode corrigi-los após conferir a graduação efetiva.
+
 O bárbaro recebe ainda duas proficiências naturais conforme a origem cultural, independentemente da cidade natal (Rulebook pp. 49–50):
 
 | Origem | Concessões gratuitas |

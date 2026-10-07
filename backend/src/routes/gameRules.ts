@@ -13,6 +13,8 @@ import { abilityState, selectionsFor, classGrants, classChoiceIssues, approvedCh
 import { classChoicePlan } from '../lib/classChoicePlan'
 import { classRevisionPlan } from '../lib/classRevisionPlan'
 import { levelReconciliation, applyProficiencyPlan, learnedProficiencyRows } from '../lib/levelReconciliation'
+import { repertoirePlan } from '../lib/repertoirePlan'
+import { isResponsibleMaster } from '../lib/masterAuthority'
 
 const integer = (max = 2147483647) => ({ type: 'integer', minimum: 0, maximum: max })
 const text = { type: 'string', minLength: 1, maxLength: 160 }
@@ -155,7 +157,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       return {...preview,character:await mutationCharacter(tx,c.id)}
     },{isolationLevel:'Serializable'})
   })
-  for (const action of ['preview','apply']) app.post(`/characters/:id/class-choices/${action}`, { schema: { body: body({ version, choices: classChoicesSchema, totemStatus: totemSchema, reconcileAdventuring: {type: 'boolean'}, reason: {type: 'string', maxLength: 1000} }, ['version','choices']) } }, async req => {
+  for (const action of ['preview','apply']) app.post(`/characters/:id/class-choices/${action}`, { schema: { body: body({ version, choices: classChoicesSchema, totemStatus: totemSchema, reconcileAdventuring: {type: 'boolean'}, reconcilePaidGrants: {type: 'boolean'}, reason: {type: 'string', maxLength: 1000} }, ['version','choices']) } }, async req => {
     const input = req.body as any, user = req.user as any
     return prisma.$transaction(async tx => {
       const c = await accessibleCharacter((req.params as any).id, user, tx)
@@ -170,6 +172,8 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       if (changing && !canApprove) throw operationError('As escolhas de classe registradas só podem ser revisadas pelo mestre responsável.', 403)
       if (changing && (!input.reason?.trim() || input.reason.trim().length < 3)) throw operationError('Registre a justificativa do mestre para revisar uma escolha já concedida.')
       if (input.reconcileAdventuring && !canApprove) throw operationError('Somente o mestre responsável pode conferir os alvos antigos.', 403)
+      if (input.reconcilePaidGrants && !canApprove) throw operationError('Somente o mestre responsável pode reclassificar concessões antigas.',403)
+      if (input.reconcilePaidGrants && (input.reason?.trim().length || 0)<3) throw operationError('Justifique a reclassificação de escolhas antigas como concessões gratuitas.')
       const state = { ...abilityState(c), classChoices: choices }
       const issues = classChoiceIssues(rules, { ...c, classChoices: choices }, choices, false, canApprove)
       if (issues.length) throw operationError(issues.join(' '))
@@ -183,7 +187,7 @@ export async function gameRulesRoutes(app: FastifyInstance) {
       }
       state.classChoiceApprovals = { ...state.classChoiceApprovals }
       if (canApprove) for (const definition of rules.classChoices) if (choices[definition.id] === 'judge') state.classChoiceApprovals[definition.id] = approvedChoiceSignature(choices, definition.id)
-      const plan = classChoicePlan(c, rules, choices, state, input.reconcileAdventuring)
+      const plan = classChoicePlan(c, rules, choices, state, input.reconcileAdventuring,c.level,input.reconcilePaidGrants===true)
       const next = { ...c, classChoices: choices, rulesState: JSON.stringify(state), proficiencies: plan.proficiencies }
       const preview = { ...plan, proficiencies: undefined, choices, totemStatus: state.totemStatus, version: c.version, issues: [...proficiencyIssues(rules,next,plan.proficiencies), ...classChoiceIssues(rules,next,choices,true,canApprove)], reason:input.reason?.trim() || '' }
       if (action === 'preview') return preview
@@ -197,6 +201,32 @@ export async function gameRulesRoutes(app: FastifyInstance) {
     }, {isolationLevel:'Serializable'})
   })
 
+  app.post('/characters/:id/level-adjustment',{schema:{body:body({version,level:{type:'integer',minimum:1,maximum:14},hpMax:{type:'integer',minimum:1,maximum:2147483647},reason:{type:'string',minLength:3,maxLength:1000}},['version','level','hpMax','reason'])}},async req=>{
+    const input=req.body as any,user=req.user as any
+    return prisma.$transaction(async tx=>{
+      const c=await accessibleCharacter((req.params as any).id,user,tx)
+      if(!await isResponsibleMaster(user,c,tx))throw operationError('Somente o mestre responsável pode ajustar o nível.',403)
+      if(input.reason.trim().length<3)throw operationError('Registre a justificativa do ajuste de nível.')
+      const klass=await resolveClass(c.classKey,c.campaignId,c.className),rules=rulesFor(klass)
+      if(klass && input.level>JSON.parse(klass.xpPerLevel).length)throw operationError('Nível fora da progressão desta classe.')
+      const fields:any={level:input.level,hpMax:input.hpMax,hpCurr:Math.min(input.hpMax,c.hpCurr+input.hpMax-c.hpMax)}
+      if(klass) {
+        const before=progressionFields(klass,c.level,c.wil),after=progressionFields(klass,input.level,c.wil)
+        Object.assign(fields,after)
+        for(const key of ['saveDeath','saveParalysis','saveBlast','saveImplements','saveSpells'] as const)if(after[key]!==undefined)fields[key]=after[key]!+(before[key]!==undefined?c[key]-before[key]!:0)
+      }
+      const plan=rules&&levelReconciliation(c,rules,input.level)
+      if(plan)fields.rulesState=JSON.stringify(plan.state)
+      await updateVersion(tx,c,input.version,fields)
+      if(plan)await applyProficiencyPlan(tx,c.id,plan)
+      if(klass) {
+        const attacks=JSON.parse(klass.attackThrows),delta=attacks[input.level-1]-attacks[c.level-1]
+        if(Number.isFinite(delta))for(const weapon of await tx.weapon.findMany({where:{characterId:c.id}}))await tx.weapon.update({where:{id:weapon.id},data:{attackThrow:weapon.attackThrow+delta}})
+      }
+      await tx.auditLog.create({data:{characterId:c.id,campaignId:c.campaignId,userId:user.id,action:'LEVEL_ADJUSTED',details:JSON.stringify({reason:input.reason.trim(),before:{level:c.level,hpMax:c.hpMax,hpCurr:c.hpCurr,xp:c.xp},after:fields})}})
+      return {character:await mutationCharacter(tx,c.id)}
+    },{isolationLevel:'Serializable'})
+  })
   const advancementBody=body({version,dice:{type:'array',maxItems:9,items:{type:'integer',minimum:1,maximum:12}},
     proficiencies:{type:'array',maxItems:30,items:choiceSchema}},['version','dice'])
   for(const action of ['preview','apply']) app.post(`/characters/:id/advance/${action}`,{schema:{body:advancementBody}},async req=>{
@@ -266,19 +296,24 @@ export async function gameRulesRoutes(app: FastifyInstance) {
     }, {isolationLevel:'Serializable'})
   })
 
-  app.post('/characters/:id/magic/repertoire',{schema:{body:body({version,spells:{type:'array',maxItems:500,items:spellSchema},orderApproved:{type:'boolean'}},['version','spells'])}},async req=>{
+  app.post('/characters/:id/magic/repertoire',{schema:{body:body({version,spells:{type:'array',maxItems:500,items:spellSchema},orderApproved:{type:'boolean'},reason:{type:'string',maxLength:1000}},['version','spells'])}},async req=>{
     const input=req.body as any
     return prisma.$transaction(async tx=>{
       const c=await accessibleCharacter((req.params as any).id,req.user,tx)
       const rules=rulesFor(await resolveClass(c.classKey,c.campaignId,c.className))
       if(!rules)throw operationError('Magia não configurada para esta classe.')
+      const plan=repertoirePlan(c,rules,input.spells)
       const issues=spellIssues(rules,c,input.spells,c.level,await characterSpellCatalog(c,req.user as any,tx))
       if(magicPools(rules,c).some(p=>!p.studious)&&!input.orderApproved)issues.push('Confirme com o mestre o repertório da ordem religiosa.')
       if(issues.length)throw operationError(issues.join(' '))
+      if(plan.changesStudy) {
+        if(!await isResponsibleMaster(req.user,c,tx))throw operationError('Novas magias e substituições exigem fórmula e uma semana de estudo. Use Aprendizado de magias.',403)
+        if((input.reason?.trim().length || 0)<3)throw operationError('Justifique o ajuste do mestre no repertório de estudo.')
+      }
       await updateVersion(tx,c,input.version)
-      await tx.spell.deleteMany({where:{characterId:c.id}})
-      await tx.spell.createMany({data:input.spells.map((s:any)=>({...s,characterId:c.id}))})
-      await tx.auditLog.create({data:{characterId:c.id,campaignId:c.campaignId,userId:(req.user as any).id,action:'REPERTOIRE_REPLACED',details:JSON.stringify({before:c.spells,after:input.spells})}})
+      if(plan.removed.length)await tx.spell.deleteMany({where:{characterId:c.id,id:{in:plan.removed.map((s:any)=>s.id)}}})
+      if(plan.added.length)await tx.spell.createMany({data:plan.added.map((s:any)=>({...s,characterId:c.id}))})
+      await tx.auditLog.create({data:{characterId:c.id,campaignId:c.campaignId,userId:(req.user as any).id,action:plan.changesStudy?'REPERTOIRE_ADJUSTED':'REPERTOIRE_REPLACED',details:JSON.stringify({before:c.spells,after:input.spells,...(input.reason?.trim()?{reason:input.reason.trim()}:{})})}})
       return {ok:true, character: await mutationCharacter(tx, c.id), spells: await tx.spell.findMany({ where: { characterId: c.id } })}
     }, {isolationLevel:'Serializable'})
   })

@@ -124,8 +124,13 @@ function restoredRulesState(value: unknown, warnings: string[]) {
     if (Object.values(choices).includes('judge')) warnings.push('Poderes excepcionais do Bard foram preservados como referência e precisam de nova aprovação do mestre nesta cópia.');
   }
   if (state.adventuringProficiencyBonus !== undefined) {
-    if (![0,3].includes(state.adventuringProficiencyBonus)) throw new CharacterImportError('Bônus de conferência de Adventuring inválido.');
+    if (!Number.isInteger(state.adventuringProficiencyBonus) || state.adventuringProficiencyBonus<0 || state.adventuringProficiencyBonus>4) throw new CharacterImportError('Bônus de conferência de Adventuring inválido.');
     restored.adventuringProficiencyBonus = state.adventuringProficiencyBonus;
+  }
+  if(state.adventuringProficiencyBonuses!==undefined) {
+    const bonuses=jsonObject(state.adventuringProficiencyBonuses,'Bônus de Adventuring');
+    if(Object.entries(bonuses).some(([name,value])=>!['Dungeonbashing','Climbing','Searching','Trapbreaking','Listening'].includes(name)||!Number.isInteger(value)||value<0||value>4))throw new CharacterImportError('Bônus de Adventuring inválidos.');
+    restored.adventuringProficiencyBonuses=bonuses;
   }
   if (state.totemStatus !== undefined) {
     const status = jsonObject(state.totemStatus, 'Estado do totem');
@@ -157,7 +162,7 @@ function restoredRulesState(value: unknown, warnings: string[]) {
     }
     restored.lastRestDay = state.lastRestDay;
   }
-  if (Object.keys(state).some(key => !['used', 'lastRestDay', 'combat', 'formulas', 'study', 'proficiencyOrigin', 'classChoices', 'classChoiceApprovals', 'adventuringProficiencyBonus', 'totemStatus'].includes(key))) {
+  if (Object.keys(state).some(key => !['used', 'lastRestDay', 'combat', 'formulas', 'study', 'proficiencyOrigin', 'classChoices', 'classChoiceApprovals', 'adventuringProficiencyBonus', 'adventuringProficiencyBonuses', 'totemStatus'].includes(key))) {
     warnings.push('O histórico de aventuras, meses e projetos não foi importado; seus registros dependem dos identificadores da ficha original. Saldos e XP atuais foram preservados, sem reaplicar operações.');
   }
   return JSON.stringify(restored);

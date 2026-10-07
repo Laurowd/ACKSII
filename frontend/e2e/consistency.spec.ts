@@ -1,3 +1,4 @@
+import { approveStudyCorrection } from './helpers/ruleFixtures'
 import { test, expect, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { characterExport } from '../src/utils/characterExport'
@@ -84,7 +85,7 @@ test('repertoire draft survives tabs, export, canceled navigation and a failed s
   await confirmedWrite(page, headers, 'post', base + '/spells', { name: 'Slumber', level: 1 })
   await page.reload()
   await page.getByRole('button', { name: 'Magia', exact: true }).click()
-  await page.getByText('Editar repertório com validação', { exact: true }).click()
+  await page.getByText('Ajustar repertório com validação (mestre)', { exact: true }).click()
   await page.getByLabel('Nome da magia 1', { exact: true }).fill('Arcane Armor')
   await expect(page.getByText('Há alterações no repertório ainda não enviadas.', { exact: false })).toBeVisible()
   await page.getByRole('button', { name: 'Inventário & Tesouro', exact: true }).click()
@@ -105,7 +106,7 @@ test('repertoire draft survives tabs, export, canceled navigation and a failed s
   expect(restored.warnings.join(' ')).toContain('rascunho de repertório não enviado')
   const path = `/api/game-rules/characters/${character.id}/magic/repertoire`
   await page.route(`**${path}`, route => route.fulfill({ status: 503, json: { error: 'Temporary repertoire failure' } }))
-  await page.getByRole('button', { name: 'Salvar repertório', exact: true }).click()
+  await approveStudyCorrection(page); await page.getByRole('button', { name: 'Salvar repertório', exact: true }).click()
   await expect(page.getByRole('alert').filter({ hasText: 'Temporary repertoire failure' }).first()).toBeVisible()
   // A retry of an earlier request must preserve newer typing as an unsent draft.
   await page.getByLabel('Nome da magia 1', { exact: true }).fill('Slumber')
@@ -115,7 +116,7 @@ test('repertoire draft survives tabs, export, canceled navigation and a failed s
   expect((await retried).status()).toBe(200)
   await expect(page.getByLabel('Nome da magia 1', { exact: true })).toHaveValue('Slumber')
   await expect(page.getByRole('button', { name: 'Abrir rascunho de repertório' })).toBeVisible()
-  await page.getByRole('button', { name: 'Salvar repertório', exact: true }).click()
+  await approveStudyCorrection(page); await page.getByRole('button', { name: 'Salvar repertório', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Abrir rascunho de repertório' })).toHaveCount(0)
   const stored = (await (await page.request.get(base, { headers })).json()).character
   expect(stored.spells[0].name).toBe('Slumber')

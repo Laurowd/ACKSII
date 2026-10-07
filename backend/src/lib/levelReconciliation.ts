@@ -1,6 +1,8 @@
 import { abilityState, classGrants, completeAutomaticSelections, selectionsFor } from './classAbilities'
 import { classChoicePlan } from './classChoicePlan'
-import { proficiencyRankCount, newProficiencyTarget } from './proficiencyRanks'
+import { proficiencyRankCount, proficiencyRankKey, newProficiencyTarget } from './proficiencyRanks'
+import { classProficiencyPowers } from './classProficiencies'
+import { proficiencyBonus } from './proficiencyBonus'
 
 /** Same rules for direct level edits and guided advancement; retain manual offsets. */
 export function levelReconciliation(character:any,rules:any,level:number) {
@@ -24,10 +26,20 @@ export async function applyProficiencyPlan(tx:any,characterId:string,plan:any) {
   if(plan.added.length)await tx.proficiency.createMany({data:plan.added.map((row:any)=>({...row,characterId}))})
 }
 export function learnedProficiencyRows(character:any,rules:any,additions:any[],level=character.level) {
-  const grants=classGrants(rules,{...character,level}), selected=[...(character.proficiencies || [])]
+  const grants=[...classGrants(rules,{...character,level}),...classProficiencyPowers(rules,level)], selected=[...(character.proficiencies || [])]
   return additions.map(proficiency=>{
     proficiency={...proficiency,name:proficiency.name.trim()}
     selected.push(proficiency)
-    return {...proficiency,throwTarget:newProficiencyTarget(proficiency.name,proficiencyRankCount(proficiency.name,selected,grants),level,rules.className==='Dwarven Craftpriest'?3:0)}
+    return {...proficiency,throwTarget:newProficiencyTarget(proficiency.name,proficiencyRankCount(proficiency.name,selected,grants),level,proficiencyBonus(rules))}
   })
+}
+
+/** A reference for old edited targets; never rewrites the persisted value. */
+export function proficiencyPowerTarget(character:any,rules:any,proficiency:any):number|undefined {
+  if(!['class','general','natural'].includes(proficiency.category))return undefined
+  const level=character.level || 1,powers=classProficiencyPowers(rules,level),grants=classGrants(rules,character)
+  if(![...powers,...grants].some(power=>proficiencyRankKey(power.name)===proficiencyRankKey(proficiency.name)) && !['Acrobatics','Contortionism'].includes(proficiency.name))return undefined
+  if(proficiency.category==='natural' && grants.some(g=>g.name===proficiency.name && g.ranks===3 && g.name.startsWith('Craft (')))return 2
+  const ranks=proficiencyRankCount(proficiency.name,character.proficiencies || [],[...grants,...powers])
+  return newProficiencyTarget(proficiency.name,ranks,level,proficiencyBonus(rules))
 }

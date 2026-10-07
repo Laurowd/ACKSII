@@ -60,17 +60,19 @@
       <p v-else-if="!spellGroups.length" role="status" class="text-sm text-steel-light">Nenhuma magia corresponde aos filtros. <button type="button" @click="spellSearch = ''; favoritesOnly = false" class="text-gold underline">Limpar filtros</button></p>
       <p v-if="info.supported && info.magic?.length" class="text-xs text-steel-light">O repertório é a lista de magias disponíveis para o personagem. Os usos diários são compartilhados entre as magias de cada nível e tradição.</p>
       <p v-if="info.supported && info.magic?.length" class="text-xs text-steel-light">Magias interrompidas também gastam um uso. Não há preparação prévia de magias.</p>
-      <details v-if="!compact && info.supported && info.magic?.length && !loading" :open="repertoireDraft.open" class="border border-steel-dark p-3 rounded-lg" @toggle="onEditorToggle">
-        <summary class="cursor-pointer font-bold text-gold">Editar repertório com validação</summary>
+      <p v-if="!compact && info.magic?.some((pool:any)=>pool.studious)" class="text-sm text-steel-light">Para aprender ou substituir magias de estudo, use Aprendizado de magias: registre a fórmula e conclua uma semana de estudo dedicado.</p>
+      <details v-if="!compact && info.supported && info.magic?.length && !loading && (canManage || info.magic.some((pool:any)=>!pool.studious))" :open="repertoireDraft.open" class="border border-steel-dark p-3 rounded-lg" @toggle="onEditorToggle">
+        <summary class="cursor-pointer font-bold text-gold">{{ canManage ? 'Ajustar repertório com validação (mestre)' : 'Conferir repertório religioso' }}</summary>
         <fieldset :disabled="busy || loading" class="min-w-0 space-y-3 mt-3">
           <div v-for="(spell, i) in repertoire" :key="i" class="grid grid-cols-[minmax(0,1fr)_5rem] sm:grid-cols-[8rem_5rem_minmax(0,1fr)_auto] items-start gap-2">
-            <select v-model="spell.tradition" @change="changeTradition(spell)" class="inp min-w-0 sm:w-32" :aria-label="`Tradição da magia ${i + 1}`"><option v-for="pool in info.magic" :key="pool.tradition" :value="pool.tradition">{{ traditionName(pool.tradition) }}</option></select>
-            <select v-model.number="spell.level" @change="spell.name = ''" class="inp w-20" :aria-label="`Nível da magia ${i + 1}`"><option v-if="!availableLevels(spell.tradition).includes(spell.level)" :value="spell.level">{{ spell.level }} · indisponível</option><option v-for="level in availableLevels(spell.tradition)" :key="level" :value="level">{{ level }}</option></select>
-            <SearchableChoice v-model="spell.name" :options="spellSuggestions(spell).map((entry: any) => ({ value: entry.name, hint: entry.campaignSpellId ? 'Magia de campanha' : 'Catálogo do livro' }))" :label="`Nome da magia ${i + 1}`" class="col-span-2 sm:col-span-1" :disabled="busy || loading" placeholder="Escolha ou busque uma magia" />
-            <button type="button" @click="repertoire.splice(i, 1)" :aria-label="`Remover ${spell.name || 'magia'} do repertório`" class="text-sm text-red-400 justify-self-start">Remover</button>
+            <select v-model="spell.tradition" @change="changeTradition(spell)" :disabled="!editableSpell(spell)" class="inp min-w-0 sm:w-32" :aria-label="`Tradição da magia ${i + 1}`"><option v-for="pool in info.magic" :key="pool.tradition" :value="pool.tradition" :disabled="!canManage && pool.studious">{{ traditionName(pool.tradition) }}</option></select>
+            <select v-model.number="spell.level" @change="spell.name = ''" :disabled="!editableSpell(spell)" class="inp w-20" :aria-label="`Nível da magia ${i + 1}`"><option v-if="!availableLevels(spell.tradition).includes(spell.level)" :value="spell.level">{{ spell.level }} · indisponível</option><option v-for="level in availableLevels(spell.tradition)" :key="level" :value="level">{{ level }}</option></select>
+            <SearchableChoice v-model="spell.name" :options="spellSuggestions(spell).map((entry: any) => ({ value: entry.name, hint: entry.campaignSpellId ? 'Magia de campanha' : 'Catálogo do livro' }))" :label="`Nome da magia ${i + 1}`" class="col-span-2 sm:col-span-1" :disabled="busy || loading || !editableSpell(spell)" placeholder="Escolha ou busque uma magia" />
+            <button v-if="editableSpell(spell)" type="button" @click="repertoire.splice(i, 1)" :aria-label="`Remover ${spell.name || 'magia'} do repertório`" class="text-sm text-red-400 justify-self-start">Remover</button>
           </div>
-          <button type="button" @click="addSpell" :disabled="!info.magic.some((pool: any) => pool.slots.some((slots: number) => slots > 0))" class="text-sm text-gold disabled:opacity-40">+ Adicionar magia</button>
+          <button type="button" @click="addSpell" :disabled="!info.magic.some((pool: any) => (canManage || !pool.studious) && pool.slots.some((slots: number) => slots > 0))" class="text-sm text-gold disabled:opacity-40">+ Adicionar magia</button>
           <label class="block text-sm"><input v-model="orderApproved" type="checkbox" /> Repertório religioso conferido com o mestre, quando aplicável.</label>
+          <label v-if="canManage && info.magic.some((pool:any)=>pool.studious)" class="block text-sm">Justificativa do ajuste de estudo<textarea v-model="adjustmentReason" rows="2" maxlength="1000" class="inp mt-1" placeholder="Ex.: corrigir uma magia inicial registrada incorretamente" /></label>
           <p class="text-xs text-steel-light">Salvar substitui o repertório atual. Magias de campanha e outras exceções podem ser registradas pelo mestre no editor manual.</p>
           <p v-if="draftPending" class="text-sm text-gold">Rascunho ainda não enviado. Ele é preservado ao trocar de aba.</p>
           <button type="button" @click="saveRepertoire" :disabled="busy" class="btn">Salvar repertório</button>
@@ -104,10 +106,13 @@ import { spellValidation } from '../../utils/ruleChoices'
 import { useAuthStore } from '../../stores/auth'
 
 const props = defineProps<{ character: any; prepare: () => Promise<boolean>; refresh: () => Promise<void>;
-  repertoireDraft: RepertoireDraft; compact?: boolean;
+  repertoireDraft: RepertoireDraft; compact?: boolean; canManage?: boolean;
   spellDescriptions?: { name: string; level?: number; notes?: string }[]; descriptionsLoading?: boolean; descriptionsError?: string }>()
 const emit = defineEmits<{ 'retry-descriptions': []; 'choices-updated': [choices: { spells: any[]; pools: any[]; loading: boolean }] }>()
 const operations = useCharacterOperations()
+const canManage=computed(()=>props.canManage===true)
+const adjustmentReason=ref('')
+const editableSpell=(spell:any)=>canManage.value || !info.value.magic?.find((pool:any)=>pool.tradition===spell.tradition)?.studious
 const spellSearch = ref(''), favoritesOnly = ref(false), favorites = ref<string[]>([])
 const favoriteKey = () => `acks:spell-favorites:${useAuthStore().user?.id || ''}:${props.character.id}`
 const spellKey = (spell: any) => `${spell.tradition || ''}:${spell.level}:${String(spell.name).trim().toLowerCase()}`
@@ -188,7 +193,7 @@ function discardDraft() {
 function availableLevels(tradition: string): number[] { return (info.value.magic?.find((pool: any) => pool.tradition === tradition)?.slots || []).flatMap((slots: number, i: number) => slots ? [i + 1] : []) }
 function spellSuggestions(spell:any){const pool = info.value.magic?.find((pool:any)=>pool.tradition===spell.tradition);return spellCatalog.value.filter((entry:any)=>entry.level===spell.level&&entry.tradition===spell.tradition&&(!pool?.spellList||entry.campaignSpellId||pool.spellList.some((allowed:any)=>allowed.name===entry.name&&allowed.level===entry.level)))}
 function changeTradition(spell: any) { spell.level = availableLevels(spell.tradition)[0] || 1; spell.name = '' }
-function addSpell() { const pool = info.value.magic.find((pool: any) => availableLevels(pool.tradition).length); if (pool) repertoire.value.push({ name: '', level: availableLevels(pool.tradition)[0], tradition: pool.tradition }) }
+function addSpell() { const pool = info.value.magic.find((pool: any) => (canManage.value || !pool.studious) && availableLevels(pool.tradition).length); if (pool) repertoire.value.push({ name: '', level: availableLevels(pool.tradition)[0], tradition: pool.tradition }) }
 
 async function change(key: string, path: string, input: any, message: string, applied: () => void = () => {}) {
   if (busy.value) return
@@ -215,7 +220,7 @@ async function saveRepertoire() {
   const check = spellValidation(info.value.magic || [], repertoire.value, spellCatalog.value)
   if (check.issues.length) { error.value = check.issues.join(' '); notice.value = ''; return }
   const submitted = repertoireSnapshot(props.repertoireDraft)
-  await change('magic:repertoire:update', 'magic/repertoire', { spells: JSON.parse(JSON.stringify(repertoire.value)), orderApproved: orderApproved.value }, 'Repertório registrado.', () => {
+  await change('magic:repertoire:update', 'magic/repertoire', { spells: JSON.parse(JSON.stringify(repertoire.value)), orderApproved: orderApproved.value, reason: adjustmentReason.value }, 'Repertório registrado.', () => {
     if (repertoireSnapshot(props.repertoireDraft) === submitted) resetDraft()
     else props.repertoireDraft.original = JSON.stringify({ spells: (props.character.spells || []).map((spell: any) => ({ name: spell.name, level: spell.level, tradition: spellTradition(info.value, spell) })), orderApproved: false })
   })

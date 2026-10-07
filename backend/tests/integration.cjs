@@ -217,7 +217,7 @@ test('magic repertoire, concurrent casts and rest cannot create extra slots', as
   const created=await request('POST','/api/characters/guided',{characterName:`Mage ${suffix}`,classKey:'catalog:mage',str:10,int:16,dex:10,wil:10,con:10,cha:10,hpMax:4});
   assert.equal(created.statusCode,201,created.body);
   const id=created.json().character.id,base=`/api/game-rules/characters/${id}`;
-  const repertoire=await request('POST',`${base}/magic/repertoire`,{version:0,spells:[{name:'Slumber',level:1,tradition:'arcane'}],orderApproved:false});
+  const repertoire=await request('POST',`${base}/magic/repertoire`,{version:0,spells:[{name:'Slumber',level:1,tradition:'arcane'}],orderApproved:false,reason:'Correct starting repertoire'});
   assert.equal(repertoire.statusCode,200,repertoire.body);
   const spell=await db.spell.findFirst({where:{characterId:id}});
   let c=await db.character.findUnique({where:{id}});

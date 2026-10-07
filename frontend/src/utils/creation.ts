@@ -1,4 +1,5 @@
 import type { CatalogClass } from './catalog'
+import { proficiencyBonus } from '../../../backend/src/lib/proficiencyBonus'
 
 export function absorbAutomaticProficiencies(choices: { name: string; category: string }[], grants: { name: string }[]) {
   const key = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -16,7 +17,9 @@ export function creationSettings(klass?: CatalogClass) {
   try {
     const settings = JSON.parse(klass.creationRules || '{}')
     if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return {}
-    return settings.rules && settings.ruleProfile?.powers ? {...settings,rules:{...settings.rules,abilityPowers:settings.ruleProfile.powers}} : settings
+    if(!settings.rules)return settings
+    const profile=settings.ruleProfile || {},build=settings.build || {},race=profile.race ?? build.race,racialValue=profile.racialValue ?? build.racial
+    return {...settings,rules:{...settings.rules,...klass.rules,...(race?{race,racialValue,proficiencyBonus:proficiencyBonus({...profile,race,racialValue})}:{}),...(profile.powers?{abilityPowers:profile.powers}:{})}}
   } catch { return {} }
 }
 

@@ -45,7 +45,7 @@ test('guided creation records each class concession outside its paid budget',asy
     assert.deepEqual(overview.budget,{class:1,general:1});assert.deepEqual(overview.issues,[]);assert.deepEqual(overview.classChoices,choices);
     const profs=await db.proficiency.findMany({where:{characterId:hero.id}});assert.equal(profs.filter(p=>p.category==='adventuring').length,5);
     assert.deepEqual(profs.filter(p=>p.category==='natural').map(p=>p.name),grant?[grant]:[]);
-    if(name==='dwarven-craftpriest'){assert.equal(overview.grantedProficiencies[0].ranks,3);assert.equal(profs.find(p=>p.name===grant).throwTarget,2);assert.equal(profs.find(p=>p.name==='Listening').throwTarget,11)}
+    if(name==='dwarven-craftpriest'){assert.equal(overview.grantedProficiencies[0].ranks,3);assert.equal(profs.find(p=>p.name===grant).throwTarget,2);assert.equal(profs.find(p=>p.name==='Listening').throwTarget,14)}
   }
 });
 
@@ -84,12 +84,12 @@ test('catalog and next-level indicator use the same book XP',async()=>{
 test('legacy reconciliation preserves manual targets and checks version and repeated submissions',async()=>{
   const hero=await create('legacy',base('venturer',{}, {rulesMode:'manual',exceptionReason:'Ficha anterior ao editor de concessões.',proficiencies:[{name:'Bargaining',category:'class'},{name:'Driving',category:'general'},{name:'Caving',category:'general'}]}));
   const driving=await db.proficiency.findFirst({where:{characterId:hero.id,name:'Driving'}});await db.proficiency.update({where:{id:driving.id},data:{throwTarget:6}});
-  const endpoint=`/api/game-rules/characters/${hero.id}/class-choices`,input={version:hero.version,choices:{'expert-traveling':'Driving'}};
-  const preview=await request('POST',`${endpoint}/preview`,input);assert.equal(preview.statusCode,200,preview.body);assert.equal(preview.json().converted[0].id,driving.id);assert.equal(preview.json().converted[0].throwTarget,6);
+  const endpoint=`/api/game-rules/characters/${hero.id}/class-choices`,input={version:hero.version,choices:{'expert-traveling':'Driving'},reconcilePaidGrants:true,reason:'Correct legacy grant origin'};
+  const preview=await request('POST',`${endpoint}/preview`,input,masterToken);assert.equal(preview.statusCode,200,preview.body);assert.equal(preview.json().converted[0].id,driving.id);assert.equal(preview.json().converted[0].throwTarget,6);
   assert.equal((await db.proficiency.findUnique({where:{id:driving.id}})).category,'general');
-  await db.character.update({where:{id:hero.id},data:{notes:'Outro editor salvou.',version:{increment:1}}});assert.equal((await request('POST',`${endpoint}/apply`,input)).statusCode,409);
-  const fresh={...input,version:hero.version+1},applied=await request('POST',`${endpoint}/apply`,fresh);assert.equal(applied.statusCode,200,applied.body);assert.equal(applied.json().character.notes,'Outro editor salvou.');assert.equal(applied.json().character.proficiencies.find(p=>p.id===driving.id).throwTarget,6);
-  const repeated=await request('POST',`${endpoint}/apply`,fresh);assert.equal(repeated.statusCode,200,repeated.body);assert.equal(repeated.json().alreadyApplied,true);assert.equal(repeated.json().character.version,applied.json().character.version);
+  await db.character.update({where:{id:hero.id},data:{notes:'Outro editor salvou.',version:{increment:1}}});assert.equal((await request('POST',`${endpoint}/apply`,input,masterToken)).statusCode,409);
+  const fresh={...input,version:hero.version+1},applied=await request('POST',`${endpoint}/apply`,fresh,masterToken);assert.equal(applied.statusCode,200,applied.body);assert.equal(applied.json().character.notes,'Outro editor salvou.');assert.equal(applied.json().character.proficiencies.find(p=>p.id===driving.id).throwTarget,6);
+  const repeated=await request('POST',`${endpoint}/apply`,fresh,masterToken);assert.equal(repeated.statusCode,200,repeated.body);assert.equal(repeated.json().alreadyApplied,true);assert.equal(repeated.json().character.version,applied.json().character.version);
   assert.equal(await db.auditLog.count({where:{characterId:hero.id,action:'CLASS_CHOICES_UPDATED'}}),1);
   heroes.legacy=applied.json().character;
 });
@@ -143,7 +143,7 @@ test('the master can reconcile old Craftpriest Adventuring targets once, preserv
   const listen=await db.proficiency.findFirst({where:{characterId:hero.id,name:'Listening'}});await db.proficiency.update({where:{id:listen.id},data:{throwTarget:16}});
   const endpoint=`/api/game-rules/characters/${hero.id}/class-choices`,input={version:hero.version,choices:{craft:'Craft (weapon-smithing)'},reconcileAdventuring:true};
   assert.equal((await request('POST',`${endpoint}/preview`,input)).statusCode,403);
-  const preview=await request('POST',`${endpoint}/preview`,input,masterToken);assert.equal(preview.statusCode,200,preview.body);assert.equal(preview.json().targets.find(p=>p.id===listen.id).throwTarget,13);
+  const preview=await request('POST',`${endpoint}/preview`,input,masterToken);assert.equal(preview.statusCode,200,preview.body);assert.equal(preview.json().targets.some(p=>p.id===listen.id),false);
   const result=await request('POST',`${endpoint}/apply`,input,masterToken);assert.equal(result.statusCode,200,result.body);
   const again=await request('POST',`${endpoint}/preview`,{...input,version:result.json().character.version},masterToken);assert.equal(again.statusCode,200,again.body);assert.deepEqual(again.json().targets,[]);
 });
@@ -192,9 +192,9 @@ test('a direct level edit advances Climbing and preserves its manual offset like
   const climbing=hero.proficiencies.find(row=>row.name==='Climbing'&&row.category==='natural');assert.equal(climbing.throwTarget,6);
   const adjusted=await request('PUT',`/api/characters/${hero.id}/proficiencies/${climbing.id}`,{version:hero.version,throwTarget:8},masterToken);assert.equal(adjusted.statusCode,200,adjusted.body);
   hero=await db.character.findUnique({where:{id:hero.id}});
-  const advanced=await request('PUT',`/api/characters/${hero.id}`,{version:hero.version,level:2});assert.equal(advanced.statusCode,200,advanced.body);hero=advanced.json().character;
+  const advanced=await request('POST',`/api/game-rules/characters/${hero.id}/level-adjustment`,{version:hero.version,level:2,hpMax:hero.hpMax,reason:'Review level progression'},masterToken);assert.equal(advanced.statusCode,200,advanced.body);hero=advanced.json().character;
   assert.equal(hero.proficiencies.find(row=>row.id===climbing.id).throwTarget,7);
-  const undo=await request('PUT',`/api/characters/${hero.id}`,{version:hero.version,level:1});assert.equal(undo.statusCode,200,undo.body);assert.equal(undo.json().character.proficiencies.find(row=>row.id===climbing.id).throwTarget,8);
+  const undo=await request('POST',`/api/game-rules/characters/${hero.id}/level-adjustment`,{version:hero.version,level:1,hpMax:hero.hpMax,reason:'Restore original level'},masterToken);assert.equal(undo.statusCode,200,undo.body);assert.equal(undo.json().character.proficiencies.find(row=>row.id===climbing.id).throwTarget,8);
 });
 
 test('Warlock path is required at creation, locked against autosave and grants the correct rank and slot',async()=>{
@@ -202,14 +202,14 @@ test('Warlock path is required at creation, locked against autosave and grants t
   assert.equal((await request('POST','/api/characters/guided',input)).statusCode,400);
   let hero=await create('path-warlock',{...input,classChoices:{'dark-path':'Demonology'}});assert.equal(hero.subclass,'Demonology');
   const mismatch=await request('PUT',`/api/characters/${hero.id}`,{version:hero.version,subclass:'Necromancy'});assert.equal(mismatch.statusCode,400,mismatch.body);
-  const changed=await request('PUT',`/api/characters/${hero.id}`,{version:hero.version,level:7});assert.equal(changed.statusCode,200,changed.body);hero=changed.json().character;
+  const changed=await request('POST',`/api/game-rules/characters/${hero.id}/level-adjustment`,{version:hero.version,level:7,hpMax:hero.hpMax,reason:'Review Warlock progression'},masterToken);assert.equal(changed.statusCode,200,changed.body);hero=changed.json().character;
   assert.equal(hero.proficiencies.filter(row=>row.category==='natural'&&row.name==='Theology').length,1);
   const overview=(await request('GET',`/api/game-rules/characters/${hero.id}`)).json();assert.equal(overview.magic[0].repertoire[0],4);assert.equal(overview.magic[0].slots[0],3);
   const ordinary=SPELL_LIST.filter(spell=>spell.level===1&&spell.tradition==='arcane'&&!spell.types.includes('sum')).slice(0,4).map(({name,level,tradition})=>({name,level,tradition}));
   const endpoint=`/api/game-rules/characters/${hero.id}/magic/repertoire`;
   const rejected=await request('POST',endpoint,{version:hero.version,spells:ordinary});assert.equal(rejected.statusCode,400,rejected.body);assert.match(rejected.body,/vaga extra/);
   const allowed=SPELL_LIST.find(spell=>spell.level===1&&spell.tradition==='arcane'&&spell.types.includes('sum'));
-  const accepted=await request('POST',endpoint,{version:hero.version,spells:[...ordinary.slice(0,3),{name:allowed.name,level:1,tradition:'arcane'}]});assert.equal(accepted.statusCode,200,accepted.body);
+  const accepted=await request('POST',endpoint,{version:hero.version,spells:[...ordinary.slice(0,3),{name:allowed.name,level:1,tradition:'arcane'}],reason:'Review restricted repertoire'},masterToken);assert.equal(accepted.statusCode,200,accepted.body);
 });
 
 test('Diplomacy cannot be repeated and Craftpriest can learn a fourth Craft rank within the paid budget',async()=>{

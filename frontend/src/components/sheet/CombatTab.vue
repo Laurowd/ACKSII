@@ -93,7 +93,8 @@
     <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
       <div class="stat-box">
         <label class="lbl">Nível</label>
-        <input v-model.number="character.level" @change="emit('level-change')" type="number" min="1" max="14" class="inp text-center text-2xl font-bold text-gold" />
+        <input :value="character.level" readonly aria-label="Nível atual" type="number" class="inp text-center text-2xl font-bold text-gold" />
+        <p class="text-[10px] text-steel-light mt-1">Avance em Evolução &amp; Regras.</p>
       </div>
       <div class="stat-box">
         <label class="lbl">XP</label>
@@ -186,6 +187,7 @@
             <label class="lbl mb-0 w-32 text-left">Equipada com escudo</label>
             <div class="w-16 py-1 bg-dark-bg/50 border border-steel-dark rounded-lg text-gold text-center text-sm font-bold cursor-default">{{ computedAC.withShield }}</div>
           </div>
+          <p v-if="!combatMetrics.shieldAllowed" class="text-xs text-steel-light">Sem benefício de escudo: a classe não possui o estilo Weapon and Shield.</p>
         </div>
       </div>
 
@@ -272,6 +274,7 @@
           <div class="text-[10px] text-steel">{{ mv.unit }}</div>
         </div>
       </div>
+      <p class="text-xs text-steel-light mt-3">As velocidades máximas de Climb e Stealth exigem, respectivamente, penalidades de −10 e −5 no teste. Use as velocidades reduzidas quando não quiser essas penalidades.</p>
     </div>
 
     <div v-if="levelFeats?.levelStats?.length > 0 || levelFeats?.tables?.length > 0 || levelFeats?.powers?.length > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
@@ -445,6 +448,7 @@
           </template>
           <button v-if="canManage || !['adventuring','natural'].includes(cat.key)" type="button" @click="removeProficiency(p.id)" :aria-label="`Remover proficiência ${p.name || 'sem nome'}`" class="text-crimson-light hover:text-crimson text-xs font-bold px-1.5 py-0.5 rounded border border-transparent hover:border-crimson/40 shrink-0">X</button>
         </div>
+        <p v-if="powerTargetFor(p) !== undefined && powerTargetFor(p) !== p.throwTarget" class="text-xs text-gold mt-1">Referência com as graduações gratuitas da classe: {{ powerTargetFor(p) }}+. Confira com o mestre antes de alterar o alvo; ajustes manuais são preservados.</p>
         <p v-if="cat.key === 'natural' && naturalGrantFor(p)" class="text-xs text-steel-light mt-1">{{ naturalGrantFor(p)?.source }}<span v-if="(naturalGrantFor(p)?.ranks || 0) > 1"> · {{ naturalGrantFor(p)?.ranks }} graduações</span><span v-if="naturalGrantFor(p)?.conditional" :class="activeTotem(character) ? 'text-green-400' : 'text-gold'"> · benefício {{ activeTotem(character) ? 'ativo' : 'inativo' }}</span></p>
         </div>
       </div>
@@ -484,6 +488,7 @@ import { creationSettings } from '../../utils/creation'
 import { classEffects } from '../../utils/classEffects'
 import { calculateCharacterMetrics } from '../../utils/characterMetrics'
 import { classGrants, activeTotem, selectionsFor } from '../../../../backend/src/lib/classAbilities'
+import { proficiencyPowerTarget } from '../../../../backend/src/lib/levelReconciliation'
 import { getModifier, formatMod, calculateAttackThrow, getWeaponAbilityModifier } from '../../utils/mechanics'
 import { notifyError } from '../../utils/toast'
 import { errorMessage, selectedClass, proficiencyOptions } from '../../utils/catalog'
@@ -504,7 +509,7 @@ const props = defineProps<{
   displayXpNext: number
 }>()
 
-const emit = defineEmits(['save', 'campaign-change', 'owner-change', 'class-change', 'level-change', 'open-rules'])
+const emit = defineEmits(['save', 'campaign-change', 'owner-change', 'class-change', 'open-rules'])
 const relations = useCharacterRelations(() => props.character)
 function requestClassChange(event:Event) {const select=event.target as HTMLSelectElement,key=select.value;select.value=selectedCustomClass.value?.id || props.character.classKey || '';emit('class-change',key)}
 const compendiumWeapons = ref<any[]>([])
@@ -519,6 +524,7 @@ const naturalOriginLabel = computed(() => {
   return origins.find((entry: any) => entry.key === origin)?.label || props.character.className || 'Concessões do mestre'
 })
 function naturalGrantFor(proficiency:any) { return classGrants(creationSettings(selectedClass(props.customClasses, props.character)).rules || {}, props.character).find(grant => grant.name.toLowerCase() === proficiency.name.trim().toLowerCase()) }
+function powerTargetFor(proficiency:any) { return proficiencyPowerTarget(props.character,creationSettings(selectedClass(props.customClasses,props.character)).rules || {},proficiency) }
 onMounted(async () => { try { proficiencyMetadata.value = (await getResource('/api/game-rules/metadata')).data } catch { /* Manual names remain available if the reference catalog fails. */ } })
 
 // Constants and local logic

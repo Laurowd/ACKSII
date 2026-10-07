@@ -280,7 +280,7 @@ export async function campaignsRoutes(app: FastifyInstance) {
 
     for (const ch of campaign.characters) {
       if (ch.domain) {
-        domainRevenue += domainEconomy(ch.domain).gross
+        domainRevenue += domainEconomy(ch.domain).revenue
         mercantileRevenue += Number(ch.domain.eventModifier || 0)
         garrisonExpenses += Number(ch.domain.garrisonCost || 0)
         maintenanceExpenses += Number(ch.domain.maintenanceCost || 0) + Number(ch.domain.civilExpenses || 0)

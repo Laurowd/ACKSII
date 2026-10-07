@@ -113,7 +113,6 @@
           @campaign-change="onCampaignChange"
           @owner-change="onOwnerChange"
           @class-change="onClassChange"
-          @level-change="onLevelChange"
           @open-rules="currentTab = 'rules'"
         />
 
@@ -130,6 +129,7 @@
 
         <MagicTab
           v-if="currentTab === 'magic'"
+          :can-manage="canManageRules"
           :prepare="saveCharacter" :refresh="refreshRuleCharacter"
           :character="char"
           :optional-rules="campaignOptionalRules"
@@ -491,12 +491,6 @@ const encPercent = computed(() => {
   if (stone === 0) return 0
   return (stone / max) * 100
 })
-
-function onLevelChange() {
-  if (!char.value) return
-  // The API applies the selected class progression and campaign rule.
-  autoSave()
-}
 
 // Auto-save with debounce
 function autoSave() {

@@ -10,6 +10,9 @@
       <p v-if="error" role="alert" class="text-sm text-red-400">{{ error }}</p>
       <p v-if="notice" role="status" class="text-sm text-steel-light">{{ notice }}</p>
       <fieldset :disabled="busy" class="min-w-0 space-y-3">
+        <label class="block text-sm">Categoria da armadura<select v-model="configuration.armorCategory" @change="save" aria-label="Categoria da armadura" class="inp mt-1"><option value="auto">Reconhecer pelo nome</option><option value="none">Sem armadura</option><option value="very-light">Muito leve</option><option value="light">Leve</option><option value="medium">Média</option><option value="heavy">Pesada</option></select></label>
+        <p class="text-xs text-steel-light">Tamanho e redução mágica de peso não alteram a categoria. Para armaduras de campanha, selecione a categoria conferida com o mestre.</p>
+        <p v-if="metrics.armorCategory === 'unknown'" class="text-xs text-gold">Selecione a categoria da armadura para calcular os poderes condicionais.</p>
         <label class="block text-sm"><input v-model="configuration.powersEnabled" type="checkbox" @change="save" /> Aplicar Graceful Fighting e Swashbuckling automaticamente</label>
         <label class="block text-sm"><input v-model="configuration.lightArmor" type="checkbox" @change="save" /> A armadura atual é leve ou menor (confirmado em jogo)</label>
         <p class="text-xs text-steel-light">Poderes exigem carga pessoal até 5 stone. A condição de armadura deve ser conferida ao trocar de equipamento. Itens guardados, em montarias ou veículos não concedem bônus.</p>
@@ -35,16 +38,22 @@ import { calculateCharacterMetrics } from '../../utils/characterMetrics'
 import { errorMessage } from '../../utils/catalog'
 const props = defineProps<{ character: any; definition?: any }>()
 const operations = useCharacterOperations()
-const configuration = ref(combatConfiguration(props.character)), busy = ref(false), error = ref(''), notice = ref('')
+const readConfiguration=()=>{
+  const value={armorCategory:'auto' as const,...combatConfiguration(props.character)}
+  if(value.armorCategoryFor!==undefined && value.armorCategoryFor!==String(props.character.armorName || ''))value.armorCategory='auto'
+  return value
+}
+const configuration = ref(readConfiguration()), busy = ref(false), error = ref(''), notice = ref('')
 const metrics = computed(() => calculateCharacterMetrics(props.character, props.definition))
 const signed = (value: number) => `${value >= 0 ? '+' : ''}${value}`
-watch(() => props.character.rulesState, () => { if (!busy.value) configuration.value = combatConfiguration(props.character) })
+watch(() => [props.character.rulesState,props.character.armorName], () => { if (!busy.value) configuration.value = readConfiguration() })
 function add() { configuration.value.modifiers.push({ source: `Bônus ${configuration.value.modifiers.length + 1}`, stat: 'ac', value: 0, active: false }); void save() }
 function onItemChange(entry: CombatModifier) { if (entry.itemId) entry.source = props.character.items.find((item: any) => item.id === entry.itemId)?.name || entry.source; void save() }
 async function save() {
   if (busy.value) return
   busy.value = true; error.value = ''; notice.value = ''
   const input = JSON.parse(JSON.stringify(configuration.value))
+  input.armorCategoryFor=String(props.character.armorName || '')
   try {
     const result = await operations.run('combat:modifiers:update', version => api.post(`/api/game-rules/characters/${props.character.id}/combat/modifiers`, { version, configuration: input }), undefined, { retainDraft: true })
     if (!result) error.value = errorMessage(operations.getLastError(), 'Não foi possível salvar os modificadores. Use Salvar para tentar novamente.')

@@ -1,5 +1,6 @@
 import { getModifier } from './mechanics'
 import { abilityProficiencies, selectionsFor, chosenClassPowers, nameKey } from '../../../backend/src/lib/classAbilities'
+import { adventuringBonus } from '../../../backend/src/lib/proficiencyBonus'
 import { canUseWeaponFinesse, isMissileAttack, weaponAttackAttribute, type AttackWeapon } from '../../../backend/src/lib/weaponAttacks'
 
 /** Catalog profiles arrive from the API; custom classes opt into their own profile. */
@@ -35,7 +36,7 @@ export function classEffects(character: any, profile: any = {}) {
     cleaves: (profile.cleaveProgression === 'full' ? level : profile.cleaveProgression === 'half' ? Math.floor(level / 2) : 0) + (has('Combat Ferocity') ? 1 : 0),
     // Show recommendations alongside stored throws; old manual adjustments remain intact.
     adventuringTarget(name: string) {
-      const bonus = profile.proficiencyBonus || 0
+      const bonus = adventuringBonus(name,profile)
       if (name === 'Dungeonbashing') return 18 - 4 * getModifier(character.str) + (profile.race==='halfling'?4:0) - bonus
       if (name === 'Climbing') return 8 - bonus
       return (profile.perceptive && ['Searching', 'Listening'].includes(name) ? 14 : 18) - bonus

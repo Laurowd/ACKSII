@@ -7,7 +7,7 @@ describe('ACKS II campaign rules', () => {
   it('separates land, services, taxes and expenses without a morale multiplier', () => {
     expect(domainEconomy({ peasantFamilies: 100, revenuePerFamily: 6, peasantMorale: 10,
       garrisonCost: 200, maintenanceCost: 100, liturgiesCost: 100, titheCost: 100 })).toEqual({
-      land: 600, services: 400, taxes: 200, gross: 1200, expenses: 500, balance: 700,
+      land: 600, services: 400, taxes: 200, gross: 1200, incomeFactor:1, revenue:1200, expenses: 500, balance: 700,
     })
     expect(domainEconomy({ peasantFamilies: 100, revenuePerFamily: 6, taxPerFamily: 0 }).taxes).toBe(0)
   })

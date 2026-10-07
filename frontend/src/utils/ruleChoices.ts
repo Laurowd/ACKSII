@@ -1,6 +1,7 @@
 import { getModifier } from './mechanics'
 import { abilityProficiencies } from '../../../backend/src/lib/classAbilities'
 import { proficiencyRankIssues } from '../../../backend/src/lib/proficiencyRanks'
+import { classProficiencyPowers } from '../../../backend/src/lib/classProficiencies'
 import { restrictedRepertoire, restrictedRepertoireIssues } from '../../../backend/src/lib/warlockPaths'
 
 export interface ProficiencyChoice { name: string; category: string }
@@ -37,7 +38,7 @@ export function proficiencyValidation(rules: any, intellect: number, choices: Pr
     const count = choices.filter(p => p.category === category).length
     if (count > limits[category]) issues.push(`Proficiências ${categoryName(category)}: ${count} escolhas; limite ${limits[category]}.`)
   }
-  issues.push(...proficiencyRankIssues(choices,grants,(rules.abilityPowers || []).filter((power:any) => (power.minimumLevel || 1) <= level)))
+  issues.push(...proficiencyRankIssues(choices,grants,classProficiencyPowers(rules,level)))
   return { rows, issues, limits }
 }
 

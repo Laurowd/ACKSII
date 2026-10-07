@@ -2,10 +2,11 @@
 type RankEntry = {name:string;ranks?:number;category?:string;conditional?:boolean;permitsExtraRank?:boolean}
 const key=(name:string)=>name.toLowerCase().replace(/[^a-z0-9]/g,'')
 export const proficiencyBase = (name:string) => name.split('(')[0]!.trim()
+export const proficiencyImprovesWithLevel = (name:string) => ['climbing','loremastery','acrobatics','contortionism'].includes(key(proficiencyBase(name)))
 const repeatable = new Set([
-  'Alchemy','Animal Husbandry','Animal Training','Art','Craft','Bargaining','Caving','Disguise','Engineering',
-  'Healing','Knowledge','Language','Laying on Hands','Magical Engineering','Magical Music','Mapping',
-  'Military Strategy','Mimicry','Navigation','Performance','Precise Shooting','Profession','Seafaring','Theology','Tracking',
+  'Alchemy','Animal Husbandry','Animal Training','Art','Craft','Bargaining','Caving','Collegiate Wizardry','Disguise','Engineering','Gambling',
+  'Healing','Knowledge','Language','Laying on Hands','Magical Engineering','Magical Music','Manual of Arms','Mapping',
+  'Military Strategy','Mimicry','Navigation','Performance','Precise Shooting','Profession','Seafaring','Siege Engineering','Streetwise','Theology','Tracking',
 ].map(key))
 const specializations = new Set(['Art','Craft','Combat Trickery','Elementalism','Fighting Style','Fighting Style Specialization','Folkways','Knowledge','Labor','Martial Training','Performance','Profession','Weapon Focus'].map(key))
 export function proficiencyRankKey(name:string) {
@@ -33,9 +34,9 @@ export function newProficiencyTarget(name:string, rank=1, level=1, bonus=0) {
   const base=key(proficiencyBase(name))
   let target=11
   if(base==='climbing') target=7-level
-  else if(base==='loremastery') target=19-level
+  else if(['loremastery','acrobatics','contortionism'].includes(base)) target=19-level
   else if(['art','craft'].includes(base)) target=[11,7,3,2][Math.min(3,Math.max(0,rank-1))]!
   else if(base==='disguise') target=11-2*(rank-1)
-  else if(['alchemy','animalhusbandry','caving','healing','knowledge','magicalengineering','mapping','militarystrategy','mimicry','performance','profession','theology','tracking'].includes(base)) target=11-4*(rank-1)
+  else if(['alchemy','animalhusbandry','caving','collegiatewizardry','healing','knowledge','magicalengineering','mapping','militarystrategy','mimicry','performance','profession','streetwise','theology','tracking'].includes(base)) target=11-4*(rank-1)
   return target-bonus
 }

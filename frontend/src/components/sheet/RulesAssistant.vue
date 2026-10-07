@@ -78,7 +78,17 @@
         <button type="button" @click="adjustXp" :disabled="busy || !xpAdjustment.reason.trim() || !xpAdjustment.delta" class="btn">Registrar ajuste de XP</button>
       </div>
     </details>
-    <fieldset :disabled="busy" class="min-w-0"><CampaignWorkflows :character="character" :prepare="prepare" :refresh="refresh" /></fieldset>
+    <details v-if="canCloseAdventure" class="bg-dark-card border border-steel-dark rounded-xl p-4">
+      <summary class="text-gold font-bold cursor-pointer">Ajuste excepcional de nível (mestre)</summary>
+      <div class="space-y-3 mt-3">
+        <p class="text-sm text-steel-light">Use para corrigir a ficha ou aplicar uma decisão da mesa. O ajuste preserva XP e ferimentos, recalcula a progressão e registra a justificativa no histórico.</p>
+        <label class="block text-sm">Novo nível<input v-model.number="levelAdjustment.level" type="number" min="1" :max="info.rules?.levels.length || 14" class="inp mt-1" /></label>
+        <label class="block text-sm">PV máximos após o ajuste<input v-model.number="levelAdjustment.hpMax" type="number" min="1" class="inp mt-1" /></label>
+        <label class="block text-sm">Justificativa do nível<textarea v-model="levelAdjustment.reason" rows="2" maxlength="1000" class="inp mt-1" /></label>
+        <button type="button" @click="adjustLevel" :disabled="busy || levelAdjustment.reason.trim().length<3" class="btn">Registrar ajuste de nível</button>
+      </div>
+    </details>
+    <fieldset :disabled="busy" class="min-w-0"><CampaignWorkflows :character="character" :rules="info.rules" :prepare="prepare" :refresh="refresh" /></fieldset>
     </fieldset>
   </div>
 </template>
@@ -104,6 +114,16 @@ const originChoice=ref(''),originPreview=ref<any>(null)
 const diceText=ref(''),advancePreview=ref<any>(null),advanceInput=ref<any>(null),choice=ref({name:'',category:'class'})
 const awardId=ref(''),treasureGp=ref(0),monsters=ref<any[]>([]),participants=ref<any[]>([]),xpPreview=ref<any>(null),xpInput=ref<any>(null)
 const xpAdjustment=ref({delta:0,reason:''})
+const levelAdjustment=ref({level:props.character.level,hpMax:props.character.hpMax,reason:''})
+watch(()=>[props.character.level,props.character.hpMax],()=>{if(!levelAdjustment.value.reason.trim())levelAdjustment.value={level:props.character.level,hpMax:props.character.hpMax,reason:''}})
+async function adjustLevel(){await run(async()=>{
+  await prepared()
+  const input={...levelAdjustment.value}
+  const result=await operations.run('level:adjust',version=>api.post(`${url()}/level-adjustment`,{...input,version}))
+  if(!result)throw operations.getLastError() || Error('O ajuste não foi confirmado. Confira a ficha antes de repetir.')
+  levelAdjustment.value={level:props.character.level,hpMax:props.character.hpMax,reason:''}
+  await complete('Ajuste de nível registrado no histórico.')
+})}
 let previewRevision=0
 function invalidatePreviews(){previewRevision++;advancePreview.value=xpPreview.value=originPreview.value=null}
 function checkPreview(revision:number){if(revision!==previewRevision)throw Error('Os dados mudaram durante a conferência. Confira novamente antes de confirmar.')}

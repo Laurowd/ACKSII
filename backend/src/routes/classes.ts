@@ -2,7 +2,8 @@ import { FastifyInstance } from 'fastify'
 import prisma from '../lib/prisma'
 import { authGuard } from '../middleware/auth'
 import { CLASS_CATALOG, canReadCampaign } from '../lib/classCatalog'
-import { readState } from '../lib/gameRules'
+import { readState, rulesFor } from '../lib/gameRules'
+import { proficiencyBonus } from '../lib/proficiencyBonus'
 import { legacyBaseName } from '../lib/legacyClasses'
 
 const integer = { type: 'integer', minimum: -30, maximum: 100 }
@@ -51,7 +52,10 @@ export async function customClassesRoutes(app: FastifyInstance) {
         const ids = legacy.get(name) || []
         ids.push(old.id); legacy.set(name, ids)
       }
-      else distinct.push({ ...old, ...readState(old.creationRules), source: 'campaign' })
+      else {
+        const construction=readState(old.creationRules),rules=rulesFor(old)
+        distinct.push({ ...old, ...construction, ...(rules?{rules,ruleProfile:{...construction.ruleProfile,proficiencyBonus:proficiencyBonus(rules)}}:{}), source: 'campaign' })
+      }
     }
     return [...CLASS_CATALOG.map(c => ({ ...c, legacyIds: legacy.get(c.name) || [] })), ...distinct]
   })

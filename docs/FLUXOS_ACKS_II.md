@@ -14,13 +14,17 @@ Perfis de classe fornecem iniciativa, bônus de dano e limite de cleaves, com in
 
 **Evolução & Regras → Avanço de nível** usa as progressões das 21 classes, XP mínimo, nova rolagem de todos os dados de vida, CON por dado, bônus fixo após nível 9 e ganho mínimo de 1 PV. Preserva ferimentos e ajustes de salvamentos. Exibe prévia e permite preencher escolhas pendentes.
 
+O nível na ficha é somente de leitura. **Ajuste excepcional de nível (mestre)** permite ao mestre responsável corrigir nível e PV máximos, com justificativa no histórico. Preserva XP e ferimentos; não substitui o avanço normal. Edição direta pela API também é recusada.
+
 Fontes: Revised Rulebook pp. 13–17, descrições de classes, pp. 102–104 e 311; dados em `backend/src/data/acksRules.json`.
 
 ## Magia
 
 **Magia → Conjuração e descanso** é o caminho principal: separa usos por tradição e nível, repertório de estudo e repertório religioso. As 396 combinações de magia/tradição/nível das pp. 186–189 estão em `spellAccess.json`, independentemente das descrições antigas do compêndio.
 
-**Magias do personagem** reúne as magias por nível, consulta do efeito na interrogação e botão **Conjurar**. O repertório é essa lista de magias disponíveis; os usos diários são compartilhados entre as magias de cada nível e tradição. A consulta funciona com mouse, teclado e toque, inclusive em fichas antigas ou classes sem controle automático. Descrições ausentes no catálogo são identificadas; falhas de carregamento permitem tentar novamente. **Editar repertório com validação** fica junto à lista.
+**Magias do personagem** reúne as magias por nível, consulta do efeito na interrogação e botão **Conjurar**. O repertório é essa lista de magias disponíveis; os usos diários são compartilhados entre as magias de cada nível e tradição. A consulta funciona com mouse, teclado e toque, inclusive em fichas antigas ou classes sem controle automático. Descrições ausentes no catálogo são identificadas; falhas de carregamento permitem tentar novamente. Jogadores usam **Aprender ou substituir uma magia por estudo** para novas magias arcanas/de estudo e **Conferir repertório religioso** para oração. **Ajustar repertório com validação (mestre)** exige justificativa para alterar magias de estudo; os editores manuais são exclusivos do mestre responsável e registrados no histórico.
+
+Ao registrar uma fórmula adquirida, a seta abre as opções do livro e as magias de campanha liberadas para a ficha; digitar filtra os nomes. A liberação de uma magia pelo mestre não dispensa a semana de estudo quando a classe usa esse aprendizado.
 
 **Conjurar** e **Registrar descanso** atualizam o servidor. Descanso exige novo dia de jogo e declaração de 8 horas de sono, intervalo de 24 horas e requisitos de estudo/oração. Não infere passagem de tempo real. A referência manual de usos fica em uma seção recolhida disponível ao mestre; não altera o saldo calculado.
 
@@ -52,6 +56,7 @@ O mestre fecha aventuras de suas campanhas e de suas próprias fichas avulsas. O
 
 - **Fechamento mensal:** calcula receitas, despesas, efeitos da moral, capacidade populacional, teste de moral e tesouro. Impede fechar o mesmo ano/mês duas vezes. O mestre informa moral base, crescimento/perdas já rolados, eventos, repressão e tributo. Prestígio, revoltas, mudanças de classificação, vassalos e inadimplência permanecem decisões da mesa. Avançar o calendário não fecha o domínio implicitamente.
 - **Pesquisa acompanhada:** parte da fila de Magia. Confere conjurador/oficina, elegibilidade declarada e restrições do efeito; soma assistentes e dedicação. Paga materiais no início, registra períodos únicos de trabalho, consome componentes do inventário e resolve o teste final. Fórmula com componentes adequados dispensa teste; 1–3 naturais falham quando ele é exigido. Trabalho paga a parcela de pesquisa, sem outro débito de moedas. Cancelar preserva histórico e não devolve materiais.
+- Assistentes diretos no fluxo normal exigem conjurador de estudo de nível pelo menos 5, limitado a um mais o bônus positivo de INT; cada assistente precisa de nível de conjurador pelo menos 1. A tela mostra o limite, e o servidor confere esses requisitos na prévia e no início. Exceções de Alchemy e poderes específicos usam o projeto manual conferido pelo mestre.
 - Projetos acompanhados avançam por registros de trabalho; o calendário não lhes concede dias adicionais. Projetos antigos/manuais mantêm o comportamento anterior. Múltiplos efeitos, experimentação, construções, criação de criaturas e rituais usam o fluxo manual.
 - **Identificação e cargas:** registra identificação feita em jogo, efeito, valor aparente/identificado e cargas. O gasto é atômico e não permite saldo negativo. Itens carregados precisam de entradas com uma unidade. Notas e dados mágicos são separados. Não rola identificação nem determina preços. Bônus de CA/iniciativa podem ser associados explicitamente ao item em **Origens dos bônus**, com ativação, identificação e carga pessoal conferidas; descrições livres e gastos de cargas não criam efeitos automaticamente.
 

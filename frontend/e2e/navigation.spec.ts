@@ -225,7 +225,7 @@ test('session overview shares derived values, filters the group and retains data
   const row = page.getByRole('row').filter({ has: page.getByRole('link', { name: 'Mage da sessão', exact: true }) })
   await expect(row).toBeVisible()
   await expect(row.locator('[data-label="CA"]')).toContainText('4')
-  await expect(row.locator('[data-label="CA"]')).toContainText('5 c/ escudo')
+  await expect(row.locator('[data-label="CA"]')).toContainText('4 c/ escudo')
   await expect(row.locator('[data-label="Movimento"]')).toContainText('30′')
   await expect(row.locator('[data-label="Magia restante / dia"]')).toContainText('Arcana 1: 1/2')
   await expect(page.getByText('Controle manual na ficha')).toBeVisible()

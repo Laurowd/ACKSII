@@ -440,7 +440,7 @@ export const CLASS_POWERS: Record<string, {name: string, description: string, mi
     },
     {
       "name": "Sense Evil",
-      "description": "The paladin can detect creatures with evil intentions, magic items with evil enchantments, sinkholes of evil, etc., within 30’."
+      "description": "O paladin detecta maldade a até 45 pés, com linha de visão. Detecta intenções malignas, encantamentos e focos de maldade, criaturas encantadas ou encarnações Chaotic e mortos-vivos; outras criaturas Chaotic exigem intenção maligna ativa contra ele. Vê um brilho vermelho mesmo se a fonte estiver oculta ou invisível, mas não através de paredes. Exige uma rodada de concentração para ativar; dura enquanto houver concentração, até uma rodada por nível. Pode ser usado uma vez por turno (10 minutos). Venenos, armadilhas físicas e animais naturais não são detectados. (Revised Rulebook p. 61.)"
     },
     {
       "name": "Holy Fervor (5th level)",

@@ -1,3 +1,4 @@
+import { setTestLevel } from './helpers/ruleFixtures'
 import { test, expect, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 async function relation(page: Page, headers: Record<string,string>, method: 'post'|'put', path: string, data: any) {
@@ -155,13 +156,13 @@ test('rule assistant spends a spell and restores it after an acknowledged rest',
 
 test('tracked research consumes components and creates its item through the UI',async({page})=>{
   const suffix=`research_${Date.now().toString(36)}`
-  const registration=await page.request.post('/api/auth/register',{data:{username:suffix,email:`${suffix}@test.invalid`,password:'browser-test-password'}})
+  const registration=await page.request.post('/api/auth/register',{data:{username:suffix,email:`${suffix}@test.invalid`,password:'browser-test-password',role:'MASTER'}})
   expect(registration.status()).toBe(201)
   const {token,user}=await registration.json(),headers={authorization:`Bearer ${token}`}
   const created=await page.request.post('/api/characters/guided',{headers,data:{characterName:suffix,classKey:'catalog:mage',str:10,int:16,dex:10,wil:10,con:10,cha:10,hpMax:4,coinGP:1000}})
   expect(created.status()).toBe(201)
   const c=(await created.json()).character
-  expect((await page.request.put(`/api/characters/${c.id}`,{headers,data:{version:c.version,level:5,workshopValue:4000}})).status()).toBe(200)
+  expect((await setTestLevel(page,headers,`/api/characters/${c.id}`, 5, {workshopValue:4000})).status()).toBe(200)
   const projectResponse=await relation(page,headers,'post',`/api/characters/${c.id}/magic-research`,{itemName:'Test scroll',effectType:'ONE_USE',spellLevel:1,hasFormula:true})
   expect(projectResponse.status()).toBe(201)
   const project=(await projectResponse.json()).research

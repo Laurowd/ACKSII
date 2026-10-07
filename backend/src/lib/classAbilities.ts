@@ -1,10 +1,12 @@
 // Pure book rules, also imported by the frontend. No database or environment dependencies.
 import book from '../data/acksRules.json'
 import { newProficiencyTarget, proficiencyRankCount } from './proficiencyRanks'
+import { classProficiencyPowers } from './classProficiencies'
+import { proficiencyBonus } from './proficiencyBonus'
 
 export type ClassChoiceOption = { key: string; label: string; minimumLevel?: number; attribute?: string; proficiency?: string; ranks?: number; skill?: string; power?: string }
 export type ClassChoiceDefinition = { id: string; label: string; minimumLevel: number; kind?: string; options: ClassChoiceOption[] }
-export type ClassAbilityRules = { className?: string; proficiencyOrigins?: { key: string; proficiencies: string[] }[]; classChoices?: ClassChoiceDefinition[]; abilityPowers?: {name:string;minimumLevel?:number}[] }
+export type ClassAbilityRules = { className?: string; race?: string; racialValue?: number; proficiencyBonus?: number; proficiencyOrigins?: { key: string; proficiencies: string[] }[]; classChoices?: ClassChoiceDefinition[]; abilityPowers?: {name:string;minimumLevel?:number}[] }
 export type ClassGrant = { name: string; category: 'natural'; throwTarget: number; ranks: number; source: string; conditional?: boolean; permitsExtraRank?:boolean }
 export type ClassSelections = Record<string, string>
 export const nameKey = (value: string) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -69,7 +71,7 @@ export function relevantChoices(rules: ClassAbilityRules, character: any, level 
 }
 function paidRanks(character: any, name: string) { return (character.proficiencies || []).filter((p: any) => p.category !== 'natural' && nameKey(p.name) === nameKey(name)).length }
 export function choiceOptions(definition: ClassChoiceDefinition, character: any, level = character.level || 1) {
-  const choices = selectionsFor(character)
+  const choices = selectionsFor(character, definition.kind === 'witch-arts' ? { classChoices: classChoiceDefinitions('Witch') } : undefined)
   let allowed = definition.options.filter(value => (value.minimumLevel || 1) <= level)
   if (definition.kind === 'witch-arts') {
     const names = choices.tradition === 'Antiquarian' ? paidRanks(character, 'Healing') >= 3 ? ['Alchemy','Naturalism'] : ['Healing']
@@ -122,14 +124,14 @@ export function classGrants(rules: ClassAbilityRules, character: any, level = ch
   const origin = character.proficiencyOrigin || state.proficiencyOrigin
   for (const name of rules.proficiencyOrigins?.find(value => value.key === origin)?.proficiencies || []) grants.push({ name, category: 'natural', throwTarget: name === 'Climbing' ? 7 - level : 11, ranks: 1, source: 'Origem' })
   for (const definition of relevantChoices(rules, character, level)) {
-    const options = choiceOptions(definition, character, level), value = choices[definition.id] || (definition.kind === 'witch-arts' && options.length === 1 ? options[0]!.key : '')
+    const options = choiceOptions(definition, { ...character, classChoices: choices }, level), value = choices[definition.id] || (definition.kind === 'witch-arts' && options.length === 1 ? options[0]!.key : '')
     const chosen = options.find(entry => entry.key === value)
     const proficiency = definition.kind === 'craft' && /^Craft \([^()\r\n]{2,80}\)$/.test(value) ? value : chosen?.proficiency
-    if (proficiency) grants.push({ name: proficiency, category: 'natural', throwTarget: definition.kind === 'craft' ? 2 : newProficiencyTarget(proficiency,definition.kind==='witch-arts'?proficiencyRankCount(proficiency,character.proficiencies || [])+1:1,level,rules.className==='Dwarven Craftpriest'?3:0), ranks: definition.kind === 'craft' ? 3 : chosen?.ranks || 1, source: definition.label, ...(definition.id === 'totem' ? { conditional: true } : {}), ...(definition.kind==='witch-arts' && choices.tradition==='Sylvan' && proficiency==='Naturalism' ? {permitsExtraRank:true} : {}) })
+    if (proficiency) grants.push({ name: proficiency, category: 'natural', throwTarget: definition.kind === 'craft' ? 2 : newProficiencyTarget(proficiency,proficiencyRankCount(proficiency,character.proficiencies || [],[...grants,...classProficiencyPowers(rules,level)])+(chosen?.ranks || 1),level,proficiencyBonus(rules)), ranks: definition.kind === 'craft' ? 3 : chosen?.ranks || 1, source: definition.label, ...(definition.id === 'totem' ? { conditional: true } : {}), ...(definition.kind==='witch-arts' && choices.tradition==='Sylvan' && proficiency==='Naturalism' ? {permitsExtraRank:true} : {}) })
   }
   if(rules.className==='Warlock' && level>=3) {
     const name=choices['dark-path']==='Demonology'?'Theology':choices['dark-path']==='Necromancy'?'Healing':choices['dark-path']==='Transmogrification'?'Alchemy':''
-    if(name)grants.push({name,category:'natural',ranks:1,throwTarget:newProficiencyTarget(name,proficiencyRankCount(name,character.proficiencies || [])+1,level),source:`Dark Path · ${choices['dark-path']} · nível 3`})
+    if(name)grants.push({name,category:'natural',ranks:1,throwTarget:newProficiencyTarget(name,proficiencyRankCount(name,character.proficiencies || [],[...grants,...classProficiencyPowers(rules,level)])+1,level,proficiencyBonus(rules)),source:`Dark Path · ${choices['dark-path']} · nível 3`})
   }
   for(const grant of Array.isArray(state.retainedClassGrants)?state.retainedClassGrants:[]) if(grant && typeof grant.name==='string' && Number.isInteger(grant.ranks) && grant.ranks>0 && grant.ranks<=10) grants.push({name:grant.name,category:'natural',ranks:grant.ranks,throwTarget:Number.isFinite(Number(grant.throwTarget))?Number(grant.throwTarget):11,permitsExtraRank:true,source:`Exceção do mestre · ${grant.fromClass || 'classe anterior'}`})
   return grants
@@ -145,7 +147,7 @@ export function abilityProficiencies(character: any, profile: any = {}) {
   const conditional = new Set(grants.filter(g => g.conditional).map(g => nameKey(g.name)))
   const configured=Boolean(profile.className || profile.classChoices || profile.proficiencyOrigins?.length)
   const valid = profs.filter(prof => prof.category !== 'natural' || ((!configured || grants.some(grant=>nameKey(grant.name)===nameKey(prof.name))) && (!conditional.has(nameKey(prof.name)) || activeTotem(character))))
-  const combined = [...valid, ...(profile.abilityPowers || profile.powers || []).filter((power:any) => (power.minimumLevel || 1) <= (character.level || 1))]
+  const combined = [...valid, ...classProficiencyPowers(profile, character.level || 1)]
   for (const grant of grants.filter(g => !g.conditional || activeTotem(character))) {
     if (!valid.some(p => p.category === 'natural' && nameKey(p.name) === nameKey(grant.name))) combined.push(grant)
   }
@@ -154,7 +156,7 @@ export function abilityProficiencies(character: any, profile: any = {}) {
 export function chosenClassPowers(rules: ClassAbilityRules, character: any) {
   const choices = selectionsFor(character,rules)
   return relevantChoices(rules, character).flatMap(definition => {
-    const selected = choiceOptions(definition, character).find(option => option.key === choices[definition.id])
+    const selected = choiceOptions(definition, { ...character, classChoices: choices }).find(option => option.key === choices[definition.id])
     if (selected?.skill) return [{ name: selected.skill, skill: selected.skill, minimumLevel: 1, description: `${selected.skill}: habilidade concedida por ${definition.label}; usa a progressão da habilidade de ladrão.` }]
     if (selected?.power === 'judge') return abilityState(character).classChoiceApprovals?.[definition.id] === approvedChoiceSignature(choices, definition.id) ? [{ name: choices[`${definition.id}-name`]!, minimumLevel: Number(choices[`${definition.id}-level`]), description: choices[`${definition.id}-description`]! }] : []
     if (selected?.power) return [{ name: selected.power, minimumLevel: selected.minimumLevel || 1, description: `Poder de Venturer concedido por ${definition.label}.` }]

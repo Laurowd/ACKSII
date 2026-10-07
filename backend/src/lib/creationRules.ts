@@ -1,3 +1,4 @@
+import { adventuringBonus } from './proficiencyBonus'
 export const ATTRIBUTE_KEYS = ['str', 'int', 'dex', 'wil', 'con', 'cha'] as const
 export type AttributeKey = typeof ATTRIBUTE_KEYS[number]
 export type ProficiencyOrigin = { key: string; label: string; proficiencies: string[] }
@@ -33,11 +34,11 @@ export function creationRules(name: string) {
   return { keyAttributes, minimumAttributes, spellcaster, proficiencyOrigins: name === 'Barbarian' ? BARBARIAN_ORIGINS : [] }
 }
 
-export function initialAdventuring(str: number, className = '', profile?: {perceptive?:boolean;race?:string;proficiencyBonus?:number}) {
+export function initialAdventuring(str: number, className = '', profile?: {perceptive?:boolean;race?:string;racialValue?:number;proficiencyBonus?:number}) {
   const perceptive = profile?.perceptive ?? (className === 'Explorer' || /^(Dwarven|Elven) /.test(className))
   return [
     { name: 'Dungeonbashing', throwTarget: 18 - 4 * abilityModifier(str) + (profile?.race==='halfling'?4:0) },
     { name: 'Climbing', throwTarget: 8 }, { name: 'Searching', throwTarget: perceptive ? 14 : 18 },
     { name: 'Trapbreaking', throwTarget: 18 }, { name: 'Listening', throwTarget: perceptive ? 14 : 18 },
-  ].map(p => ({ ...p, throwTarget: p.throwTarget - (profile?.proficiencyBonus ?? (className === 'Dwarven Craftpriest' ? 3 : 0)), category: 'adventuring' }))
+  ].map(p => ({ ...p, throwTarget: p.throwTarget - adventuringBonus(p.name,{className,...profile}), category: 'adventuring' }))
 }

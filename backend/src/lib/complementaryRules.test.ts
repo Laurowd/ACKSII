@@ -64,8 +64,8 @@ describe('complementary audit regressions',()=>{
   })
   it('does not activate orphaned natural powers until the master approves their retention',()=>{
     const character={...hero,rulesState:JSON.stringify({proficiencyOrigin:'ivory-kingdoms'}),proficiencies:[{id:'run',name:'Running',category:'natural',throwTarget:11}]}
-    expect(abilityProficiencies(character,RULE_CLASSES.Fighter!)).toEqual([])
-    expect(abilityProficiencies({...character,rulesState:JSON.stringify({retainedClassGrants:[{name:'Running',ranks:1,throwTarget:11,fromClass:'Barbarian'}]})},RULE_CLASSES.Fighter!).map(row=>row.name)).toEqual(['Running'])
+    expect(abilityProficiencies(character,RULE_CLASSES.Fighter!).map(row=>row.name)).toEqual(['Manual of Arms'])
+    expect(abilityProficiencies({...character,rulesState:JSON.stringify({retainedClassGrants:[{name:'Running',ranks:1,throwTarget:11,fromClass:'Barbarian'}]})},RULE_CLASSES.Fighter!).map(row=>row.name)).toEqual(['Running','Manual of Arms'])
   })
   it('reviews a class switch, preserving balances and paid rows while removing old choices',()=>{
     const before=CLASS_CATALOG.find(row=>row.name==='Barbarian')!,after=CLASS_CATALOG.find(row=>row.name==='Fighter')!
@@ -89,7 +89,7 @@ describe('complementary audit regressions',()=>{
     const before=CLASS_CATALOG.find(row=>row.name==='Dwarven Craftpriest')!,after=CLASS_CATALOG.find(row=>row.name==='Fighter')!
     const oldBase={...hero,classKey:before.id,className:before.name,rulesState:JSON.stringify({adventuringProficiencyBonus:3,classChoices:{craft:'Craft (brewing)'}}),proficiencies:[{id:'listen',name:'Listening',category:'adventuring',throwTarget:13},{id:'climb',name:'Climbing',category:'adventuring',throwTarget:5},{id:'paid',name:'Caving',category:'general',throwTarget:9}]}
     const plan=classRevisionPlan(oldBase,before,after,{keepNaturalIds:[],choices:{}},false)
-    expect(plan.targets.find(row=>row.id==='listen')?.throwTarget).toBe(20)
+    expect(plan.targets.find(row=>row.id==='listen')?.throwTarget).toBe(17)
     expect(plan.targets.find(row=>row.id==='climb')?.throwTarget).toBe(8)
     expect(plan.targets.find(row=>row.id==='paid')?.throwTarget).toBe(12)
     expect(plan.state.adventuringProficiencyBonus).toBe(0)

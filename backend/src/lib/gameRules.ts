@@ -3,6 +3,7 @@ import spellList from '../data/spellAccess.json'
 import { abilityModifier, creationRules, BARBARIAN_ORIGINS, type ProficiencyOrigin } from './creationRules'
 import { classChoiceDefinitions, classGrants, abilityProficiencies, type ClassAbilityRules } from './classAbilities'
 import { proficiencyRankIssues } from './proficiencyRanks'
+import { classProficiencyPowers } from './classProficiencies'
 import { restrictedRepertoire, restrictedRepertoireIssues } from './warlockPaths'
 
 export type ClassRules = ClassAbilityRules & { page: number; proficiencies: string[]; proficiencyPeriod: number; magic: string; bonusGeneral?:number; proficiencyOrigins?: ProficiencyOrigin[]; divineSpellList?:{name:string;level:number;tradition:string}[];
@@ -17,7 +18,8 @@ export function readState(value: string | undefined) { try { return JSON.parse(v
 export function rulesFor(klass: any): ClassRules | undefined {
   if (klass?.id?.startsWith('catalog:')) return RULE_CLASSES[klass.name]
   const construction = readState(klass?.creationRules)
-  return construction.rules ? {...construction.rules, ...(construction.ruleProfile?.powers ? {abilityPowers:construction.ruleProfile.powers} : {})} : undefined
+  const profile=construction.ruleProfile || {}, build=construction.build || {}
+  return construction.rules ? {...construction.rules, race:profile.race ?? build.race, racialValue:profile.racialValue ?? build.racial, proficiencyBonus:profile.proficiencyBonus, ...(profile.powers ? {abilityPowers:profile.powers} : {})} : undefined
 }
 export function proficiencyBudget(rules: ClassRules, level: number, intellect: number) {
   return { class: 1 + Math.floor(level / rules.proficiencyPeriod), general: 1 + (rules.bonusGeneral||0) + Math.max(0, abilityModifier(intellect)) + [5,9,13].filter(n => n <= level).length }
@@ -48,7 +50,7 @@ export function proficiencyIssues(rules: ClassRules, character: any, choices: { 
     }
   }
   // Repeated ranks and specializations require the specific proficiency's permission.
-  issues.push(...proficiencyRankIssues(choices,grants,(rules.abilityPowers || []).filter(power => (power.minimumLevel || 1) <= level)))
+  issues.push(...proficiencyRankIssues(choices,grants,classProficiencyPowers(rules,level)))
   return issues
 }
 

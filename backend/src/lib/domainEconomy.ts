@@ -6,9 +6,10 @@ export function domainEconomy(d: Record<string, any>) {
   const services = families * Number(d.servicePerFamily ?? 4)
   const taxes = families * Number(d.taxPerFamily ?? 2)
   const gross = land + services + taxes
+  const incomeFactor = domainIncomeFactor(d.peasantMorale), revenue = gross * incomeFactor
   const expenses = ['garrisonCost', 'civilExpenses', 'constructionCosts', 'mercenaryPayroll',
     'specialistPayroll', 'maintenanceCost', 'liturgiesCost', 'titheCost'].reduce((sum, k) => sum + Number(d[k] ?? 0), 0)
-  return { land, services, taxes, gross, expenses, balance: gross + Number(d.eventModifier ?? 0) - expenses }
+  return { land, services, taxes, gross, incomeFactor, revenue, expenses, balance: revenue + Number(d.eventModifier ?? 0) - expenses }
 }
 
 export function domainIncomeFactor(morale: number) {

@@ -111,7 +111,7 @@ describe('campaign settlement',()=>{
   const plan={casterLevel:5,tradition:'arcane',rateBonusPercent:0,dedication:'dedicated',assistants:[],duration:'instant',affectsUser:false,esoteric:false,healing:false,eligible:true,itemKind:'other'}
   it('prices research, sums assistants and accounts for ancillary dedication',()=>{
     expect(researchPlan(project,{...character,level:5,workshopValue:4000},plan)).toMatchObject({materialsPaidGp:500,daysRequired:10})
-    expect(researchPlan(project,{...character,level:5,workshopValue:4000},{...plan,assistants:[{casterLevel:5,rateBonusPercent:0,dedication:'dedicated'}]}).daysRequired).toBe(5)
+    expect(researchPlan(project,{...character,level:5,workshopValue:4000},{...plan,assistants:[{casterLevel:5,rateBonusPercent:0,dedication:'dedicated'}]},RULE_CLASSES.Mage).daysRequired).toBe(5)
     expect(researchPlan(project,{...character,level:5,workshopValue:4000},{...plan,dedication:'ancillary'}).daysRequired).toBe(80)
     expect(()=>researchPlan(project,{...character,level:5,workshopValue:4000},{...plan,healing:true})).toThrow('cura')
   })

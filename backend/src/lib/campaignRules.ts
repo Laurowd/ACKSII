@@ -1,6 +1,8 @@
-import { domainEconomy, domainIncomeFactor } from './domainEconomy'
+import { domainEconomy } from './domainEconomy'
 import { itemResearchRate, calculateItemResearch } from './magicResearch'
 import { abilityModifier } from './creationRules'
+import { RULE_CLASSES, type ClassRules } from './gameRules'
+import { validateResearchAssistants } from './researchAssistance'
 
 export function settleDomainMonth(d:any,input:any) {
   const families=d.peasantFamilies
@@ -22,8 +24,7 @@ export function settleDomainMonth(d:any,input:any) {
   const capacity=({outlands:185,borderlands:375,civilized:780} as any)[input.classification]*input.hexes
   const naturalGrowth=current===-4?0:input.growth
   const population=Math.max(0,Math.min(capacity,families+naturalGrowth-input.losses+input.eventFamilies))
-  const factor=domainIncomeFactor(current)
-  const economy=domainEconomy(d),revenue=economy.gross*factor
+  const economy=domainEconomy({...d,peasantMorale:current}),factor=economy.incomeFactor,revenue=economy.revenue
   const balance=revenue+Number(d.eventModifier||0)-economy.expenses-input.tributeGp
   const treasury=Number(d.treasury)+balance
   if(treasury<0)throw new Error('O tesouro não cobre as despesas. Registre os pagamentos efetivos e as consequências dos atrasos antes de fechar o mês.')
@@ -32,14 +33,14 @@ export function settleDomainMonth(d:any,input:any) {
     overflow:Math.max(0,families+naturalGrowth-input.losses+input.eventFamilies-capacity)}
 }
 
-export function researchPlan(project:any,character:any,input:any) {
+export function researchPlan(project:any,character:any,input:any,rules:ClassRules|undefined=RULE_CLASSES[character.className]) {
   if(project.effectType==='MANUAL')throw new Error('Escolha um efeito calculado no projeto antes de iniciar o acompanhamento.')
   if(project.status!=='QUEUED')throw new Error('O projeto precisa estar na fila, sem trabalho iniciado.')
   if(project.effectType==='AT_WILL'&&input.duration!=='concentration')throw new Error('Efeito à vontade exige duração de concentração.')
   if(project.effectType.startsWith('PERMANENT')&&(!input.affectsUser||input.duration==='instant'||input.duration==='concentration'||input.duration==='round'))throw new Error('Efeito permanente exige duração de ao menos um turno e deve afetar o usuário.')
   const durations:Record<string,string>={PERMANENT_DAY:'day',PERMANENT_HOUR:'hour',PERMANENT_THREE_TURNS:'turn',PERMANENT_TURN:'turn',PERMANENT_CASTER_LEVEL:'turn'}
   if(durations[project.effectType]&&durations[project.effectType]!==input.duration)throw new Error('A duração informada não corresponde ao multiplicador permanente do projeto.')
-  if(input.esoteric&&project.effectType!=='ONE_USE')throw new Error('Itens ativados/permanentes com magia esotérica exigem experimentação, fora deste fluxo normal.')
+  if(input.esoteric&&!['ONE_USE','CHARGED'].includes(project.effectType))throw new Error('Itens ativados/permanentes com magia esotérica exigem experimentação, fora deste fluxo normal.')
   if(input.tradition==='arcane'&&input.healing)throw new Error('Conjuradores arcanos não criam itens com efeitos de cura.')
   if(!input.eligible)throw new Error('Confira a elegibilidade da classe para usar/criar o item.')
   if(project.effectType==='CHARGED'){
@@ -47,6 +48,7 @@ export function researchPlan(project:any,character:any,input:any) {
     const bound=limits[input.itemKind]
     if(bound&&(project.effectCount<bound[0]!||project.effectCount>bound[1]!))throw new Error(`Cargas de ${input.itemKind}: ${bound[0]} a ${bound[1]}.`)
   }
+  validateResearchAssistants(rules,character,input)
   const rate=itemResearchRate(input.casterLevel)*(1+input.rateBonusPercent/100)*(input.dedication==='ancillary'?1/8:1)
     +input.assistants.reduce((sum:number,a:any)=>sum+itemResearchRate(a.casterLevel)*(1+a.rateBonusPercent/100)*(a.dedication==='ancillary'?1/8:1),0)
   const costs=calculateItemResearch({...project,researchRateGp:rate})

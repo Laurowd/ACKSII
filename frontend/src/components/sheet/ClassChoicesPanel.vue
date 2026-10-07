@@ -10,7 +10,9 @@
       <p v-if="!totem.alive" class="text-gold">Se o totem morreu, faça o salvamento de Death: em caso de falha, registre dano igual aos PV máximos do animal. Ele não pode ser ressuscitado; um novo do mesmo tipo aparece ao ganhar um nível.</p>
     </div>
     <template v-if="canManage">
-      <label v-if="info.rules.className === 'Dwarven Craftpriest'" class="block text-sm"><input v-model="reconcile" type="checkbox" /> Conferir também o bônus de +3 nos alvos antigos de Adventuring, preservando seus ajustes</label>
+      <label v-if="info.rules.className === 'Dwarven Craftpriest' || info.rules.race === 'dwarf'" class="block text-sm"><input v-model="reconcile" type="checkbox" /> Conferir o bônus racial nos alvos antigos de Adventuring, preservando seus ajustes e as exceções de Searching/Listening</label>
+      <label class="block text-sm"><input v-model="reconcilePaid" type="checkbox" /> Corrigir concessões antigas cadastradas como escolhas pagas</label>
+      <p v-if="reconcilePaid" class="text-xs text-steel-light">Use apenas para erro de cadastro anterior. Uma graduação paga legítima deve permanecer paga ao receber uma nova gratuita.</p>
       <label class="block text-sm">Justificativa da revisão<textarea v-model="reason" rows="2" maxlength="1000" class="inp mt-1" placeholder="Obrigatória ao trocar uma escolha já registrada" /></label>
     </template>
     <p v-if="error" role="alert" class="text-sm text-red-400">{{ error }}</p>
@@ -39,20 +41,21 @@ const props = defineProps<{ character: any; info: any; canManage?: boolean; prep
 const emit = defineEmits<{ changed: [] }>()
 const operations = useCharacterOperations()
 const initial = ref<ClassSelections>({}), choices = ref<ClassSelections>({}), totem = ref({alive:true,nearby:true}), reconcile = ref(false), reason = ref('')
+const reconcilePaid=ref(false)
 const busy = ref(false), reviewed = ref(false), preview = ref<any>(null), payload = ref<any>(null), error = ref(''), notice = ref('')
-const draftStore = createLocalDraft<{choices:ClassSelections;totem:{alive:boolean;nearby:boolean};reason:string;reconcile:boolean}>(useAuthStore().user?.id || '', `class-choices:${props.character.id}:${props.character.classKey}`)
+const draftStore = createLocalDraft<{choices:ClassSelections;totem:{alive:boolean;nearby:boolean};reason:string;reconcile:boolean;reconcilePaid?:boolean}>(useAuthStore().user?.id || '', `class-choices:${props.character.id}:${props.character.classKey}`)
 let draftRevision = 0, restored = false, resetting = false, baseline = ''
-const snapshot = () => JSON.stringify([choices.value,totem.value,reconcile.value,reason.value])
-function reset() { resetting=true; initial.value = {...selectionsFor(props.character,props.info.rules)}; choices.value = {...initial.value}; const status = abilityState(props.character).totemStatus; totem.value = {alive: status?.alive ?? true, nearby: status?.nearby ?? true}; reconcile.value = false; reason.value = ''; baseline=snapshot(); resetting=false }
+const snapshot = () => JSON.stringify([choices.value,totem.value,reconcile.value,reconcilePaid.value,reason.value])
+function reset() { resetting=true; initial.value = {...selectionsFor(props.character,props.info.rules)}; choices.value = {...initial.value}; const status = abilityState(props.character).totemStatus; totem.value = {alive: status?.alive ?? true, nearby: status?.nearby ?? true}; reconcile.value = false; reconcilePaid.value=false; reason.value = ''; baseline=snapshot(); resetting=false }
 watch(() => JSON.stringify([props.info.classChoices,props.info.totemStatus]), () => {
   if (busy.value) return
   if (restored && snapshot() !== baseline) { preview.value = null; error.value = 'A ficha foi atualizada. Suas escolhas locais foram preservadas; confira novamente antes de confirmar.'; return }
   const saved = draftStore.read()?.data
   reset()
-  if (saved?.choices && typeof saved.choices === 'object' && !Array.isArray(saved.choices)) { choices.value={...saved.choices}; if (typeof saved.totem?.alive==='boolean' && typeof saved.totem?.nearby==='boolean') totem.value={...saved.totem}; reason.value=typeof saved.reason==='string'?saved.reason:''; reconcile.value=saved.reconcile===true; notice.value='Rascunho de concessões recuperado. Confira a prévia antes de registrar.' }
+  if (saved?.choices && typeof saved.choices === 'object' && !Array.isArray(saved.choices)) { choices.value={...saved.choices}; if (typeof saved.totem?.alive==='boolean' && typeof saved.totem?.nearby==='boolean') totem.value={...saved.totem}; reason.value=typeof saved.reason==='string'?saved.reason:''; reconcile.value=saved.reconcile===true; reconcilePaid.value=saved.reconcilePaid===true; notice.value='Rascunho de concessões recuperado. Confira a prévia antes de registrar.' }
   restored = true
 }, {immediate:true})
-watch([choices,totem,reconcile,reason], () => { draftRevision++; preview.value = null; if(restored && !resetting) { if(snapshot() !== baseline) draftStore.write({choices:{...choices.value},totem:{...totem.value},reason:reason.value,reconcile:reconcile.value}); else draftStore.remove() } }, {deep:true,flush:'sync'})
+watch([choices,totem,reconcile,reconcilePaid,reason], () => { draftRevision++; preview.value = null; if(restored && !resetting) { if(snapshot() !== baseline) draftStore.write({choices:{...choices.value},totem:{...totem.value},reason:reason.value,reconcile:reconcile.value,reconcilePaid:reconcilePaid.value}); else draftStore.remove() } }, {deep:true,flush:'sync'})
 watch(() => props.character.version, () => { preview.value = null }, {flush:'sync'})
 const names = (rows: any[] = []) => rows.map(row => row.name).join(', ') || 'nenhuma'
 const url = () => `/api/game-rules/characters/${props.character.id}/class-choices`
@@ -62,7 +65,7 @@ async function review() {
   try {
     if (!await props.prepare() || !await operations.retryPending()) throw Error('Salve ou resolva as alterações pendentes antes de conferir as concessões.')
     const current = (await api.get(`/api/game-rules/characters/${props.character.id}`)).data
-    payload.value = {version:current.version,choices:{...choices.value},reason:reason.value,...(reconcile.value?{reconcileAdventuring:true}:{}),...(props.info.rules.className === 'Shaman' && choices.value.totem ? {totemStatus:{...totem.value}} : {})}
+    payload.value = {version:current.version,choices:{...choices.value},reason:reason.value,reconcilePaidGrants:reconcilePaid.value,...(reconcile.value?{reconcileAdventuring:true}:{}),...(props.info.rules.className === 'Shaman' && choices.value.totem ? {totemStatus:{...totem.value}} : {})}
     const revision = draftRevision
     const response = (await api.post(`${url()}/preview`,payload.value)).data
     if (props.character.version !== payload.value.version || draftRevision !== revision) throw Error('A ficha ou as escolhas mudaram durante a conferência. Confira novamente.')

@@ -32,7 +32,8 @@ test('a formula enters the grimoire before a week of study puts it into the repe
   await page.getByRole('button', { name: 'Magia', exact: true }).click()
   await page.getByText('Aprender ou substituir uma magia por estudo', { exact: true }).click()
   await page.getByText('Registrar fórmula adquirida', { exact: true }).click()
-  await page.getByLabel('Fórmula encontrada', { exact: true }).selectOption(key)
+  await page.getByLabel('Fórmula encontrada', { exact: true }).fill(spell.name)
+  await page.getByRole('listbox',{name:'Opções de Fórmula encontrada',exact:true}).getByText(spell.name,{exact:true}).click()
   await page.getByLabel('Origem da fórmula', { exact: true }).fill('Grimório das ruínas')
   await page.getByLabel('A fórmula já foi adquirida, é legível e está disponível para estudo.', { exact: true }).check()
   await page.getByRole('button', { name: 'Adicionar fórmula ao grimório', exact: true }).click()
@@ -75,7 +76,7 @@ test('combat origins persist once and exports match the live total', async ({ pa
 test('session view heals up to maximum HP and keeps favorite spells after reload', async ({ page }, testInfo) => {
   const { character, headers } = await fixture(page)
   const meta = await (await page.request.get('/api/game-rules/metadata', { headers })).json(), spell = meta.spells.find((s: any) => s.level === 1 && s.tradition === 'arcane')
-  expect((await page.request.post(`/api/game-rules/characters/${character.id}/magic/repertoire`, { headers, data: { version: character.version, spells: [spell] } })).status()).toBe(200)
+  expect((await page.request.post(`/api/game-rules/characters/${character.id}/magic/repertoire`, { headers, data: { version: character.version, reason: 'Prepare favorite-spell fixture', spells: [spell] } })).status()).toBe(200)
   await page.reload(); await page.getByRole('button', { name: 'Sessão', exact: true }).click()
   await page.getByRole('button', { name: 'Registrar dano', exact: true }).click(); await expect(page.getByText('3 / 4 PV', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toBeEnabled()

@@ -1,3 +1,4 @@
+import { approveStudyCorrection } from './helpers/ruleFixtures'
 import { test, expect, type Page } from '@playwright/test'
 
 let account: { token: string; user: any }
@@ -224,18 +225,18 @@ test('validated repertoire keeps draft on disclosure reopen and rejects invalid 
   const { character } = await response.json()
   await page.goto(`/character/${character.id}`)
   await page.getByRole('button', { name: 'Magia', exact: true }).click()
-  const summary = page.getByText('Editar repertório com validação', { exact: true })
+  const summary = page.getByText('Ajustar repertório com validação (mestre)', { exact: true })
   await summary.click()
   await page.getByLabel('Nome da magia 1', { exact: true }).fill('Not a catalog spell')
   await summary.click(); await summary.click()
   await expect(page.getByLabel('Nome da magia 1', { exact: true })).toHaveValue('Not a catalog spell')
   let posts = 0; page.on('request', r => { if (r.url().endsWith('/magic/repertoire')) posts++ })
-  await page.getByRole('button', { name: 'Salvar repertório', exact: true }).click()
+  await approveStudyCorrection(page); await page.getByRole('button', { name: 'Salvar repertório', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('modo manual')
   expect(posts).toBe(0)
   expect(await page.getByLabel('Nível da magia 1', { exact: true }).locator('option').allTextContents()).toEqual(['1'])
   await page.getByLabel('Nome da magia 1', { exact: true }).fill('Arcane Armor')
-  await page.getByRole('button', { name: 'Salvar repertório', exact: true }).click()
+  await approveStudyCorrection(page); await page.getByRole('button', { name: 'Salvar repertório', exact: true }).click()
   await expect(page.getByRole('status')).toContainText('Repertório registrado')
   const stored = (await (await page.request.get(`/api/characters/${character.id}`, { headers })).json()).character
   expect(stored.spells[0].name).toBe('Arcane Armor')

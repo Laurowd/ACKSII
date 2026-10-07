@@ -1,3 +1,4 @@
+import { setTestLevel } from './helpers/ruleFixtures'
 import {test,expect,type Page} from '@playwright/test'
 import {RAW_DEFAULT_CLASSES} from '../../backend/src/utils/seedClasses'
 let account:any
@@ -69,7 +70,7 @@ test('creates a class from the catalog and shows current and future powers with 
   await expect(page.getByRole('tooltip')).toContainText('Percebe intrusos')
   expect(await page.locator('body').evaluate(el=>el.scrollWidth<=window.innerWidth)).toBe(true)
   const current=(await(await page.request.get(`/api/characters/${character.id}`,{headers})).json()).character
-  expect((await page.request.put(`/api/characters/${character.id}`,{headers,data:{version:current.version,level:4}})).status()).toBe(200)
+  expect((await setTestLevel(page,headers,`/api/characters/${character.id}`, 4, {})).status()).toBe(200)
   await page.reload()
   const active=page.locator('div').filter({has:page.getByRole('heading',{name:'Poderes da Classe',exact:true})}).last()
   await expect(active.getByRole('button',{name:'Ajuda: Vigília',exact:true})).toBeVisible()

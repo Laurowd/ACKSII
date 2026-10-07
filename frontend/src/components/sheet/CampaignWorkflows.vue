@@ -38,11 +38,13 @@
           <label>Duração do efeito<select v-model="plan.duration" class="inp"><option value="instant">Instantânea</option><option value="round">Rodadas</option><option value="turn">Turnos</option><option value="hour">Horas</option><option value="day">Dias</option><option value="concentration">Concentração</option></select></label>
           <label>Tipo de item<select v-model="plan.itemKind" class="inp"><option value="other">Outro</option><option value="wand">Wand</option><option value="rod">Rod</option><option value="staff">Staff</option></select></label>
         </div>
-        <div v-for="(a,i) in plan.assistants" :key="i" class="flex flex-wrap gap-2"><input v-model="a.name" placeholder="Assistente" class="inp"/><label>Nível<input v-model.number="a.casterLevel" type="number" min="0" max="14" class="inp w-20"/></label><label>Bônus %<input v-model.number="a.rateBonusPercent" type="number" min="0" max="100" class="inp w-20"/></label><select v-model="a.dedication" class="inp"><option value="dedicated">Integral</option><option value="ancillary">Secundária</option></select><button @click="plan.assistants.splice(i,1)">Remover</button></div>
-        <button @click="plan.assistants.push({name:'',casterLevel:0,rateBonusPercent:0,dedication:'dedicated'})" class="text-gold">+ Assistente</button>
+        <p class="text-sm text-steel-light">{{ assistantAllowance.limit ? `Assistentes diretos: ${plan.assistants.length} / ${assistantAllowance.limit}. Cada assistente precisa ter pelo menos nível de conjurador 1.` : assistantAllowance.reason }}</p>
+        <div v-for="(a,i) in plan.assistants" :key="i" class="flex flex-wrap gap-2"><input v-model="a.name" placeholder="Assistente" class="inp"/><label>Nível<input v-model.number="a.casterLevel" type="number" min="1" max="14" class="inp w-20"/></label><label>Bônus %<input v-model.number="a.rateBonusPercent" type="number" min="0" max="100" class="inp w-20"/></label><select v-model="a.dedication" class="inp"><option value="dedicated">Integral</option><option value="ancillary">Secundária</option></select><button @click="plan.assistants.splice(i,1)">Remover</button></div>
+        <button @click="plan.assistants.push({name:'',casterLevel:1,rateBonusPercent:0,dedication:'dedicated'})" :disabled="busy || plan.assistants.length >= assistantAllowance.limit" class="text-gold disabled:opacity-40">+ Assistente</button>
         <label class="block"><input v-model="plan.affectsUser" type="checkbox"/> Efeito atinge somente o usuário</label><label class="block"><input v-model="plan.esoteric" type="checkbox"/> Magia esotérica</label><label class="block"><input v-model="plan.healing" type="checkbox"/> Efeito de cura</label>
         <label class="block"><input v-model="plan.eligible" type="checkbox"/> Mestre conferiu elegibilidade, efeito, assistência e condições de trabalho</label>
-        <button @click="previewResearch" :disabled="busy || !plan.eligible" class="btn">Conferir início da pesquisa</button>
+        <p v-if="assistantError" role="alert" class="text-sm text-red-400">{{ assistantError }}</p>
+        <button @click="previewResearch" :disabled="busy || !plan.eligible || !!assistantError" class="btn">Conferir início da pesquisa</button>
         <div v-if="planPreview" class="border border-gold/30 p-3 space-y-2"><p>Materiais pagos agora: {{ planPreview.materialsPaidGp }} GP · componentes ao concluir: {{ planPreview.componentCostGp }} GP · {{ planPreview.daysRequired }} dias a {{ planPreview.researchRateGp }} GP/dia.</p><button @click="startResearch" :disabled="busy" class="btn">Pagar materiais e iniciar</button></div>
       </template>
       <template v-if="tracked && project?.status==='IN_PROGRESS'">
@@ -67,13 +69,18 @@ import api from '../../services/api'
 import {errorMessage} from '../../utils/catalog'
 import MagicItems from './MagicItems.vue'
 import { useCharacterOperations } from '../../composables/characterOperations'
-const props=defineProps<{character:any;prepare:()=>Promise<boolean>;refresh:()=>Promise<void>}>()
+import { researchAssistantAllowance, validateResearchAssistants } from '../../../../backend/src/lib/researchAssistance'
+import { magicPools, type ClassRules } from '../../../../backend/src/lib/gameRules'
+const props=defineProps<{character:any;rules?:ClassRules;prepare:()=>Promise<boolean>;refresh:()=>Promise<void>}>()
 const operations=useCharacterOperations()
 const busy=ref(false),error=ref(''),notice=ref(''),projectId=ref('')
 const project=computed(()=>props.character.magicItemResearch?.find((p:any)=>p.id===projectId.value))
 const tracked=computed(()=>{try{return !!JSON.parse(props.character.rulesState||'{}').research?.[projectId.value]}catch{return false}})
 const month=ref({year:1,month:1,baseMorale:0,moraleDice:[3,4],growth:0,losses:0,eventFamilies:0,eventMorale:0,administered:false,repressed:false,classification:'outlands',hexes:1,tributeGp:0})
 const plan=ref({casterLevel:Math.min(14,props.character.level),tradition:'arcane',rateBonusPercent:0,dedication:'dedicated',assistants:[] as any[],duration:'instant',affectsUser:false,esoteric:false,healing:false,eligible:false,itemKind:'other'})
+const assistantAllowance=computed(()=>researchAssistantAllowance(props.rules,props.character,plan.value.tradition,plan.value.casterLevel))
+const assistantError=computed(()=>{try{validateResearchAssistants(props.rules,props.character,plan.value);return ''}catch(error){return (error as Error).message}})
+watch(()=>props.rules,rules=>{if(rules){const pools=magicPools(rules,props.character);if(pools.length && !pools.some(pool=>pool.tradition===plan.value.tradition)){plan.value.tradition=pools[0]!.tradition;plan.value.casterLevel=pools[0]!.casterLevel}}},{immediate:true})
 const work=ref({days:1,period:''}),finish=ref({components:[] as any[],roll:0,engineeringRank:0,otherBonus:0,itemWeight:1/6})
 const domainPreview=ref<any>(null),planPreview=ref<any>(null),outcome=ref<any>(null)
 let domainInput:any,planInput:any,finishInput:any

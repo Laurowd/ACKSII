@@ -4,6 +4,7 @@ import { rulesFor } from './gameRules'
 import { progressionFields } from './classCatalog'
 import { initialAdventuring } from './creationRules'
 import { readState } from './gameRules'
+import { proficiencyBonus, adventuringBonus } from './proficiencyBonus'
 
 /** Explicit master review: no changes to XP, HP, coins, spells, or paid choices. */
 export function classRevisionPlan(character:any,before:any,after:any,input:any,automatic=true) {
@@ -33,8 +34,9 @@ export function classRevisionPlan(character:any,before:any,after:any,input:any,a
   const plan=classChoicePlan(character,rules || {},state.classChoices,state,false,character.level,false)
   const oldProfile={...(before?.ruleProfile || readState(before?.creationRules).ruleProfile || {}),proficiencyBonus:Number(oldState.adventuringProficiencyBonus || 0)},newProfile=after.ruleProfile || readState(after.creationRules).ruleProfile || {}
   const oldBase=initialAdventuring(character.str,before?.id?.startsWith('catalog:')?before.name:'',oldProfile),newBase=initialAdventuring(character.str,after.id.startsWith('catalog:')?after.name:'',newProfile)
-  const newBonus=Number(newProfile.proficiencyBonus ?? (rules?.className==='Dwarven Craftpriest'?3:0))
+  const newBonus=proficiencyBonus(rules || newProfile)
   state.adventuringProficiencyBonus=newBonus
+  state.adventuringProficiencyBonuses=Object.fromEntries(newBase.map(row=>[row.name,adventuringBonus(row.name,rules || newProfile)]))
   for(const proficiency of character.proficiencies) {
     const key=proficiency.name.toLowerCase(), previous=oldBase.find(row=>row.name.toLowerCase()===key),current=newBase.find(row=>row.name.toLowerCase()===key)
     const delta=proficiency.category==='adventuring' && previous && current ? current.throwTarget-previous.throwTarget : ['class','general'].includes(proficiency.category)?oldProfile.proficiencyBonus-newBonus:0

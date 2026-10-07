@@ -85,7 +85,7 @@ test('every relation create, edit and delete advances the sheet once and returns
     ['activities', 'activity', { title: 'Travel' }, { title: 'Study' }],
     ['armyUnits', 'unit', { name: 'Guard' }, { name: 'Veterans' }],
   ]) {
-    const actor = route === 'proficiencies' ? masterToken : ownerToken;
+    const actor = ['proficiencies','spells'].includes(route) ? masterToken : ownerToken;
     const created = await request('POST', `${base}/${route}`, { version, ...create }, actor);
     assert.ok([200, 201].includes(created.statusCode), created.body);
     const result = assertRevision(created, version, created.statusCode);

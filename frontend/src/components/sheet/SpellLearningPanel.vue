@@ -18,7 +18,7 @@
         <details class="rounded-lg border border-steel-dark p-3">
           <summary class="text-gold cursor-pointer">Registrar fórmula adquirida</summary>
           <div class="space-y-3 mt-3">
-            <label class="block text-sm">Fórmula encontrada<select v-model="acquiredKey" aria-label="Fórmula encontrada" class="inp mt-1"><option value="">Escolha uma magia</option><option v-for="spell in catalog" :key="key(spell)" :value="key(spell)">{{ spell.name }} · {{ spell.tradition === 'arcane' ? 'Arcana' : 'Divina' }} {{ spell.level }}</option></select></label>
+            <div class="space-y-1"><span class="text-sm">Fórmula encontrada</span><SearchableChoice v-model="acquiredKey" label="Fórmula encontrada" :options="catalog.map((spell:any)=>({value:key(spell),label:spell.name,hint:`${spell.tradition==='arcane'?'Arcana':'Divina'} · Nível ${spell.level}`}))" :disabled="busy" placeholder="Abra a lista ou digite o nome da magia" /></div>
             <label class="block text-sm">Origem da fórmula<input v-model="source" maxlength="300" class="inp mt-1" placeholder="Ex.: grimório encontrado nas ruínas" /></label>
             <label class="block text-sm"><input v-model="available" type="checkbox" /> A fórmula já foi adquirida, é legível e está disponível para estudo.</label>
             <p class="text-xs text-steel-light">Este registro não cobra moedas nem copia pergaminhos automaticamente. Compras, cópia e idioma devem ser resolvidos em jogo.</p>
@@ -42,6 +42,7 @@ import api from '../../services/api'
 import { getResource } from '../../services/resources'
 import { useCharacterOperations } from '../../composables/characterOperations'
 import { errorMessage } from '../../utils/catalog'
+import SearchableChoice from '../SearchableChoice.vue'
 const props = defineProps<{ character: any }>()
 const operations = useCharacterOperations(), overview = ref<any>({}), metadata = ref<any>({})
 const busy = ref(false), loading = ref(true), loadError = ref(false), error = ref(''), notice = ref('')

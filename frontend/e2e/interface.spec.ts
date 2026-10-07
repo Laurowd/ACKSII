@@ -1,3 +1,4 @@
+import { setTestLevel } from './helpers/ruleFixtures'
 import { test, expect, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 const accounts: Record<string, any> = {}
@@ -200,8 +201,7 @@ test('invalid divine entries are explained and cannot block casting a valid spel
   const { character, headers } = await openMage(page)
   const revised=await page.request.post(`/api/game-rules/characters/${character.id}/class-revision/apply`,{headers,data:{version:character.version,classKey:'catalog:priestess',keepNaturalIds:[],reason:'Preparar teste de repertório divino.'}})
   expect(revised.status(),await revised.text()).toBe(200)
-  const revisedVersion=(await revised.json()).character.version
-  expect((await page.request.put(`/api/characters/${character.id}`, { headers, data: { version: revisedVersion, level: 8 } })).status()).toBe(200)
+  expect((await setTestLevel(page,headers,`/api/characters/${character.id}`, 8, {})).status()).toBe(200)
   const stored = (await (await page.request.get(`/api/characters/${character.id}`, { headers })).json()).character
   expect((await page.request.post(`/api/game-rules/characters/${character.id}/magic/repertoire`, { headers, data: { version: stored.version, orderApproved: true, spells: [{ name: 'Discern Gist', level: 1, tradition: 'divine' }] } })).status()).toBe(200)
   const current = (await (await page.request.get(`/api/characters/${character.id}`, { headers })).json()).character

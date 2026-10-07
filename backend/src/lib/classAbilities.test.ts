@@ -34,7 +34,7 @@ describe('revised class concessions and book progression', () => {
     expect(classChoiceIssues(rules,hero,{},true)).toHaveLength(1)
     expect(classChoiceIssues(rules,hero,{craft:'Craft'},true)).toHaveLength(1)
     expect(classChoiceIssues(rules,hero,{craft:'Craft (glassmaking)'},true)).toEqual([])
-    expect(initialAdventuring(16,'Dwarven Craftpriest').map(p=>p.throwTarget)).toEqual([7,5,11,15,11])
+    expect(initialAdventuring(16,'Dwarven Craftpriest').map(p=>p.throwTarget)).toEqual([7,5,14,15,14])
   })
   it('adds Expert Traveling outside the normal choices', () => {
     const rules = RULE_CLASSES.Venturer!, character = {...hero,classChoices:{'expert-traveling':'Driving'}}
@@ -66,10 +66,10 @@ describe('revised class concessions and book progression', () => {
   it('requires the totem attribute and retains only active conditional benefits', () => {
     const rules=RULE_CLASSES.Shaman!, character={...hero,classChoices:{totem:'Viper'},totemStatus:{alive:true,nearby:true},proficiencies:[{name:'Combat Reflexes',category:'natural'}]}
     expect(classChoiceIssues(rules,{...character,dex:8},character.classChoices,true).join(' ')).toContain('DEX ≥ 9')
-    expect(abilityProficiencies(character,rules).map(p=>p.name)).toEqual(['Combat Reflexes'])
-    expect(abilityProficiencies({...character,totemStatus:{alive:true,nearby:false}},rules)).toEqual([])
-    expect(abilityProficiencies({...character,totemStatus:{alive:false,nearby:true}},rules)).toEqual([])
-    expect(abilityProficiencies({...character,totemStatus:{alive:false,nearby:false},proficiencies:[...character.proficiencies,{name:'Combat Reflexes',category:'class'}]},rules).map(p=>p.category)).toEqual(['class'])
+    expect(abilityProficiencies(character,rules).map(p=>p.name)).toEqual(['Combat Reflexes','Theology'])
+    expect(abilityProficiencies({...character,totemStatus:{alive:true,nearby:false}},rules).map(p=>p.name)).toEqual(['Theology'])
+    expect(abilityProficiencies({...character,totemStatus:{alive:false,nearby:true}},rules).map(p=>p.name)).toEqual(['Theology'])
+    expect(abilityProficiencies({...character,totemStatus:{alive:false,nearby:false},proficiencies:[...character.proficiencies,{name:'Combat Reflexes',category:'class'}]},rules).filter(p=>p.name==='Combat Reflexes').map(p=>p.category)).toEqual(['class'])
     expect(TOTEM_ANIMALS.find(animal=>animal.name==='Owl')!.characteristics).toContain('300′ fly, AC 3, HD 1/2')
     expect(TOTEM_ANIMALS.find(animal=>animal.name==='Crow/Raven')!.characteristics).toContain('1d2-1')
   })
@@ -91,9 +91,9 @@ describe('revised class concessions and book progression', () => {
   })
   it('preserves IDs and manual targets during legacy reconciliation and applies the old Craftpriest bonus once', () => {
     const character={...hero,proficiencies:[{id:'craft',name:'Craft (brewing)',category:'general',throwTarget:6},{id:'listen',name:'Listening',category:'adventuring',throwTarget:16}],rulesState:'{}'}
-    const state:any={classChoices:{craft:'Craft (brewing)'}},plan=classChoicePlan(character,RULE_CLASSES['Dwarven Craftpriest']!,state.classChoices,state,true)
+    const state:any={classChoices:{craft:'Craft (brewing)'}},plan=classChoicePlan(character,RULE_CLASSES['Dwarven Craftpriest']!,state.classChoices,state,true,1,true)
     expect(plan.converted[0]).toMatchObject({id:'craft',throwTarget:6,category:'natural'})
-    expect(plan.targets[0]).toMatchObject({id:'listen',throwTarget:13})
+    expect(plan.targets).toEqual([])
     expect(classChoicePlan({...character,proficiencies:plan.proficiencies,rulesState:JSON.stringify(state)},RULE_CLASSES['Dwarven Craftpriest']!,state.classChoices,state,true).targets).toEqual([])
   })
   it('extends repertoire without granting an extra daily cast', () => {

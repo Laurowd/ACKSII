@@ -2,7 +2,7 @@
   <div class="space-y-4">
     <SpellLearningPanel :character="character" />
     <SpellcastingPanel :character="character" :prepare="prepare" :refresh="refresh"
-      :repertoire-draft="repertoireDraft"
+      :repertoire-draft="repertoireDraft" :can-manage="canManage"
       :spell-descriptions="compendiumSpells" :descriptions-loading="loadingDescriptions" :descriptions-error="descriptionsError"
       @retry-descriptions="loadSpellDescriptions" @choices-updated="spellChoices = $event" />
     <details v-if="canManage" class="bg-dark-card border border-steel-dark rounded-xl p-4 sm:p-5">
@@ -226,7 +226,6 @@ import HelpTooltip from '../HelpTooltip.vue'
 import { manualSpellChoices, type RepertoireDraft } from '../../utils/spellcasting'
 import SpellcastingPanel from './SpellcastingPanel.vue'
 import SearchableChoice from '../SearchableChoice.vue'
-import { useAuthStore } from '../../stores/auth'
 import { notifyError } from '../../utils/toast'
 import { errorMessage } from '../../utils/catalog'
 import { computed, ref, onMounted } from 'vue'
@@ -237,12 +236,12 @@ const props = defineProps<{
   optionalRules?: Record<string, boolean>
   prepare: () => Promise<boolean>
   refresh: () => Promise<void>
+  canManage?: boolean
 }>()
 
 const emit = defineEmits(['save'])
 const relations = useCharacterRelations(() => props.character)
-const authStore = useAuthStore()
-const canManage = computed(() => authStore.isMaster)
+const canManage = computed(() => props.canManage === true)
 
 function isRuleEnabled(key: string) {
   return props.optionalRules?.[key] !== false
