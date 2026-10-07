@@ -1,10 +1,24 @@
 import {test,expect,type Page} from '@playwright/test'
 
+const accounts: Partial<Record<'MASTER'|'PLAYER',any>> = {}
 async function fixture(page:Page,role:'MASTER'|'PLAYER',classKey='catalog:mage') {
   const name=`interactions_ui_${role}_${Date.now().toString(36)}`
-  const registration=await page.request.post('/api/auth/register',{data:{username:name,email:`${name}@test.invalid`,password:'local-browser-password',role}})
-  expect(registration.status()).toBe(201)
-  const account=await registration.json(),headers={authorization:`Bearer ${account.token}`}
+  if (!accounts[role]) {
+    const data={username:name,email:`${name}@test.invalid`,password:'local-browser-password',role}
+    let registration=await page.request.post('/api/auth/register',{data})
+    if (registration.status()===429) {
+      // All browser fixtures share one IP. Keep the real limiter enabled.
+      const retryAfter=Number(registration.headers()['retry-after'])
+      expect(retryAfter).toBeGreaterThanOrEqual(1)
+      expect(retryAfter).toBeLessThanOrEqual(60)
+      test.setTimeout(120_000)
+      await new Promise(resolve=>setTimeout(resolve,retryAfter*1000+250))
+      registration=await page.request.post('/api/auth/register',{data})
+    }
+    expect(registration.status(),await registration.text()).toBe(201)
+    accounts[role]=await registration.json()
+  }
+  const account=accounts[role]!,headers={authorization:`Bearer ${account.token}`}
   const mage=classKey==='catalog:mage'
   const response=await page.request.post('/api/characters/guided',{headers,data:{characterName:name,classKey,rulesMode:'standard',str:10,int:10,dex:10,wil:10,con:10,cha:10,hpMax:4,proficiencies:[{name:mage?'Battle Magic':'Acrobatics',category:'class'},{name:'Caving',category:'general'}],spells:mage?[{name:'Slumber',level:1,tradition:'arcane'}]:[]}})
   expect(response.status(),await response.text()).toBe(201)
