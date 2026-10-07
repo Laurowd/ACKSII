@@ -1,5 +1,15 @@
 import { expect, type Page } from '@playwright/test'
 
+export async function openSheetExport(page: Page) {
+  const menu = page.locator('details').filter({ has: page.locator('summary').filter({ hasText: /^Exportar ficha$/ }) })
+  if (!await menu.evaluate((element: HTMLDetailsElement) => element.open)) await menu.locator('summary').click()
+}
+export async function editSheetSection(page: Page, title: string) {
+  await page.getByRole('heading', { name: title, exact: true }).waitFor()
+  const edit = page.getByRole('button', { name: `Editar ${title}`, exact: true })
+  if (await edit.isVisible()) await edit.click()
+}
+
 /** Explicit master fixture setup, separate from normal XP-gated advancement. */
 export async function setTestLevel(page:Page,headers:Record<string,string>,characterUrl:string,level:number,fields:any={}) {
   let hero=(await(await page.request.get(characterUrl,{headers})).json()).character

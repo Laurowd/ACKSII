@@ -1,4 +1,4 @@
-import { setTestLevel } from './helpers/ruleFixtures'
+import { setTestLevel, openSheetExport } from './helpers/ruleFixtures'
 import { test, expect, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 async function relation(page: Page, headers: Record<string,string>, method: 'post'|'put', path: string, data: any) {
@@ -69,7 +69,7 @@ test('registration, campaign, creation, purchase, saving, conflict, export and l
   await page.getByRole('button', { name: 'Carregar versão atual' }).click()
   await expect(page.getByRole('alert').filter({ hasText: 'A ficha mudou' })).toHaveCount(0)
   const htmlDownload = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Ficha para impressão/PDF' }).click()
+  await openSheetExport(page); await page.getByRole('button', { name: 'Ficha para impressão/PDF' }).click()
   expect((await htmlDownload).suggestedFilename()).toMatch(/\.html$/)
   await page.getByRole('button', { name: 'Sair', exact: true }).click()
   await expect(page).toHaveURL(/login$/)

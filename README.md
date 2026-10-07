@@ -12,6 +12,8 @@ As [melhorias de desempenho e recuperação](docs/MELHORIAS_DESEMPENHO_E_RASCUNH
 
 As [melhorias de sessão](docs/MELHORIAS_SESSAO.md) incluem a aba compacta Sessão, busca de inventário, magias favoritas, histórico legível e paginado, atualização do grupo, aviso de alterações externas, origens de bônus e aprendizado por uma semana de estudo.
 
+A [consulta e navegação da ficha](docs/INTERFACE_FICHA.md) inclui abas fixas com memória por personagem, edição por seção, atalhos no celular, descrições de magias em painel de leitura e acompanhamento das escolhas na criação.
+
 Para hospedar em servidor com Docker, consulte [Implantação e operação](docs/PRODUCAO.md): Docker Compose, HTTPS, migrações, backups, restauração, rollback e homologação.
 
 Para continuar usando o banco existente no Neon, siga [Produção com Neon](docs/PRODUCAO_NEON.md). Há um Compose sem banco local, conexões separadas para API/migrações e exportação com teste de restauração isolado.

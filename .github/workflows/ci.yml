@@ -59,7 +59,7 @@ jobs:
       - name: Firefox session, rewards, descriptions and production CSP
         env:
           PLAYWRIGHT_BROWSER: firefox
-        run: npm run test:e2e --prefix frontend -- rewards.spec.ts interface.spec.ts session-improvements.spec.ts class-choices.spec.ts additional-rules.spec.ts rule-interactions.spec.ts --grep-invert "touch help"
+        run: npm run test:e2e --prefix frontend -- rewards.spec.ts interface.spec.ts session-improvements.spec.ts class-choices.spec.ts additional-rules.spec.ts rule-interactions.spec.ts usability.spec.ts --grep-invert "touch help"
       - name: Cypress with local API, SMTP and PostgreSQL
         run: npm run test:cypress --prefix frontend
       - uses: actions/upload-artifact@v4

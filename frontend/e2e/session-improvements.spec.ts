@@ -1,3 +1,4 @@
+import { openSheetExport } from './helpers/ruleFixtures'
 import { test, expect, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 const accounts: Record<string, any> = {}
@@ -68,7 +69,7 @@ test('combat origins persist once and exports match the live total', async ({ pa
   await expect(page.getByRole('status').filter({ hasText: 'Origens atualizadas.' })).toBeVisible()
   await page.getByLabel('Ativo', { exact: true }).check()
   await expect(page.getByRole('heading', { name: 'CA sem escudo: 3', exact: true })).toBeVisible()
-  const download = page.waitForEvent('download'); await page.getByRole('button', { name: 'Exportar JSON', exact: true }).click()
+  const download = page.waitForEvent('download'); await openSheetExport(page); await page.getByRole('button', { name: 'Exportar JSON', exact: true }).click()
   const data = JSON.parse(await readFile((await (await download).path())!, 'utf8')); expect(data.character.acNoShield).toBe(3)
   await page.reload(); expect((await (await page.request.get(`/api/characters/${character.id}`, { headers })).json()).character.rulesState).toContain('Proteção da mesa')
   await expect(page.locator('header').filter({ hasText: character.characterName })).toContainText('3 / 4')

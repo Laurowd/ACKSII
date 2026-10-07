@@ -1,3 +1,4 @@
+import { openSheetExport, editSheetSection } from './helpers/ruleFixtures'
 import { test,expect,type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 
@@ -45,7 +46,7 @@ test('Bard selects a thief skill and reads its current throw alongside the class
   expect(JSON.parse(hero.rulesState).classChoices['jack-1']).toBe('skill:Climbing')
   await expect(page.getByRole('heading',{name:'Jack of All Trades',exact:true}).locator('..')).toContainText('6+')
   await expect(page.getByRole('button',{name:'Ajuda: Climbing',exact:true})).toBeVisible()
-  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Ficha para impressão/PDF',exact:true}).click()
+  const download=page.waitForEvent('download');await openSheetExport(page); await page.getByRole('button',{name:'Ficha para impressão/PDF',exact:true}).click()
   const html=await readFile((await (await download).path())!,'utf8')
   expect(html).toContain('<h2>Jack of All Trades</h2>');expect(html).toContain('<dt>Climbing</dt><dd>6+</dd>')
 })
@@ -92,7 +93,7 @@ test('Warlock chooses a Dark Path and displays only its powers',async({page})=>{
 test('the master previews a class switch, can cancel, and confirms removal of old natural powers',async({page},info)=>{
   const headers=await signIn(page),created=await page.request.post('/api/characters/guided',{headers,data:{characterName:'Review Tribal Warrior',classKey:'catalog:barbarian',rulesMode:'standard',proficiencyOrigin:'ivory-kingdoms',classChoices:{'damage-specialization':'melee'},str:13,int:10,dex:10,wil:10,con:10,cha:10,hpMax:6,proficiencies:[{name:'Ambushing',category:'class'},{name:'Caving',category:'general'}]}})
   expect(created.status(),await created.text()).toBe(201);const hero=(await created.json()).character
-  await page.goto(`/character/${hero.id}`);await page.getByRole('combobox',{name:'Classe',exact:true}).selectOption('catalog:fighter')
+  await page.goto(`/character/${hero.id}`);await editSheetSection(page,'Identidade do personagem');await page.getByRole('combobox',{name:'Classe',exact:true}).selectOption('catalog:fighter')
   const dialog=page.getByRole('dialog',{name:'Revisar classe e concessões',exact:true});await expect(dialog).toBeVisible();expect((await stored(page,hero.id)).className).toBe('Barbarian')
   await dialog.getByRole('button',{name:'Cancelar',exact:true}).click();await expect(dialog).toHaveCount(0)
   await expect(page.getByRole('combobox',{name:'Classe',exact:true})).toHaveValue('catalog:barbarian')
@@ -108,9 +109,9 @@ test('finesse attribute remains consistent in combat, session and printing after
   const headers=await signIn(page),created=await page.request.post('/api/characters/guided',{headers,data:{characterName:'Finesse Blade',classKey:'catalog:bladedancer',str:10,int:10,dex:16,wil:10,con:10,cha:10,hpMax:6}});expect(created.status()).toBe(201);const hero=(await created.json()).character
   const weapon=await page.request.post(`/api/characters/${hero.id}/weapons`,{headers,data:{version:hero.version,name:'Sword',style:'Single Weapon'}});expect(weapon.status(),await weapon.text()).toBe(201)
   await page.goto(`/character/${hero.id}`);const attribute=page.getByRole('combobox',{name:'Atributo de ataque de Sword',exact:true});await expect(attribute).toHaveValue('auto')
-  let downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'Ficha para impressão/PDF',exact:true}).click();let html=await readFile((await (await downloaded).path())!,'utf8');expect(html).toContain('DEX · alvo contra CA 0: 8+')
+  let downloaded=page.waitForEvent('download');await openSheetExport(page); await page.getByRole('button',{name:'Ficha para impressão/PDF',exact:true}).click();let html=await readFile((await (await downloaded).path())!,'utf8');expect(html).toContain('DEX · alvo contra CA 0: 8+')
   await attribute.selectOption('str');await expect.poll(async()=> (await stored(page,hero.id)).weapons[0].attackAbility).toBe('str');await page.reload();await expect(attribute).toHaveValue('str')
-  downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'Ficha para impressão/PDF',exact:true}).click();html=await readFile((await (await downloaded).path())!,'utf8');expect(html).toContain('STR · alvo contra CA 0: 10+')
+  downloaded=page.waitForEvent('download');await openSheetExport(page); await page.getByRole('button',{name:'Ficha para impressão/PDF',exact:true}).click();html=await readFile((await (await downloaded).path())!,'utf8');expect(html).toContain('STR · alvo contra CA 0: 10+')
 })
 
 test('reviewing a legacy catalog reference preserves the recorded class choices',async({page})=>{
@@ -120,7 +121,7 @@ test('reviewing a legacy catalog reference preserves the recorded class choices'
   await page.route(`**/api/characters/${hero.id}`,async route=>{if(route.request().method()!=='GET')return route.continue();const response=await route.fetch(),data=await response.json();data.character.classKey=legacyId;await route.fulfill({response,json:data})})
   await page.route('**/api/classes/catalog*',async route=>{const response=await route.fetch(),data=await response.json();const bard=data.find((row:any)=>row.id==='catalog:bard');bard.legacyIds=[...(bard.legacyIds || []),legacyId];await route.fulfill({response,json:data})
   })
-  await page.goto(`/character/${hero.id}`);await expect(page.getByRole('combobox',{name:'Classe',exact:true})).toHaveValue('catalog:bard')
+  await page.goto(`/character/${hero.id}`);await editSheetSection(page,'Identidade do personagem');await expect(page.getByRole('combobox',{name:'Classe',exact:true})).toHaveValue('catalog:bard')
   await page.getByRole('button',{name:'Revisar classe e concessões',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Revisar classe e concessões',exact:true})
   await expect(dialog.getByRole('combobox',{name:'Jack of All Trades · escolha gratuita',exact:true})).toHaveValue('Combat Ferocity')
   await dialog.getByLabel('Justificativa do mestre').fill('Conferir a referência à classe do catálogo.');await dialog.getByRole('button',{name:'Conferir revisão de classe',exact:true}).click()

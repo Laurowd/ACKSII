@@ -4,9 +4,9 @@
       <div class="flex flex-wrap justify-between gap-3"><h2 class="text-xl text-gold">Durante a sessão</h2><span class="text-sm text-steel-light">CA {{ metrics.armorClass.noShield }} / {{ metrics.armorClass.withShield }} com escudo · Iniciativa {{ signed(metrics.initiative) }}</span></div>
       <div class="flex flex-wrap items-end gap-3">
         <strong class="text-xl text-gold py-2">{{ character.hpCurr }} / {{ character.hpMax }} PV</strong>
-        <label class="text-sm">Quantidade de PV<input v-model.number="amount" type="number" min="1" max="1000000" class="inp w-28 mt-1" /></label>
-        <button type="button" @click="changeHp(-amount)" :disabled="!valid || busy" class="rounded-lg border border-red-400/40 px-4 py-2 text-red-400 disabled:opacity-40">Registrar dano</button>
-        <button type="button" @click="changeHp(amount)" :disabled="!valid || busy" class="rounded-lg border border-green-500/40 px-4 py-2 text-green-500 disabled:opacity-40">Registrar cura</button>
+        <label class="text-sm">Quantidade de PV<input id="session-hp-amount" v-model.number="amount" type="number" min="1" max="1000000" class="inp w-28 mt-1" /></label>
+        <button type="button" @click="changeHp(-amount)" :disabled="!valid || busy" class="ui-button ui-button-danger">Registrar dano</button>
+        <button type="button" @click="changeHp(amount)" :disabled="!valid || busy" class="ui-button ui-button-secondary">Registrar cura</button>
       </div>
       <p class="text-xs text-steel-light">Cura limitada aos PV máximos. Dano pode deixar os PV negativos; ferimentos mortais continuam a critério do mestre.</p>
       <dl class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm"><div v-for="save in saves" :key="save.key" class="rounded-lg bg-dark-bg/50 p-3"><dt class="text-steel-light">{{ save.label }}</dt><dd class="font-bold text-gold">{{ character[save.key] }}</dd></div></dl>

@@ -1,4 +1,4 @@
-import { approveStudyCorrection } from './helpers/ruleFixtures'
+import { approveStudyCorrection, openSheetExport, editSheetSection } from './helpers/ruleFixtures'
 import { test, expect, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { characterExport } from '../src/utils/characterExport'
@@ -59,13 +59,14 @@ test('unavailable rules or catalog block edits and exports until retry preserves
     await page.route(url, route => route.fulfill({ status: 503, json: { error: 'Context temporarily unavailable' } }))
     await page.reload()
     await expect(page.getByRole('alert').filter({ hasText: 'Carregue o catálogo e as regras' })).toBeVisible()
+    await openSheetExport(page)
     await expect(page.getByRole('button', { name: 'Exportar JSON', exact: true })).toBeDisabled()
     await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toBeDisabled()
     await page.unroute(url)
     await page.getByRole('button', { name: 'Tentar carregar regras e catálogo novamente' }).click()
     await expect(page.getByRole('button', { name: 'Exportar JSON', exact: true })).toBeEnabled()
     const downloaded = page.waitForEvent('download')
-    await page.getByRole('button', { name: 'Exportar JSON', exact: true }).click()
+    await openSheetExport(page); await page.getByRole('button', { name: 'Exportar JSON', exact: true }).click()
     const result = JSON.parse(await readFile((await (await downloaded).path())!, 'utf8'))
     expect(result.character.xpNext).toBe(7777)
   }
@@ -95,7 +96,7 @@ test('repertoire draft survives tabs, export, canceled navigation and a failed s
   await page.getByRole('link', { name: 'Voltar', exact: true }).click()
   await expect(page).toHaveURL(new RegExp(`/character/${character.id}$`))
   const downloaded = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Exportar JSON', exact: true }).click()
+  await openSheetExport(page); await page.getByRole('button', { name: 'Exportar JSON', exact: true }).click()
   const result = JSON.parse(await readFile((await (await downloaded).path())!, 'utf8'))
   expect(result.drafts.repertoire.spells[0].name).toBe('Arcane Armor')
   expect(result.character.spells[0].name).toBe('Slumber')
@@ -162,15 +163,16 @@ test('unsaved DEX is consistent in the live sheet, HTML and JSON, and JSON impor
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   const { character, headers } = await fixture(page)
+  await editSheetSection(page, 'Atributos')
   const dex = page.locator('label').filter({ hasText: /^DEX$/ }).locator('..').locator('input')
   await dex.fill('16'); await dex.blur()
   await expect(page.locator('header').filter({ hasText: character.characterName }).getByText('4 / 5', { exact: true })).toBeVisible()
   const htmlWait = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Ficha para impressão/PDF' }).click()
+  await openSheetExport(page); await page.getByRole('button', { name: 'Ficha para impressão/PDF' }).click()
   const html = await readFile((await (await htmlWait).path())!, 'utf8')
   expect(html).toContain('CA sem escudo</dt><dd>4</dd>')
   const jsonWait = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Exportar JSON', exact: true }).click()
+  await openSheetExport(page); await page.getByRole('button', { name: 'Exportar JSON', exact: true }).click()
   const exported = await readFile((await (await jsonWait).path())!, 'utf8')
   expect(JSON.parse(exported).character.acNoShield).toBe(4)
   await page.getByRole('link', { name: 'Voltar', exact: true }).click()

@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-7xl mx-auto p-4 lg:p-6 animate-fade-in pb-24 md:pb-6">
+  <div class="max-w-7xl mx-auto p-4 lg:p-6 animate-fade-in pb-36 md:pb-6">
     <!-- Loading -->
     <div v-if="loading" role="status" aria-label="Carregando ficha" class="flex items-center justify-center py-20">
       <div class="animate-spin h-12 w-12 border-4 border-gold border-t-transparent rounded-full"></div>
@@ -46,25 +46,6 @@
         <p>{{ errorMessage(operationState.error, 'Não foi possível salvar a alteração. O rascunho continua nesta ficha.') }}</p>
         <p class="mt-1 text-steel-light">Confira os dados e use Salvar para tentar novamente.</p>
       </div>
-      <!-- Top bar -->
-      <div class="flex flex-wrap gap-3 items-center justify-between mb-6">
-        <router-link to="/dashboard" class="text-steel-light hover:text-gold transition-colors flex items-center gap-2">
-           Voltar
-        </router-link>
-        <div class="flex flex-wrap items-center gap-3">
-          <button @click="exportSheet('json')" :disabled="!contextReady" class="text-gold text-sm underline disabled:opacity-40">Exportar JSON</button>
-          <button @click="exportSheet('html')" :disabled="!contextReady" class="text-gold text-sm underline disabled:opacity-40" title="Baixa uma ficha imprimível; abra o arquivo para salvar como PDF">Ficha para impressão/PDF</button>
-          <span v-if="anySaving" class="text-gold text-sm animate-pulse">Salvando...</span>
-          <span v-else-if="anySaveError" class="text-red-400 text-xs">Falha ao salvar</span>
-          <span v-else-if="anyPendingChanges" class="text-steel-light text-xs">Alterações pendentes</span>
-          <span v-else-if="lastSaved" class="text-steel text-xs">Salvo </span>
-          <button @click="manualSave" :disabled="anySaving || !contextReady" class="px-4 py-2 bg-linear-to-r from-gold-dark to-gold text-dark-bg font-bold rounded-lg
-                 hover:from-gold hover:to-gold-light transition-all text-sm disabled:cursor-wait disabled:opacity-60">
-            Salvar
-          </button>
-        </div>
-      </div>
-      
       <header class="mb-6 rounded-2xl border border-gold/15 bg-dark-card p-5 sm:p-6">
         <p class="text-xs uppercase tracking-widest text-steel-light mb-2">{{ char.chroniclesOf || 'Ficha de personagem' }}</p>
         <h1 class="text-3xl sm:text-4xl text-gold font-serif font-bold break-words">{{ char.characterName || 'Personagem sem nome' }}</h1>
@@ -77,17 +58,41 @@
         </dl>
       </header>
 
-      <!-- Tabs Navigation -->
-      <div role="group" aria-label="Seções da ficha" class="flex border-b border-steel-dark mb-6 overflow-x-auto">
-        <button 
-          v-for="tab in TABS" :key="tab.id"
-          @click="currentTab = tab.id"
-          :aria-pressed="currentTab === tab.id" :aria-controls="`sheet-${tab.id}`" :id="`tab-${tab.id}`"
-          class="px-5 py-3 font-bold whitespace-nowrap transition-all border-b-2 -mb-px"
-          :class="currentTab === tab.id ? 'border-gold text-gold' : 'border-transparent text-steel-light hover:text-gold hover:border-gold/50'"
-        >
-          {{ tab.label }}
-        </button>
+      <div class="sheet-navigation">
+        <!-- Top bar -->
+        <div class="sheet-actions">
+          <router-link to="/dashboard" class="text-steel-light hover:text-gold transition-colors flex items-center gap-2">
+             Voltar
+          </router-link>
+          <div class="sheet-actions-tools">
+            <button v-if="currentTab !== 'session'" type="button" @click="currentTab = 'session'" class="ui-button ui-button-secondary sheet-session-shortcut">Abrir modo Sessão</button>
+            <details class="relative"><summary class="ui-button ui-button-secondary">Exportar ficha</summary><div class="absolute right-0 top-full mt-2 z-40 rounded-xl border border-steel-dark bg-dark-card p-2 shadow-lg min-w-56 space-y-1">
+            <button @click="exportSheet('json')" :disabled="!contextReady" class="ui-button ui-button-secondary w-full">Exportar JSON</button>
+            <button @click="exportSheet('html')" :disabled="!contextReady" class="ui-button ui-button-secondary w-full" title="Baixa uma ficha imprimível; abra o arquivo para salvar como PDF">Ficha para impressão/PDF</button>
+            </div></details>
+            <div role="status" aria-live="polite" aria-atomic="true"><span v-if="anySaving" class="text-gold text-sm animate-pulse">Salvando...</span>
+            <span v-else-if="anySaveError" class="text-red-400 text-xs">Falha ao salvar</span>
+            <span v-else-if="anyPendingChanges" class="text-steel-light text-xs">Alterações pendentes</span>
+            <span v-else-if="lastSaved" class="text-steel text-xs">Salvo </span></div>
+            <button @click="manualSave" :disabled="anySaving || !contextReady" class="ui-button ui-button-primary">
+              Salvar
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div role="group" aria-label="Seções da ficha" class="sheet-tabs">
+          <button
+            v-for="tab in TABS" :key="tab.id"
+            @click="currentTab = tab.id"
+            @keydown="navigateTabs($event, tab.id)"
+            :aria-pressed="currentTab === tab.id" :aria-controls="`sheet-${tab.id}`" :id="`tab-${tab.id}`"
+            class="sheet-tab"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+
       </div>
 
       <!-- Tab Contents -->
@@ -152,16 +157,15 @@
       </div>
 
       <!-- Sticky Status Bar (Mobile Only) -->
-      <div class="fixed bottom-0 left-0 right-0 p-3 bg-dark-card border-t border-gold/20 shadow-[0_-5px_15px_rgba(0,0,0,0.5)] z-50 flex items-center justify-between md:hidden rounded-t-xl transition-colors pb-safe">
-        <div class="flex flex-col">
-          <span class="text-gold font-bold font-serif text-sm">{{ char.characterName || 'Desconhecido' }}</span>
-          <span class="text-xs text-steel font-bold">CA: {{ computedAC.noShield }} / {{ computedAC.withShield }}</span>
+      <div class="sheet-mobile-bar" aria-label="Atalhos da ficha">
+        <div class="flex flex-col min-w-0 flex-1">
+          <span class="text-gold font-bold text-sm truncate max-w-40" :title="char.characterName">{{ char.characterName || 'Desconhecido' }}</span>
+          <span class="text-xs text-steel-light">PV {{ char.hpCurr }}/{{ char.hpMax }} · CA {{ computedAC.noShield }}/{{ computedAC.withShield }}</span>
+          <span class="text-xs" :class="anySaveError ? 'text-crimson-light' : 'text-steel-light'">{{ anySaving ? 'Salvando ficha…' : anySaveError ? 'Não salvo' : anyPendingChanges ? 'Edições pendentes' : lastSaved ? 'Tudo salvo' : '' }}</span>
         </div>
-        <div class="flex items-center gap-1">
-          <span class="text-xs text-steel uppercase">PV</span>
-          <div class="text-lg font-bold" :class="hpPercent > 50 ? 'text-green-400' : hpPercent > 25 ? 'text-yellow-400' : 'text-red-400'">
-            {{ char.hpCurr }}<span class="text-xs text-steel font-normal">/{{ char.hpMax }}</span>
-          </div>
+        <div class="flex items-center gap-2">
+          <button type="button" @click="openHpControls" :disabled="!contextReady" class="ui-button ui-button-secondary">Dano / cura</button>
+          <button type="button" @click="manualSave" :disabled="anySaving || !contextReady" aria-label="Salvar ficha" class="ui-button ui-button-primary">Salvar</button>
         </div>
       </div>
       <ClassRevisionDialog v-if="classRevisionTarget && canManageRules" :character="char" :target="classRevisionTarget" :prepare="saveCharacter" @close="classRevisionTarget=null" @changed="loadCampaignContext" />
@@ -170,7 +174,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount, onMounted, provide, watch } from 'vue'
+import { ref, computed, nextTick, onBeforeUnmount, onMounted, provide, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import api from '../services/api'
@@ -188,6 +192,7 @@ import SessionTab from '../components/sheet/SessionTab.vue'
 import { recentCharacters } from '../utils/characterList'
 import { observeMutations, type SavedMutation } from '../services/mutationJournal'
 import { belongsToCharacter, canReplayMutation, isCorrectedEditor, restoreEditableFields } from '../utils/sheetRecovery'
+import { SHEET_TABS, readSheetTab, saveSheetTab } from '../utils/sheetPreferences'
 
 
 import CombatTab from '../components/sheet/CombatTab.vue';
@@ -332,16 +337,26 @@ const defaultOptionalRules: Record<string, boolean> = {
 }
 const campaignOptionalRules = ref({ ...defaultOptionalRules })
 
-const TABS = [
-  { id: 'session', label: 'Sessão' },
-  { id: 'rules', label: 'Evolução & Regras' },
-  { id: 'combat', label: 'Geral & Combate' },
-  { id: 'inventory', label: 'Inventário & Tesouro' },
-  { id: 'magic', label: 'Magia' },
-  { id: 'domain', label: 'Domínio & Seguidores' },
-  { id: 'activities', label: 'Atividades e Downtime' },
-]
+const TABS = SHEET_TABS
 const currentTab = ref('combat')
+watch(() => char.value?.id, id => { if (id) currentTab.value = readSheetTab(authStore.user?.id || '', id) })
+watch(currentTab, tab => { if (char.value?.id) saveSheetTab(authStore.user?.id || '', char.value.id, tab) })
+async function openHpControls() {
+  currentTab.value = 'session'
+  await nextTick()
+  document.getElementById('session-hp-amount')?.focus()
+}
+async function navigateTabs(event: KeyboardEvent, id: string) {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+  event.preventDefault()
+  const index = TABS.findIndex(tab => tab.id === id)
+  const target = event.key === 'Home' ? 0 : event.key === 'End' ? TABS.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + TABS.length) % TABS.length
+  currentTab.value = TABS[target]!.id
+  await nextTick()
+  const button = document.getElementById(`tab-${currentTab.value}`)
+  button?.focus({ preventScroll: true })
+  if (button?.parentElement) button.parentElement.scrollLeft = button.offsetLeft - button.parentElement.clientWidth / 2 + button.offsetWidth / 2
+}
 const remoteVersion = ref<number | null>(null), revisionError = ref('')
 let observedCampaignRevision: string | null | undefined
 useVisiblePolling(async signal => {

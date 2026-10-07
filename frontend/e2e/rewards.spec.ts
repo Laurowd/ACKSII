@@ -1,3 +1,4 @@
+import { openSheetExport } from './helpers/ruleFixtures'
 import { test, expect, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
@@ -133,7 +134,7 @@ test('sheet and exported HTML run under production CSP without inline scripts or
   await page.getByLabel(`XP para ${character.characterName}`, { exact: true }).fill('100')
   await page.getByRole('button', { name: 'Conferir recompensas', exact: true }).click()
   const downloaded = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Ficha para impressão/PDF', exact: true }).click()
+  await openSheetExport(page); await page.getByRole('button', { name: 'Ficha para impressão/PDF', exact: true }).click()
   const html = await readFile((await (await downloaded).path())!, 'utf8')
   expect(html).toContain('Ctrl+P'); expect(html).not.toMatch(/<script\b|\sonclick=|file:\/\//i)
   expect(await page.evaluate(() => (window as any).violations)).toEqual([])

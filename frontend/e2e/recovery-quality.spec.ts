@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { editSheetSection } from './helpers/ruleFixtures'
 
 let sharedAccount: { token: string; user: any } | undefined
 async function account(page: Page, isolated = false) {
@@ -20,7 +21,7 @@ async function hero(page: Page, headers: Record<string, string>, name = 'Recover
   expect(response.status()).toBe(201)
   return (await response.json()).character
 }
-const nameInput = (page: Page) => page.getByText('Character Name', { exact: true }).locator('..').locator('input')
+const nameInput = async (page: Page) => { await editSheetSection(page, 'Identidade do personagem'); return page.getByLabel('Nome do personagem', { exact: true }) }
 async function reload(page: Page) { page.once('dialog', dialog => dialog.accept()); await page.reload() }
 
 test('creation choices, class and HP survive reload without submitting a new character', async ({ page }) => {
@@ -44,14 +45,14 @@ test('failed scalar edits survive reload and need an explicit save after recover
   const { headers, user } = await account(page), character = await hero(page, headers)
   await page.goto(`/character/${character.id}`)
   await page.route(`**/api/characters/${character.id}`, route => route.request().method() === 'PUT' ? route.abort('failed') : route.continue())
-  await nameInput(page).fill('Nome ainda não salvo')
+  await (await nameInput(page)).fill('Nome ainda não salvo')
   await expect(page.getByText('Falha ao salvar', { exact: true })).toBeVisible()
   await reload(page)
-  await expect(nameInput(page)).toHaveValue('Recovery Hero')
+  await expect(await nameInput(page)).toHaveValue('Recovery Hero')
   let writes = 0
   page.on('request', req => { if (req.method() === 'PUT' && req.url().endsWith(`/characters/${character.id}`)) writes++ })
   await page.getByRole('button', { name: 'Recuperar rascunho', exact: true }).click()
-  await expect(nameInput(page)).toHaveValue('Nome ainda não salvo')
+  await expect(await nameInput(page)).toHaveValue('Nome ainda não salvo')
   expect(writes).toBe(0)
   await page.unroute(`**/api/characters/${character.id}`)
   await page.getByRole('button', { name: 'Salvar', exact: true }).click()
@@ -67,14 +68,14 @@ test('stale drafts stay downloadable and never overwrite a newer server revision
   const { headers } = await account(page), character = await hero(page, headers)
   await page.goto(`/character/${character.id}`)
   await page.route(`**/api/characters/${character.id}`, route => route.request().method() === 'PUT' ? route.abort('failed') : route.continue())
-  await nameInput(page).fill('Meu rascunho em conflito')
+  await (await nameInput(page)).fill('Meu rascunho em conflito')
   await expect(page.getByText('Falha ao salvar', { exact: true })).toBeVisible()
   const changed = await page.request.put(`/api/characters/${character.id}`, { headers, data: { version: character.version, characterName: 'Nome de outra sessão' } })
   expect(changed.status()).toBe(200)
   await reload(page)
   await expect(page.getByText('A ficha mudou no servidor.', { exact: false })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Recuperar rascunho', exact: true })).toHaveCount(0)
-  await expect(nameInput(page)).toHaveValue('Nome de outra sessão')
+  await expect(await nameInput(page)).toHaveValue('Nome de outra sessão')
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Baixar rascunho', exact: true }).click()
   expect((await download).suggestedFilename()).toMatch(/rascunho\.json$/)

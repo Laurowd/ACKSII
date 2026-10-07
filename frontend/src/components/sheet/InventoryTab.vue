@@ -72,11 +72,11 @@
           {{ slot.label }}
         </h4>
         <div v-for="item in getItemsBySlot(slot.key)" :key="item.id" 
-          class="grid grid-cols-[minmax(0,1fr)_3rem_4rem] sm:flex items-center gap-2 mb-2 bg-dark-bg/30 rounded-lg px-3 py-2">
-          <input v-model="item.name" @change="applyCompendiumItem(item)" :aria-label="`Nome do item ${item.name || 'novo'}`" class="inp-table min-w-0 flex-1" placeholder="Item" list="acks-item-compendium" />
-          <input v-model.number="item.quantity" @change="saveItem(item)" :aria-label="`Quantidade de ${item.name || 'item'}`" type="number" min="1" class="inp-table w-12 text-center" />
-          <input v-model.number="item.weight" @change="saveItem(item)" :aria-label="`Peso de ${item.name || 'item'} em stone`" type="number" min="0" step="any" class="inp-table w-16 text-center" placeholder="st" />
-          <select v-model="item.slot" @change="saveItem(item)" :aria-label="`Local de ${item.name || 'item'}`" class="inp-table col-span-2 min-w-0 sm:w-28 text-xs bg-dark-bg text-gold">
+          class="inventory-item-card grid grid-cols-2 sm:flex items-center gap-2 mb-2 bg-dark-bg/30 rounded-lg px-3 py-2">
+          <input v-model="item.name" @change="applyCompendiumItem(item)" :aria-label="`Nome do item ${item.name || 'novo'}`" class="inp-table min-w-0 flex-1 col-span-2" placeholder="Item" list="acks-item-compendium" />
+          <label class="text-xs text-steel-light sm:contents"><span class="sm:hidden">Quantidade</span><input v-model.number="item.quantity" @change="saveItem(item)" :aria-label="`Quantidade de ${item.name || 'item'}`" type="number" min="1" class="inp-table w-full sm:w-12 text-center" /></label>
+          <label class="text-xs text-steel-light sm:contents"><span class="sm:hidden">Peso / unidade (stone)</span><input v-model.number="item.weight" @change="saveItem(item)" :aria-label="`Peso de ${item.name || 'item'} em stone`" type="number" min="0" step="any" class="inp-table w-full sm:w-16 text-center" placeholder="st" /></label>
+          <select v-model="item.slot" @change="saveItem(item)" :aria-label="`Local de ${item.name || 'item'}`" class="inp-table min-w-0 sm:w-28 text-xs bg-dark-bg text-gold">
             <option v-for="s in SLOTS" :key="s.key" :value="s.key" class="bg-dark-bg text-gold">{{ s.label }}</option>
           </select>
           <button type="button" @click="removeItem(item.id)" :aria-label="`Remover ${item.name || 'item'}`" class="text-crimson-light hover:text-crimson text-xs ml-1 font-bold justify-self-end">X</button>

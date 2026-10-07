@@ -29,7 +29,7 @@
     <section class="space-y-3" aria-labelledby="character-spells-title">
       <div>
         <h3 id="character-spells-title" class="font-bold text-gold">Magias do personagem</h3>
-        <p class="text-sm text-steel-light mt-1">Consulte o efeito na interrogação de cada magia. Conjurar registra o gasto de um uso diário.</p>
+        <p class="text-sm text-steel-light mt-1">Consulte o efeito na interrogação ou toque no nome para ler a descrição completa. Conjurar registra o gasto de um uso diário.</p>
       </div>
       <div class="flex flex-wrap items-end gap-3">
         <label class="text-sm text-steel-light flex-1 min-w-40">Buscar magia<input v-model="spellSearch" type="search" class="inp mt-1" placeholder="Nome da magia" /></label>
@@ -45,13 +45,14 @@
           <ul class="space-y-2">
             <li v-for="spell in group.spells" :key="spell.id" class="flex flex-wrap gap-3 items-center justify-between rounded-lg bg-dark-card px-3 py-3">
               <div class="flex items-center gap-2 min-w-0 flex-1">
-                <button type="button" @click="toggleFavorite(spell)" :aria-label="`${isFavorite(spell) ? 'Remover dos favoritos' : 'Favoritar'} ${spell.name}`" :aria-pressed="isFavorite(spell)" class="text-gold text-lg shrink-0">{{ isFavorite(spell) ? '★' : '☆' }}</button>
+                <button type="button" @click="toggleFavorite(spell)" :aria-label="`${isFavorite(spell) ? 'Remover dos favoritos' : 'Favoritar'} ${spell.name}`" :aria-pressed="isFavorite(spell)" class="text-gold text-lg shrink-0 min-w-10 min-h-10">{{ isFavorite(spell) ? '★' : '☆' }}</button>
                 <HelpTooltip :label="spell.name || 'Magia sem nome'">{{ spellDescription(spell) }}</HelpTooltip>
-                <div class="min-w-0"><strong class="block break-words text-dark-text">{{ spell.name || 'Magia sem nome' }}</strong><span class="block text-xs text-steel-light">{{ traditionName(spellTradition(info, spell)) }}<span v-if="campaignEntry(spell)"> · Magia de campanha</span></span>
+                <div class="min-w-0"><button type="button" @click="selectedSpell = spell" :aria-label="`Ler descrição de ${spell.name || 'magia'}`" class="block text-left break-words text-dark-text font-semibold hover:text-gold underline decoration-steel-dark underline-offset-4">{{ spell.name || 'Magia sem nome' }}</button><span class="block text-xs text-steel-light mt-1">{{ traditionName(spellTradition(info, spell)) }}<span v-if="campaignEntry(spell)"> · Magia de campanha</span></span>
+                  <p v-if="spellReference(spell)?.range || spellReference(spell)?.duration" class="text-xs text-steel-light mt-1"><span v-if="spellReference(spell)?.range">Alcance: {{ spellReference(spell)?.range }}</span><span v-if="spellReference(spell)?.range && spellReference(spell)?.duration"> · </span><span v-if="spellReference(spell)?.duration">Duração: {{ spellReference(spell)?.duration }}</span></p>
                   <p v-if="!loading && info.supported && castingIssues.get(spell.id)" class="mt-1 text-xs text-gold-light">Conjuração automática indisponível. {{ castingIssues.get(spell.id) }}</p>
                 </div>
               </div>
-              <button v-if="info.supported && info.magic?.length" type="button" @click="cast(spell.id)" :disabled="busy || loading || !canCast(spell)" :aria-label="`Conjurar ${spell.name || 'magia'}`" class="px-3 py-2 rounded-lg text-sm font-bold bg-gold/15 text-gold hover:bg-gold/25 disabled:opacity-40 disabled:cursor-not-allowed">Conjurar</button>
+              <button v-if="info.supported && info.magic?.length" type="button" @click="cast(spell.id)" :disabled="busy || loading || !canCast(spell)" :aria-label="`Conjurar ${spell.name || 'magia'}`" class="ui-button ui-button-secondary">Conjurar</button>
             </li>
           </ul>
         </section>
@@ -89,6 +90,7 @@
       </div>
     </template>
     <p v-else-if="!loading" class="text-sm text-steel-light">{{ info.reason || 'Esta classe não possui usos de magia neste nível.' }}</p>
+    <SpellDetailsDialog v-if="selectedSpell" :name="selectedSpell.name || 'Magia sem nome'" :level="selectedSpell.level" :tradition="traditionName(spellTradition(info, selectedSpell))" :description="spellDescription(selectedSpell, false)" :range="spellReference(selectedSpell)?.range" :duration="spellReference(selectedSpell)?.duration" @close="selectedSpell = null" />
   </section>
 </template>
 
@@ -96,6 +98,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import HelpTooltip from '../HelpTooltip.vue'
 import SearchableChoice from '../SearchableChoice.vue'
+import SpellDetailsDialog from '../SpellDetailsDialog.vue'
 import api from '../../services/api'
 import { getResource } from '../../services/resources'
 import { errorMessage } from '../../utils/catalog'
@@ -107,13 +110,14 @@ import { useAuthStore } from '../../stores/auth'
 
 const props = defineProps<{ character: any; prepare: () => Promise<boolean>; refresh: () => Promise<void>;
   repertoireDraft: RepertoireDraft; compact?: boolean; canManage?: boolean;
-  spellDescriptions?: { name: string; level?: number; notes?: string }[]; descriptionsLoading?: boolean; descriptionsError?: string }>()
+  spellDescriptions?: { name: string; level?: number; notes?: string; range?: string; duration?: string }[]; descriptionsLoading?: boolean; descriptionsError?: string }>()
 const emit = defineEmits<{ 'retry-descriptions': []; 'choices-updated': [choices: { spells: any[]; pools: any[]; loading: boolean }] }>()
 const operations = useCharacterOperations()
 const canManage=computed(()=>props.canManage===true)
 const adjustmentReason=ref('')
 const editableSpell=(spell:any)=>canManage.value || !info.value.magic?.find((pool:any)=>pool.tradition===spell.tradition)?.studious
 const spellSearch = ref(''), favoritesOnly = ref(false), favorites = ref<string[]>([])
+const selectedSpell = ref<any>(null)
 const favoriteKey = () => `acks:spell-favorites:${useAuthStore().user?.id || ''}:${props.character.id}`
 const spellKey = (spell: any) => `${spell.tradition || ''}:${spell.level}:${String(spell.name).trim().toLowerCase()}`
 const isFavorite = (spell: any) => favorites.value.includes(spellKey(spell))
@@ -149,11 +153,16 @@ const spellGroups = computed(() => {
   }
   return [...groups].sort(([a], [b]) => a - b).map(([level, spells]) => ({ level, spells }))
 })
-function spellDescription(spell: any) {
+function spellReference(spell: any) {
   const campaign = campaignEntry(spell)
-  if (campaign) return [campaign.range && `Alcance: ${campaign.range}`, campaign.duration && `Duração: ${campaign.duration}`, campaign.description].filter(Boolean).join('\n\n')
+  if (campaign) return campaign
   const matches = (props.spellDescriptions || []).filter(entry => entry.name.trim().toLowerCase() === String(spell.name || '').trim().toLowerCase())
-  const entry = matches.find(entry => entry.level === Number(spell.level)) || matches[0]
+  return matches.find(entry => entry.level === Number(spell.level)) || matches[0]
+}
+function spellDescription(spell: any, includeMetadata = true) {
+  const campaign = campaignEntry(spell)
+  if (campaign) return includeMetadata ? [campaign.range && `Alcance: ${campaign.range}`, campaign.duration && `Duração: ${campaign.duration}`, campaign.description].filter(Boolean).join('\n\n') : campaign.description
+  const entry = spellReference(spell)
   if (entry?.notes?.trim()) return entry.notes
   if (props.descriptionsLoading) return 'A descrição está sendo carregada.'
   if (props.descriptionsError) return 'A consulta às descrições está indisponível. Use Tentar carregar descrições novamente.'

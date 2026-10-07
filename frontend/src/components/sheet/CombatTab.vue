@@ -1,12 +1,22 @@
 <template>
   <div class="space-y-4">
     <!-- ====== HEADER / BIO ====== -->
-    <div class="bg-dark-card border border-gold/20 rounded-xl p-5 mb-4">
-      <h2 class="text-xl font-bold text-gold mb-4 border-b border-gold/10 pb-2">Identidade do personagem</h2>
+    <EditableSection title="Identidade do personagem">
+      <dl class="ui-summary-grid sm:grid-cols-3">
+        <div><dt>Nome</dt><dd>{{ character.characterName || 'Sem nome' }}</dd></div>
+        <div><dt>Campanha</dt><dd>{{ campaigns.find(c => c.id === character.campaignId)?.name || 'Sem campanha' }}</dd></div>
+        <div><dt>Classe</dt><dd>{{ character.className || 'Classe livre' }}</dd></div>
+        <div><dt>Local de origem</dt><dd>{{ character.birthplace || 'A definir' }}</dd></div>
+        <div><dt>Alinhamento</dt><dd>{{ alignmentLabels[character.alignment] || character.alignment || 'A definir' }}</dd></div>
+        <div><dt>Título</dt><dd>{{ character.title || 'A definir' }}</dd></div>
+        <div v-if="usesStructuredTradition"><dt><label for="sheet-read-tradition">{{ character.className === 'Warlock' ? 'Dark Path do Warlock' : 'Tradição da Witch' }}</label></dt><dd><output id="sheet-read-tradition">{{ selectionsFor(character,selectedCustomClass?.rules).tradition || selectionsFor(character,selectedCustomClass?.rules)['dark-path'] || 'Escolha pendente' }}</output></dd></div>
+        <div v-else-if="character.subclass"><dt>Especialização</dt><dd>{{ character.subclass }}</dd></div>
+      </dl>
+      <template #editor>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="col-span-2">
-          <label class="lbl">Campanha Atual</label>
-          <select v-model="character.campaignId" @change="emit('campaign-change')" class="inp">
+          <label for="sheet-campaign" class="lbl">Campanha atual</label>
+          <select id="sheet-campaign" v-model="character.campaignId" @change="emit('campaign-change')" class="inp">
             <option :value="null">Sem Campanha</option>
             <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
@@ -20,8 +30,8 @@
           </select>
         </div>
         <div class="col-span-2 md:col-span-4 lg:col-span-2">
-          <label class="lbl">Character Name</label>
-          <input v-model="character.characterName" @input="emit('save')" @change="emit('save')" class="inp text-lg font-bold text-gold" />
+          <label for="sheet-character-name" class="lbl">Nome do personagem</label>
+          <input id="sheet-character-name" v-model="character.characterName" @input="emit('save')" @change="emit('save')" class="inp text-lg font-bold" />
         </div>
         <div>
           <label class="lbl">Local de origem</label>
@@ -87,7 +97,8 @@
           <input v-model="character.hitDice" @input="emit('save')" @change="emit('save')" class="inp" placeholder="1d8" />
         </div>
       </div>
-    </div>
+      </template>
+    </EditableSection>
 
     <!-- ====== LEVEL / XP / HP ROW ====== -->
     <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
@@ -106,19 +117,22 @@
         <div class="inp text-center bg-dark-bg/50 text-gold cursor-default">{{ (displayXpNext || 0).toLocaleString() }}</div>
       </div>
       <div class="stat-box">
-        <label class="lbl">HP Máx</label>
-        <input v-model.number="character.hpMax" @input="emit('save')" @change="emit('save')" type="number" class="inp text-center text-xl font-bold text-green-400" />
+        <label for="sheet-hp-max" class="lbl">PV máximos</label>
+        <input id="sheet-hp-max" v-model.number="character.hpMax" @input="emit('save')" @change="emit('save')" type="number" class="inp text-center text-xl font-bold text-green-400" />
       </div>
       <div class="stat-box">
-        <label class="lbl">HP Atual</label>
-        <input v-model.number="character.hpCurr" @input="emit('save')" @change="emit('save')" type="number" class="inp text-center text-xl font-bold"
+        <label for="sheet-hp-current" class="lbl">PV atuais</label>
+        <input id="sheet-hp-current" v-model.number="character.hpCurr" @input="emit('save')" @change="emit('save')" type="number" class="inp text-center text-xl font-bold"
           :class="hpPercent > 50 ? 'text-green-400' : hpPercent > 25 ? 'text-yellow-400' : 'text-red-400'" />
       </div>
     </div>
 
     <!-- ====== ATTRIBUTES ====== -->
-    <div class="bg-dark-card border border-gold/20 rounded-xl p-5 mb-4">
-      <h2 class="text-xl font-bold text-gold mb-4 border-b border-gold/10 pb-2">Atributos</h2>
+    <EditableSection title="Atributos">
+      <dl class="grid grid-cols-3 sm:grid-cols-6 gap-3">
+        <div v-for="attr in ATTRS" :key="attr.key" class="rounded-lg bg-dark-bg/50 p-3 text-center"><dt class="text-xs text-steel-light">{{ attr.label }}</dt><dd class="text-2xl font-bold mt-1">{{ character[attr.key] }}</dd><dd class="text-sm text-gold mt-1">{{ formatMod(getModifier(character[attr.key])) }}</dd></div>
+      </dl>
+      <template #editor>
       <div class="grid grid-cols-3 md:grid-cols-6 gap-4">
         <div v-for="attr in ATTRS" :key="attr.key" class="text-center">
           <label class="text-xs font-bold uppercase tracking-wider" :class="attr.color">{{ attr.label }}</label>
@@ -131,7 +145,8 @@
           <div class="text-[10px] text-steel mt-0.5">{{ attr.affects }}</div>
         </div>
       </div>
-    </div>
+      </template>
+    </EditableSection>
 
     <!-- ====== FERIMENTOS E CICATRIZES ====== -->
     <div v-if="character.hpCurr === 0 || character.scars?.length" class="bg-red-950/20 border border-red-500/30 rounded-xl p-5 mb-4 animate-glow">
@@ -156,8 +171,10 @@
 
     <!-- ====== COMBAT ROW ====== -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-      <div class="bg-dark-card border border-gold/20 rounded-xl p-5">
-        <h3 class="text-lg font-bold text-gold mb-3">Classe de armadura</h3>
+      <EditableSection title="Classe de armadura">
+        <dl class="ui-summary-grid"><div class="col-span-2"><dt>Armadura equipada</dt><dd>{{ character.armorName || 'Sem armadura' }}</dd></div><div><dt>Equipada sem escudo</dt><dd class="text-2xl font-bold text-gold">{{ computedAC.noShield }}</dd></div><div><dt>Equipada com escudo</dt><dd class="text-2xl font-bold text-gold">{{ computedAC.withShield }}</dd></div><div><dt>Sem armadura (DES)</dt><dd>{{ computedAC.noArmor }}</dd></div><div><dt>Peso (stone)</dt><dd>{{ character.armorWeight || 0 }}</dd></div></dl>
+        <p v-if="!combatMetrics.shieldAllowed" class="text-xs text-steel-light mt-3">Sem benefício de escudo: a classe não possui o estilo Weapon and Shield.</p>
+        <template #editor>
         <div class="grid grid-cols-2 gap-2 mb-4 border-b border-steel-dark pb-4">
           <div class="col-span-2">
             <label class="lbl">Armadura equipada</label>
@@ -189,10 +206,12 @@
           </div>
           <p v-if="!combatMetrics.shieldAllowed" class="text-xs text-steel-light">Sem benefício de escudo: a classe não possui o estilo Weapon and Shield.</p>
         </div>
-      </div>
+        </template>
+      </EditableSection>
 
-      <div class="bg-dark-card border border-gold/20 rounded-xl p-5">
-        <h3 class="text-lg font-bold text-gold mb-3">Salvamentos</h3>
+      <EditableSection title="Salvamentos">
+        <dl class="ui-summary-grid"><div v-for="save in SAVES" :key="save.key"><dt>{{ save.label }}</dt><dd class="text-xl font-bold">{{ character[save.key] }}+</dd></div></dl>
+        <template #editor>
         <div class="grid grid-cols-1 gap-2">
           <div v-for="save in SAVES" :key="save.key" class="flex items-center justify-between bg-dark-bg/35 border border-steel-dark/50 rounded-lg px-3 py-2 hover:bg-dark-bg/50 transition-colors">
             <label class="text-xs uppercase tracking-wider text-steel-light shrink-0 font-semibold">{{ save.label }}</label>
@@ -200,7 +219,8 @@
               class="w-16 py-1 px-2 text-center text-sm font-bold bg-dark-bg border border-steel-dark rounded-lg text-gold focus:outline-none focus:border-gold transition-all shrink-0" />
           </div>
         </div>
-      </div>
+        </template>
+      </EditableSection>
 
       <div class="bg-dark-card border border-gold/20 rounded-xl p-5">
         <h3 class="text-lg font-bold text-gold mb-3">Iniciativa e surpresa</h3>
@@ -339,23 +359,23 @@
       </div>
       <p class="mb-3 text-xs text-steel-light">O alvo é Base + CA − bônus. Escolha o estilo para usar FOR no corpo a corpo ou DES à distância, inclusive ao arremessar uma arma. “Outros” guarda bônus de arma, estilo e efeitos.</p>
       <div v-if="character.weapons?.length" class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-steel-light border-b border-steel-dark text-xs uppercase tracking-wider">
-              <th class="text-left py-2.5 px-2">Arma e estilo de combate</th>
-              <th class="text-center py-2.5 px-1">Init</th>
-              <th class="text-center py-2.5 px-1">Base</th>
-              <th class="text-center py-2.5 px-1">Atributo</th>
-              <th class="text-center py-2.5 px-1">Outros</th>
-              <th class="text-center py-2.5 px-1">Dano</th>
-              <th class="text-center py-2.5 px-1">Alcance</th>
-              <th class="text-center py-2.5 px-1">Carga</th>
-              <th class="text-center py-2 px-1"></th>
+        <table role="table" aria-label="Armas e ataques" class="w-full text-sm mobile-card-table">
+          <thead role="rowgroup">
+            <tr role="row" class="text-steel-light border-b border-steel-dark text-xs uppercase tracking-wider">
+              <th scope="col" class="text-left py-2.5 px-2">Arma e estilo de combate</th>
+              <th scope="col" class="text-center py-2.5 px-1">Init</th>
+              <th scope="col" class="text-center py-2.5 px-1">Base</th>
+              <th scope="col" class="text-center py-2.5 px-1">Atributo</th>
+              <th scope="col" class="text-center py-2.5 px-1">Outros</th>
+              <th scope="col" class="text-center py-2.5 px-1">Dano</th>
+              <th scope="col" class="text-center py-2.5 px-1">Alcance</th>
+              <th scope="col" class="text-center py-2.5 px-1">Carga</th>
+              <th scope="col" class="text-center py-2 px-1"></th>
             </tr>
           </thead>
-          <tbody>
-            <tr v-for="w in character.weapons" :key="w.id" class="border-b border-steel-dark/30 align-top hover:bg-dark-bg/20 transition-colors">
-              <td class="py-2 px-2">
+          <tbody role="rowgroup">
+            <tr role="row" v-for="w in character.weapons" :key="w.id" class="border-b border-steel-dark/30 align-top hover:bg-dark-bg/20 transition-colors">
+              <td role="cell" class="py-2 px-2"><span class="mobile-cell-label" aria-hidden="true">Arma e estilo</span>
                 <input v-model="w.name" @blur="saveWeapon(w)" :aria-label="`Nome da arma ${w.name || 'nova'}`" class="inp-table w-full" placeholder="Arma" list="acks-weapon-compendium" />
                 <button type="button" @click="applyCompendiumWeapon(w)" class="text-xs text-gold underline">Usar valores do catálogo</button>
                 <select v-model="w.style" @change="saveWeapon(w)" :aria-label="`Estilo de ${w.name || 'arma'}`" class="inp-table w-full text-xs mt-0.5">
@@ -363,24 +383,24 @@
                   <option v-if="w.style && !['Single Weapon','Dual Weapon','Two-Handed Weapon','Weapon and Shield','Missile Weapon'].includes(w.style)" :value="w.style">{{ w.style }}</option>
                 </select>
               </td>
-              <td class="py-2 px-1 text-center">
-                <input v-model.number="w.initBonus" @blur="saveWeapon(w)" type="number" class="w-14 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-dark-text text-center focus:outline-none focus:border-gold" />
+              <td role="cell" class="py-2 px-1 text-center"><span class="mobile-cell-label" aria-hidden="true">Iniciativa</span>
+                <input v-model.number="w.initBonus" @blur="saveWeapon(w)" :aria-label="`Iniciativa de ${w.name || 'arma'}`" type="number" class="w-14 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-dark-text text-center focus:outline-none focus:border-gold" />
               </td>
-              <td class="py-2 px-1 text-center">
-                <input v-model.number="w.attackThrow" @blur="saveWeapon(w)" type="number" class="w-14 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-center font-bold text-gold focus:outline-none focus:border-gold" />
+              <td role="cell" class="py-2 px-1 text-center"><span class="mobile-cell-label" aria-hidden="true">Alvo base</span>
+                <input v-model.number="w.attackThrow" @blur="saveWeapon(w)" :aria-label="`Alvo base de ${w.name || 'arma'}`" type="number" class="w-14 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-center font-bold text-gold focus:outline-none focus:border-gold" />
               </td>
-              <td class="py-2 px-1 text-center text-xs font-semibold text-steel-light whitespace-nowrap">
+              <td role="cell" class="py-2 px-1 text-center text-xs font-semibold text-steel-light whitespace-nowrap"><span class="mobile-cell-label" aria-hidden="true">Atributo</span>
                 {{ weaponAbilityLabel(w) }}
                 <select v-if="effects.finesseFor(w)" v-model="w.attackAbility" @change="saveWeapon(w)" :aria-label="`Atributo de ataque de ${w.name}`" class="inp mt-1 text-xs"><option value="auto">Melhor atributo</option><option value="str">STR</option><option value="dex">DEX · Weapon Finesse</option></select>
               </td>
-              <td class="py-2 px-1 text-center">
-                <input v-model.number="w.attackBonus" @blur="saveWeapon(w)" type="number" class="w-14 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-center font-bold text-gold focus:outline-none focus:border-gold" title="Outros bônus de ataque; não inclua FOR ou DES" />
+              <td role="cell" class="py-2 px-1 text-center"><span class="mobile-cell-label" aria-hidden="true">Outros bônus</span>
+                <input v-model.number="w.attackBonus" @blur="saveWeapon(w)" :aria-label="`Outros bônus de ataque de ${w.name || 'arma'}`" type="number" class="w-14 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-center font-bold text-gold focus:outline-none focus:border-gold" title="Outros bônus de ataque; não inclua FOR ou DES" />
               </td>
-              <td class="py-2 px-1 text-center">
-                <input v-model="w.damage" @input="w.automaticDamage = false" @blur="saveWeapon(w)" class="w-16 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-dark-text text-center focus:outline-none focus:border-gold" />
+              <td role="cell" class="py-2 px-1 text-center"><span class="mobile-cell-label" aria-hidden="true">Dano</span>
+                <input v-model="w.damage" @input="w.automaticDamage = false" @blur="saveWeapon(w)" :aria-label="`Dano de ${w.name || 'arma'}`" class="w-16 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-dark-text text-center focus:outline-none focus:border-gold" />
                 <p class="text-xs text-steel-light">{{ w.automaticDamage ? 'Base por estilo' : 'Manual' }} · classe {{ formatMod(effects.weaponDamageBonusFor(w)) }}</p>
               </td>
-              <td class="py-2 px-1">
+              <td role="cell" class="py-2 px-1"><span class="mobile-cell-label" aria-hidden="true">Alcance (pés)</span>
                 <div class="flex gap-1.5 justify-center">
                   <div class="flex flex-col items-center gap-0.5">
                     <span class="text-[10px] text-steel">S</span>
@@ -396,10 +416,10 @@
                   </div>
                 </div>
               </td>
-              <td class="py-2 px-1 text-center">
+              <td role="cell" class="py-2 px-1 text-center"><span class="mobile-cell-label" aria-hidden="true">Carga (stone)</span>
                 <input v-model.number="w.encumbrance" @blur="saveWeapon(w)" type="number" step="any" class="w-14 px-2 py-1 bg-dark-bg border border-steel-dark rounded text-dark-text text-center focus:outline-none focus:border-gold" />
               </td>
-              <td class="py-2 px-1 text-center">
+              <td role="cell" class="py-2 px-1 text-center"><span class="mobile-cell-label" aria-hidden="true">Ações</span>
                 <button type="button" @click="removeWeapon(w.id)" :aria-label="`Remover arma ${w.name || 'sem nome'}`" class="text-crimson-light hover:text-crimson text-xs font-bold px-1.5 py-0.5 rounded border border-transparent hover:border-crimson/40">X</button>
               </td>
             </tr>
@@ -482,6 +502,7 @@ defineOptions({ name: 'CombatTab' })
 import api from '../../services/api'
 import { useCharacterRelations } from '../../composables/characterRelations'
 import HelpTooltip from '../HelpTooltip.vue'
+import EditableSection from '../EditableSection.vue'
 import SearchableChoice from '../SearchableChoice.vue'
 import { getResource } from '../../services/resources'
 import { creationSettings } from '../../utils/creation'
@@ -494,6 +515,7 @@ import { notifyError } from '../../utils/toast'
 import { errorMessage, selectedClass, proficiencyOptions } from '../../utils/catalog'
 import { computed, onMounted, ref } from 'vue'
 import { classDefinitionFeats } from '../../utils/classDefinitionFeats'
+const alignmentLabels: Record<string, string> = { Lawful: 'Ordeiro', Neutral: 'Neutro', Chaotic: 'Caótico' }
 const props = defineProps<{
   character: any,
   campaigns: any[],

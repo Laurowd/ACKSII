@@ -1,4 +1,4 @@
-import { setTestLevel } from './helpers/ruleFixtures'
+import { setTestLevel, openSheetExport } from './helpers/ruleFixtures'
 import { test, expect, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 
@@ -48,7 +48,7 @@ test('session, combat and printing agree on the Fighter damage bonus', async ({ 
   const row = page.locator('tr').filter({ has: page.getByLabel('Nome da arma Sword', { exact: true }) }); await expect(row).toContainText('classe +3')
   await page.getByRole('button', { name: 'Sessão', exact: true }).click()
   const summary = page.locator('#sheet-session article').filter({ hasText: 'Sword' }); await expect(summary).toContainText('Dano 1d6'); await expect(summary).toContainText('classe +3')
-  const download = page.waitForEvent('download'); await page.getByRole('button', { name: 'Ficha para impressão/PDF', exact: true }).click()
+  const download = page.waitForEvent('download'); await openSheetExport(page); await page.getByRole('button', { name: 'Ficha para impressão/PDF', exact: true }).click()
   expect(await readFile((await (await download).path())!, 'utf8')).toContain('bônus de dano da classe: 3')
 })
 test('Paladin Sense Evil tooltip states the revised range and usage', async ({ page }) => {
